@@ -1,6 +1,3 @@
-// types/database.ts
-// Matches the Supabase schema exactly
-
 export type UserRole = 'customer' | 'provider' | 'driver' | 'admin'
 export type Language = 'en' | 'tr'
 export type BookingStatus = 'pending' | 'confirmed' | 'driver_assigned' | 'in_progress' | 'completed' | 'cancelled'
@@ -98,12 +95,21 @@ export interface Booking {
   flight_number: string | null
   completed_at: string | null
   created_at: string
-  // Joined fields
   pickup?: Location
   dropoff?: Location
   vehicle?: Vehicle
   driver?: Driver
   provider?: Provider
+}
+
+export interface Payment {
+  id: string
+  booking_id: string
+  stripe_payment_id: string | null
+  amount: number
+  currency: string
+  status: string
+  paid_at: string | null
 }
 
 export interface Review {
@@ -119,19 +125,56 @@ export interface Review {
   created_at: string
 }
 
-// Supabase Database type for the client
+export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
+
 export type Database = {
   public: {
     Tables: {
-      users:         { Row: User }
-      providers:     { Row: Provider }
-      vehicles:      { Row: Vehicle }
-      drivers:       { Row: Driver }
-      locations:     { Row: Location }
-      bookings:      { Row: Booking }
-      reviews:       { Row: Review }
-      notifications: { Row: any }
-      payments:      { Row: any }
+      users: {
+        Row: User
+        Insert: Partial<User> & { id: string; email: string }
+        Update: Partial<User>
+      }
+      providers: {
+        Row: Provider
+        Insert: Partial<Provider> & { user_id: string; company_name: string }
+        Update: Partial<Provider>
+      }
+      vehicles: {
+        Row: Vehicle
+        Insert: Partial<Vehicle> & { provider_id: string; type: VehicleType; make: string; model: string; seats: number; luggage_capacity: number }
+        Update: Partial<Vehicle>
+      }
+      drivers: {
+        Row: Driver
+        Insert: Partial<Driver> & { provider_id: string; full_name: string; phone: string }
+        Update: Partial<Driver>
+      }
+      locations: {
+        Row: Location
+        Insert: Partial<Location> & { name: string; type: string }
+        Update: Partial<Location>
+      }
+      bookings: {
+        Row: Booking
+        Insert: Partial<Booking> & { customer_id: string; pickup_location_id: string; dropoff_location_id: string; direction: TripDirection; pickup_time: string; price: number; final_price: number }
+        Update: Partial<Booking>
+      }
+      payments: {
+        Row: Payment
+        Insert: Partial<Payment> & { booking_id: string; amount: number; currency: string }
+        Update: Partial<Payment>
+      }
+      reviews: {
+        Row: Review
+        Insert: Partial<Review> & { booking_id: string; customer_id: string; provider_id: string; rating: number }
+        Update: Partial<Review>
+      }
+      notifications: {
+        Row: any
+        Insert: any
+        Update: any
+      }
     }
   }
 }
