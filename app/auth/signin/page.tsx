@@ -1,13 +1,13 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
-export default function SignInPage() {
+function SignInContent() {
   const router     = useRouter()
   const params     = useSearchParams()
-  const supabase   = createClient()
+  const supabase   = createClient() as any
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
@@ -30,17 +30,14 @@ export default function SignInPage() {
   return (
     <div className="min-h-screen bg-ink text-paper flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-
         <Link href="/" className="text-xs tracking-widest text-muted block text-center mb-10">
           TRANSFER MARMARIS
         </Link>
-
         <h1 className="text-2xl font-medium mb-1 text-center">Sign in</h1>
         <p className="text-sm text-muted text-center mb-8">
           New here?{' '}
           <Link href="/auth/signup" className="text-paper underline">Create an account</Link>
         </p>
-
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-muted">Email</label>
@@ -64,11 +61,7 @@ export default function SignInPage() {
               onKeyDown={e => e.key === 'Enter' && handleSignIn()}
             />
           </div>
-
-          {error && (
-            <p className="text-xs text-red-400 text-center">{error}</p>
-          )}
-
+          {error && <p className="text-xs text-red-400 text-center">{error}</p>}
           <button
             onClick={handleSignIn}
             disabled={loading || !email || !password}
@@ -79,13 +72,14 @@ export default function SignInPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </div>
-
         <p className="text-xs text-muted text-center mt-6">
-          <Link href="/auth/reset" className="underline hover:text-paper">
-            Forgot password?
-          </Link>
+          <Link href="/auth/reset" className="underline hover:text-paper">Forgot password?</Link>
         </p>
       </div>
     </div>
   )
+}
+
+export default function SignInPage() {
+  return <Suspense fallback={<div className="min-h-screen bg-ink"/>}><SignInContent /></Suspense>
 }
