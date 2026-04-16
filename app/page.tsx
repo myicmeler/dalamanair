@@ -32,7 +32,7 @@ const labels = {
 
 export default function HomePage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = createClient() as any
   const [lang, setLang] = useState<'en'|'tr'>('en')
   const [tripType, setTripType] = useState<'oneway'|'return'>('return')
   const [locations, setLocations] = useState<Location[]>([])
