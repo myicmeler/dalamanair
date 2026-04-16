@@ -23,7 +23,7 @@ function SignInContent() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push(redirect)
+      router.push(decodeURIComponent(redirect))
     }
   }
 
