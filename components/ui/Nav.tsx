@@ -98,3 +98,9 @@ export default function Nav({ lang, onLangChange }: {
               className="text-sm border border-white/20 text-paper px-4 py-2 rounded hover:bg-white/5 transition-colors">
               {t.signup}
             </Link>
+          </>
+        )}
+      </div>
+    </nav>
+  )
+}
