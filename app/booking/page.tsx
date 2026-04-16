@@ -47,7 +47,8 @@ function BookingContent() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push(`/auth/signin?redirect=/booking?${params.toString()}`)
+       const bookingParams = params.toString()
+router.push(`/auth/signin?redirect=${encodeURIComponent(`/booking?${bookingParams}`)}`)
         return
       }
       const { data: booking, error } = await supabase
