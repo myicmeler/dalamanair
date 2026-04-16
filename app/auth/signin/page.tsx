@@ -7,7 +7,9 @@ import { createClient } from '@/lib/supabase'
 function SignInContent() {
   const router     = useRouter()
   const params     = useSearchParams()
+  
   const supabase   = createClient() as any
+console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
