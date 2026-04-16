@@ -3,16 +3,15 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
-import type { Vehicle, Location } from '@/types/database'
 
 export default function BookingPage() {
   const params    = useSearchParams()
   const router    = useRouter()
-  const supabase  = createClient()
+  const supabase  = createClient() as any
   const [lang]    = useState<'en'|'tr'>('en')
-  const [vehicle, setVehicle]   = useState<Vehicle | null>(null)
-  const [pickup, setPickup]     = useState<Location | null>(null)
-  const [dropoff, setDropoff]   = useState<Location | null>(null)
+  const [vehicle, setVehicle]   = useState<any>(null)
+  const [pickup, setPickup]     = useState<any>(null)
+  const [dropoff, setDropoff]   = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
@@ -45,18 +44,12 @@ export default function BookingPage() {
   async function handlePay() {
     if (!form.firstName || !form.email || !form.phone) return
     setSubmitting(true)
-
     try {
-      // Get the current user (or create a guest session)
       const { data: { user } } = await supabase.auth.getUser()
-
       if (!user) {
-        // Redirect to sign in, preserving booking params
         router.push(`/auth/signin?redirect=/booking?${params.toString()}`)
         return
       }
-
-      // Create the outbound booking
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
@@ -80,7 +73,6 @@ export default function BookingPage() {
 
       if (error || !booking) throw error
 
-      // If return trip, create return leg with same group_id
       if (tripType === 'return') {
         await supabase.from('bookings').insert({
           customer_id:         user.id,
@@ -99,7 +91,6 @@ export default function BookingPage() {
         })
       }
 
-      // Create payment record
       await supabase.from('payments').insert({
         booking_id: booking.id,
         amount:     total,
@@ -107,10 +98,7 @@ export default function BookingPage() {
         status:     'pending',
       })
 
-      // In production: redirect to Stripe Checkout
-      // For now: go to confirmation page
       router.push(`/confirmation?bookingId=${booking.id}&ref=TMR-${new Date().getFullYear()}-${booking.id.slice(0,5).toUpperCase()}`)
-
     } catch (err) {
       console.error('Booking error:', err)
       setSubmitting(false)
@@ -125,20 +113,12 @@ export default function BookingPage() {
   return (
     <div className="min-h-screen bg-ink text-paper">
       <Nav lang={lang} />
-
       <div className="px-10 py-8 max-w-5xl">
         <h1 className="text-2xl font-medium mb-6">Review & pay</h1>
-
         <div className="grid grid-cols-[1fr_360px] gap-6">
-
-          {/* Left: trip summary + passenger details */}
           <div className="flex flex-col gap-4">
-
-            {/* Outbound summary */}
             <div className="bg-white/[0.03] border border-border rounded-lg p-5">
-              <p className="text-xs tracking-widest text-muted uppercase mb-4">
-                Outbound · {params.get('date')}
-              </p>
+              <p className="text-xs tracking-widest text-muted uppercase mb-4">Outbound · {params.get('date')}</p>
               {[
                 ['Route',      `${pickup?.name ?? '...'} → ${dropoff?.name ?? '...'}`],
                 ['Pick-up',    `${params.get('time')}`],
@@ -151,17 +131,11 @@ export default function BookingPage() {
                 </div>
               ))}
             </div>
-
-            {/* Return summary */}
             {tripType === 'return' && (
               <div className="bg-white/[0.03] border border-border rounded-lg p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <p className="text-xs tracking-widest text-muted uppercase">
-                    Return · {params.get('returnDate')}
-                  </p>
-                  <span className="text-xs bg-teal/15 text-teal px-2 py-0.5 rounded">
-                    10% T/R discount applied
-                  </span>
+                  <p className="text-xs tracking-widest text-muted uppercase">Return · {params.get('returnDate')}</p>
+                  <span className="text-xs bg-teal/15 text-teal px-2 py-0.5 rounded">10% T/R discount</span>
                 </div>
                 {[
                   ['Route',   `${dropoff?.name ?? '...'} → ${pickup?.name ?? '...'}`],
@@ -175,48 +149,30 @@ export default function BookingPage() {
                 ))}
               </div>
             )}
-
-            {/* Passenger details */}
             <div className="bg-white/[0.03] border border-border rounded-lg p-5">
               <p className="text-xs tracking-widest text-muted uppercase mb-4">Your details</p>
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted">First name *</label>
-                  <input {...f('firstName')} className="px-3 py-2.5 text-sm" placeholder="Tom" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted">Last name *</label>
-                  <input {...f('lastName')} className="px-3 py-2.5 text-sm" placeholder="Smith" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted">Email *</label>
-                  <input {...f('email')} type="email" className="px-3 py-2.5 text-sm" placeholder="you@email.com" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted">Phone *</label>
-                  <input {...f('phone')} type="tel" className="px-3 py-2.5 text-sm" placeholder="+44 7700..." />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted">Flight number (optional)</label>
-                  <input {...f('flightNumber')} className="px-3 py-2.5 text-sm" placeholder="TK 1234" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-muted">Notes (optional)</label>
-                  <input {...f('notes')} className="px-3 py-2.5 text-sm" placeholder="Child seat needed, etc." />
-                </div>
+                {[
+                  { label: 'First name *', key: 'firstName' as const, placeholder: 'Tom' },
+                  { label: 'Last name *',  key: 'lastName'  as const, placeholder: 'Smith' },
+                  { label: 'Email *',      key: 'email'     as const, placeholder: 'you@email.com' },
+                  { label: 'Phone *',      key: 'phone'     as const, placeholder: '+44 7700...' },
+                  { label: 'Flight number (optional)', key: 'flightNumber' as const, placeholder: 'TK 1234' },
+                  { label: 'Notes (optional)',          key: 'notes'       as const, placeholder: 'Child seat needed...' },
+                ].map(field => (
+                  <div key={field.key} className="flex flex-col gap-1.5">
+                    <label className="text-xs text-muted">{field.label}</label>
+                    <input {...f(field.key)} className="px-3 py-2.5 text-sm" placeholder={field.placeholder} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-
-          {/* Right: price box */}
           <div className="bg-white/[0.03] border border-border rounded-lg p-5 h-fit">
             <p className="text-xs tracking-widest text-muted uppercase mb-4">Price summary</p>
-
             <div className="flex flex-col gap-2.5 mb-4">
               <div className="flex justify-between text-sm">
-                <span className="text-muted">
-                  Outbound · {vehicle ? `${vehicle.make} ${vehicle.model}` : '...'}
-                </span>
+                <span className="text-muted">Outbound · {vehicle ? `${vehicle.make} ${vehicle.model}` : '...'}</span>
                 <span>€ {price.toFixed(2)}</span>
               </div>
               {tripType === 'return' && (<>
@@ -230,39 +186,28 @@ export default function BookingPage() {
                 </div>
               </>)}
             </div>
-
             <div className="flex justify-between text-lg font-medium pt-4 border-t border-border mb-5">
               <span>Total</span>
               <span>€ {total.toFixed(2)}</span>
             </div>
-
-            {/* Payment placeholder */}
             <div className="flex flex-col gap-2.5 mb-4">
               <p className="text-xs tracking-widest text-muted uppercase">Payment</p>
-              <div className="px-4 py-3 border border-border rounded-md text-sm text-muted">
-                Card number · · · · · · · ·
-              </div>
+              <div className="px-4 py-3 border border-border rounded-md text-sm text-muted">Card number · · · · · · · ·</div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="px-4 py-3 border border-border rounded-md text-sm text-muted">MM / YY</div>
                 <div className="px-4 py-3 border border-border rounded-md text-sm text-muted">CVC</div>
               </div>
             </div>
-
             <button
               onClick={handlePay}
               disabled={submitting || !form.firstName || !form.email || !form.phone}
-              className="w-full bg-paper text-ink py-3.5 rounded-lg text-sm font-medium
-                         hover:bg-paper/90 transition-colors
-                         disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-full bg-paper text-ink py-3.5 rounded-lg text-sm font-medium hover:bg-paper/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {submitting ? 'Processing...' : `Pay € ${total.toFixed(2)} securely`}
             </button>
-            <p className="text-center text-xs text-muted mt-2.5">
-              Secured by Stripe · SSL encrypted
-            </p>
+            <p className="text-center text-xs text-muted mt-2.5">Secured by Stripe · SSL encrypted</p>
           </div>
         </div>
-
         <button onClick={() => router.back()} className="mt-6 text-sm text-muted hover:text-paper transition-colors">
           ← Back to vehicles
         </button>
