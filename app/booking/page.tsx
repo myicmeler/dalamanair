@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
-export default function BookingPage() {
+function BookingContent() {
   const params    = useSearchParams()
   const router    = useRouter()
   const supabase  = createClient() as any
@@ -18,14 +18,14 @@ export default function BookingPage() {
     flightNumber: '', notes: ''
   })
 
-  const vehicleId  = params.get('vehicleId') ?? ''
-  const pickupId   = params.get('pickup') ?? ''
-  const dropoffId  = params.get('dropoff') ?? ''
-  const tripType   = params.get('tripType') ?? 'oneway'
-  const price      = parseFloat(params.get('price') ?? '0')
+  const vehicleId   = params.get('vehicleId') ?? ''
+  const pickupId    = params.get('pickup') ?? ''
+  const dropoffId   = params.get('dropoff') ?? ''
+  const tripType    = params.get('tripType') ?? 'oneway'
+  const price       = parseFloat(params.get('price') ?? '0')
   const returnPrice = Math.round(price * 0.9)
-  const discount   = tripType === 'return' ? Math.round((price * 0.1)) : 0
-  const total      = tripType === 'return' ? price + returnPrice : price
+  const discount    = tripType === 'return' ? Math.round(price * 0.1) : 0
+  const total       = tripType === 'return' ? price + returnPrice : price
 
   useEffect(() => {
     async function load() {
@@ -131,6 +131,7 @@ export default function BookingPage() {
                 </div>
               ))}
             </div>
+
             {tripType === 'return' && (
               <div className="bg-white/[0.03] border border-border rounded-lg p-5">
                 <div className="flex items-center gap-3 mb-4">
@@ -149,16 +150,17 @@ export default function BookingPage() {
                 ))}
               </div>
             )}
+
             <div className="bg-white/[0.03] border border-border rounded-lg p-5">
               <p className="text-xs tracking-widest text-muted uppercase mb-4">Your details</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'First name *', key: 'firstName' as const, placeholder: 'Tom' },
-                  { label: 'Last name *',  key: 'lastName'  as const, placeholder: 'Smith' },
-                  { label: 'Email *',      key: 'email'     as const, placeholder: 'you@email.com' },
-                  { label: 'Phone *',      key: 'phone'     as const, placeholder: '+44 7700...' },
-                  { label: 'Flight number (optional)', key: 'flightNumber' as const, placeholder: 'TK 1234' },
-                  { label: 'Notes (optional)',          key: 'notes'       as const, placeholder: 'Child seat needed...' },
+                  { label: 'First name *',              key: 'firstName'   as const, placeholder: 'Tom' },
+                  { label: 'Last name *',               key: 'lastName'    as const, placeholder: 'Smith' },
+                  { label: 'Email *',                   key: 'email'       as const, placeholder: 'you@email.com' },
+                  { label: 'Phone *',                   key: 'phone'       as const, placeholder: '+44 7700...' },
+                  { label: 'Flight number (optional)',   key: 'flightNumber'as const, placeholder: 'TK 1234' },
+                  { label: 'Notes (optional)',           key: 'notes'       as const, placeholder: 'Child seat needed...' },
                 ].map(field => (
                   <div key={field.key} className="flex flex-col gap-1.5">
                     <label className="text-xs text-muted">{field.label}</label>
@@ -168,6 +170,7 @@ export default function BookingPage() {
               </div>
             </div>
           </div>
+
           <div className="bg-white/[0.03] border border-border rounded-lg p-5 h-fit">
             <p className="text-xs tracking-widest text-muted uppercase mb-4">Price summary</p>
             <div className="flex flex-col gap-2.5 mb-4">
@@ -214,4 +217,8 @@ export default function BookingPage() {
       </div>
     </div>
   )
+}
+
+export default function BookingPage() {
+  return <Suspense fallback={<div className="min-h-screen bg-ink"/>}><BookingContent /></Suspense>
 }
