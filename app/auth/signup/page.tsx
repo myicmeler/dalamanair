@@ -28,7 +28,7 @@ export default function SignUpPage() {
       // Update phone separately (not in auth metadata)
       const { data: { user } } = await supabase.auth.getUser()
       if (user && form.phone) {
-        await supabase.from('users').update({ phone: form.phone, full_name: form.fullName }).eq('id', user.id)
+       await (supabase as any).from('users').update({ phone: form.phone, full_name: form.fullName }).eq('id', user.id)
       }
       router.push('/?welcome=1')
     }
