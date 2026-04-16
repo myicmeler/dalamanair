@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
-export default function SearchPage() {
+function SearchContent() {
   const params    = useSearchParams()
   const router    = useRouter()
   const supabase  = createClient() as any
@@ -149,4 +149,8 @@ export default function SearchPage() {
       </div>
     </div>
   )
+}
+
+export default function SearchPage() {
+  return <Suspense fallback={<div className="min-h-screen bg-ink"/>}><SearchContent /></Suspense>
 }
