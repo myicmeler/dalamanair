@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import ProviderLayout from './layout'
+import ProviderLayout from '../layout'
 
 export default function ProviderReviews() {
   const supabase = createClient() as any
