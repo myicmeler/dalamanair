@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import ProviderLayout from './layout'
+import ProviderLayout from '../layout'
 
 const VEHICLE_TYPES = ['sedan', 'minivan', 'minibus', 'luxury', 'suv']
 
