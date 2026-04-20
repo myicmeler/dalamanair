@@ -2,48 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --ink:     #0f1419;
-  --ink-2:   #1a1f26;
-  --paper:   #faf8f3;
-  --cream:   #f5f2ea;
-  --line:    #e5e3dd;
-  --muted:   #8a8680;
-  --sub:     #5a574f;
-  --accent:  #f4b942;
-  --accent-2:#e0a528;
-}
-
 html, body {
-  background-color: var(--paper);
-  color: var(--ink);
+  background-color: #faf8f3;
+  color: #0f1419;
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 input, select, textarea {
   background: #faf8f3 !important;
-  border: 0.5px solid var(--line) !important;
+  border: 0.5px solid #e5e3dd !important;
   border-radius: 3px;
-  color: var(--ink) !important;
+  color: #0f1419 !important;
   outline: none;
   font-family: inherit;
   padding: 10px 12px;
   font-size: 13px;
+  width: 100%;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--accent) !important;
+  border-color: #f4b942 !important;
   box-shadow: 0 0 0 2px rgba(244, 185, 66, 0.15);
 }
 
 select option {
   background: #fff;
-  color: var(--ink);
+  color: #0f1419;
 }
 
 input::placeholder, textarea::placeholder {
-  color: var(--muted) !important;
+  color: #8a8680 !important;
 }
 
 input:-webkit-autofill,
@@ -51,13 +40,9 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px #faf8f3 inset !important;
-  -webkit-text-fill-color: var(--ink) !important;
-  caret-color: var(--ink);
+  -webkit-text-fill-color: #0f1419 !important;
+  caret-color: #0f1419;
 }
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d1ca; border-radius: 3px; }
 
 .hero-overlay {
   background: linear-gradient(90deg, rgba(15,20,25,0.88) 0%, rgba(15,20,25,0.58) 45%, rgba(15,20,25,0.25) 100%);
@@ -66,3 +51,7 @@ input:-webkit-autofill:active {
 .panel-shadow {
   box-shadow: 0 8px 28px rgba(0,0,0,0.18);
 }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d1ca; border-radius: 3px; }
