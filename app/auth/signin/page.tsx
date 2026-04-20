@@ -5,15 +5,13 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 function SignInContent() {
-  const router     = useRouter()
-  const params     = useSearchParams()
-  
-  const supabase   = createClient() as any
-console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-  const [email, setEmail]       = useState('')
+  const router = useRouter()
+  const params = useSearchParams()
+  const supabase = createClient() as any
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const redirect = params.get('redirect') ?? '/'
 
@@ -30,52 +28,35 @@ console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
   }
 
   return (
-    <div className="min-h-screen bg-ink text-paper flex items-center justify-center px-4">
+    <div className="min-h-screen bg-paper flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <Link href="/" className="text-xs tracking-widest text-muted block text-center mb-10">
-          TRANSFER MARMARIS
+        <Link href="/" className="text-[11px] tracking-[0.22em] text-ink block text-center mb-10 font-medium">
+          DALAMANAIR
         </Link>
-        <h1 className="text-2xl font-medium mb-1 text-center">Sign in</h1>
-        <p className="text-sm text-muted text-center mb-8">
+        <h1 className="text-3xl font-medium text-ink mb-2 text-center">Sign in</h1>
+        <p className="text-[13px] text-muted text-center mb-8">
           New here?{' '}
-          <Link href="/auth/signup" className="text-paper underline">Create an account</Link>
+          <Link href="/auth/signup" className="text-ink underline">Create an account</Link>
         </p>
-        <div className="flex flex-col gap-3">
+        <div className="bg-white border border-line rounded-md p-6 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="px-4 py-3 text-sm"
-              placeholder="you@email.com"
-              onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-            />
+            <label className="text-[10px] tracking-[0.1em] uppercase text-muted">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@email.com" onKeyDown={e => e.key === 'Enter' && handleSignIn()} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="px-4 py-3 text-sm"
-              placeholder="••••••••"
-              onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-            />
+            <label className="text-[10px] tracking-[0.1em] uppercase text-muted">Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && handleSignIn()} />
           </div>
-          {error && <p className="text-xs text-red-400 text-center">{error}</p>}
-          <button
-            onClick={handleSignIn}
-            disabled={loading || !email || !password}
-            className="w-full bg-paper text-ink py-3 rounded-lg text-sm font-medium
-                       hover:bg-paper/90 transition-colors mt-1
-                       disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
+          {error && <p className="text-[12px] text-red-600 text-center">{error}</p>}
+          <button onClick={handleSignIn} disabled={loading || !email || !password}
+            className="w-full bg-accent hover:bg-accent-2 disabled:opacity-40 disabled:cursor-not-allowed text-ink font-medium text-[12px] tracking-[0.08em] uppercase py-3 rounded transition-colors mt-2">
+            {loading ? 'Signing in...' : 'Sign in →'}
           </button>
         </div>
-        <p className="text-xs text-muted text-center mt-6">
-          <Link href="/auth/reset" className="underline hover:text-paper">Forgot password?</Link>
+        <p className="text-[12px] text-muted text-center mt-6">
+          <Link href="/auth/reset" className="underline hover:text-ink">Forgot password?</Link>
         </p>
       </div>
     </div>
@@ -83,5 +64,5 @@ console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
 }
 
 export default function SignInPage() {
-  return <Suspense fallback={<div className="min-h-screen bg-ink"/>}><SignInContent /></Suspense>
+  return <Suspense fallback={<div className="min-h-screen bg-paper"/>}><SignInContent /></Suspense>
 }

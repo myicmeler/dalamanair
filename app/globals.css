@@ -3,51 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --ink:    #0e0e0c;
-  --paper:  #f0ede6;
-  --muted:  rgba(240,237,230,0.4);
-  --border: rgba(240,237,230,0.1);
+  --ink:     #0f1419;
+  --ink-2:   #1a1f26;
+  --paper:   #faf8f3;
+  --cream:   #f5f2ea;
+  --line:    #e5e3dd;
+  --muted:   #8a8680;
+  --sub:     #5a574f;
+  --accent:  #f4b942;
+  --accent-2:#e0a528;
 }
 
 html, body {
-  background-color: #0e0e0c;
-  color: #f0ede6;
+  background-color: var(--paper);
+  color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 input, select, textarea {
-  background: rgba(240,237,230,0.04) !important;
-  border: 0.5px solid rgba(240,237,230,0.12) !important;
-  border-radius: 6px;
-  color: #f0ede6 !important;
+  background: #faf8f3 !important;
+  border: 0.5px solid var(--line) !important;
+  border-radius: 3px;
+  color: var(--ink) !important;
   outline: none;
   font-family: inherit;
+  padding: 10px 12px;
+  font-size: 13px;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: rgba(240,237,230,0.35) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(244, 185, 66, 0.15);
 }
 
 select option {
-  background: #1a1a18;
-  color: #f0ede6;
+  background: #fff;
+  color: var(--ink);
 }
 
 input::placeholder, textarea::placeholder {
-  color: rgba(240,237,230,0.2) !important;
+  color: var(--muted) !important;
 }
 
-/* Fix browser autofill white background */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #1a1a18 inset !important;
-  -webkit-text-fill-color: #f0ede6 !important;
-  caret-color: #f0ede6;
+  -webkit-box-shadow: 0 0 0 30px #faf8f3 inset !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  caret-color: var(--ink);
 }
 
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(240,237,230,0.15); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: #d4d1ca; border-radius: 3px; }
+
+.hero-overlay {
+  background: linear-gradient(90deg, rgba(15,20,25,0.88) 0%, rgba(15,20,25,0.58) 45%, rgba(15,20,25,0.25) 100%);
+}
+
+.panel-shadow {
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+}
