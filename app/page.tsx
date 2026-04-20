@@ -16,7 +16,7 @@ const labels = {
     search: 'Search transfers',
     rating: 'Average rating', transfers: 'Transfers completed',
     support: 'English support', pricing: 'No surge pricing',
-    why: 'Why book with us', 
+    why: 'Why book with us',
     w1t: 'Fixed prices', w1d: 'The price you see is what you pay. No hidden fees, no surcharges.',
     w2t: 'Meet & greet', w2d: 'Your driver meets you at arrivals with a name board. Flight delays? We track it.',
     w3t: '24/7 support', w3d: 'English and Turkish speaking support team, available any time you need us.',
@@ -83,11 +83,7 @@ export default function Home() {
     <div className="min-h-screen bg-paper">
       <div className="relative">
         <Nav lang={lang} onLangChange={setLang} variant="overlay" />
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-cover bg-center"
-           <div className="absolute inset-0 -z-10 bg-ink" />
-          <div className="absolute inset-0 hero-overlay" />
-        </div>
+        <div className="absolute inset-0 -z-10 bg-ink" />
 
         <div className="relative px-8 md:px-12 py-14 md:py-20 max-w-7xl mx-auto grid md:grid-cols-[1fr_420px] gap-10 items-center min-h-[520px]">
           <div className="text-white">
@@ -216,7 +212,7 @@ export default function Home() {
             <a href="/how-it-works" className="hover:text-white">How it works</a>
             <a href="/provider" className="hover:text-white">For providers</a>
           </div>
-          <div className="text-white/40">© 2026 · dalamanair.netlify.app</div>
+          <div className="text-white/40">© 2026 · dalaman.me</div>
         </div>
       </footer>
     </div>
