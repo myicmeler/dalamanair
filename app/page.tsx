@@ -85,7 +85,7 @@ export default function Home() {
         <Nav lang={lang} onLangChange={setLang} variant="overlay" />
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=2000&q=80')" }} />
+           <div className="absolute inset-0 -z-10 bg-ink" />
           <div className="absolute inset-0 hero-overlay" />
         </div>
 
