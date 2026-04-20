@@ -1,4 +1,4 @@
-'use client'
+'use client1'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
