@@ -81,12 +81,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <div className="relative">
+     <div className="relative" style={{backgroundColor:'#0f1419'}}>
         <Nav lang={lang} onLangChange={setLang} variant="overlay" />
-        <div className="absolute inset-0 -z-10" style={{backgroundColor:'#0f1419'}} />
 
         <div className="relative px-8 md:px-12 py-14 md:py-20 max-w-7xl mx-auto grid md:grid-cols-[1fr_420px] gap-10 items-center min-h-[520px]">
-         <div style={{color:'#ffffff'}}>
+      <h1 style={{color:'#ffffff'}} className="text-5xl md:text-6xl font-normal leading-[1.05] mb-5">
            <p className="text-[11px] tracking-[0.25em] uppercase mb-5" style={{color:'#f4b942'}}>{t.tag}</p>
             <h1 className="text-5xl md:text-6xl font-normal leading-[1.05] mb-5">
               {t.h1a}<br/><em className="not-italic text-accent font-medium">{t.h1b}</em>
