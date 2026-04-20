@@ -12,51 +12,48 @@ function SignInContent() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
   const redirect = params.get('redirect') ?? '/'
 
   async function handleSignIn() {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
-      router.push(decodeURIComponent(redirect))
-    }
+    if (error) { setError(error.message); setLoading(false) }
+    else router.push(decodeURIComponent(redirect))
   }
 
+  const inputStyle = { width:'100%', fontSize:'16px', padding:'14px 12px', marginTop:'4px', borderRadius:'6px' }
+
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <Link href="/" className="text-[11px] tracking-[0.22em] text-ink block text-center mb-10 font-medium">
-          DALAMANAIR
-        </Link>
-        <h1 className="text-3xl font-medium text-ink mb-2 text-center">Sign in</h1>
-        <p className="text-[13px] text-muted text-center mb-8">
-          New here?{' '}
-          <Link href="/auth/signup" className="text-ink underline">Create an account</Link>
+    <div style={{minHeight:'100vh', backgroundColor:'#faf8f3', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
+      <div style={{width:'100%', maxWidth:'380px'}}>
+        <Link href="/" style={{fontSize:'11px', letterSpacing:'0.22em', color:'#0f1419', display:'block', textAlign:'center', marginBottom:'32px', textDecoration:'none', fontWeight:'500'}}>DALAMANAIR</Link>
+        <h1 style={{fontSize:'28px', fontWeight:'500', color:'#0f1419', textAlign:'center', marginBottom:'8px'}}>Sign in</h1>
+        <p style={{fontSize:'14px', color:'#8a8680', textAlign:'center', marginBottom:'28px'}}>
+          New here? <Link href="/auth/signup" style={{color:'#0f1419', textDecoration:'underline'}}>Create an account</Link>
         </p>
-        <div className="bg-white border border-line rounded-md p-6 flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] tracking-[0.1em] uppercase text-muted">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@email.com" onKeyDown={e => e.key === 'Enter' && handleSignIn()} />
+        <div style={{backgroundColor:'#ffffff', border:'1px solid #e5e3dd', borderRadius:'12px', padding:'24px'}}>
+          <div style={{marginBottom:'16px'}}>
+            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'#8a8680'}}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com"
+              onKeyDown={e => e.key==='Enter' && handleSignIn()} style={inputStyle} />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] tracking-[0.1em] uppercase text-muted">Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && handleSignIn()} />
+          <div style={{marginBottom:'20px'}}>
+            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'#8a8680'}}>Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+              onKeyDown={e => e.key==='Enter' && handleSignIn()} style={inputStyle} />
           </div>
-          {error && <p className="text-[12px] text-red-600 text-center">{error}</p>}
-          <button onClick={handleSignIn} disabled={loading || !email || !password}
-            className="w-full bg-accent hover:bg-accent-2 disabled:opacity-40 disabled:cursor-not-allowed text-ink font-medium text-[12px] tracking-[0.08em] uppercase py-3 rounded transition-colors mt-2">
+          {error && <p style={{fontSize:'13px', color:'#A32D2D', textAlign:'center', marginBottom:'12px'}}>{error}</p>}
+          <button onClick={handleSignIn} disabled={loading||!email||!password} style={{
+            width:'100%', backgroundColor:(loading||!email||!password)?'#fad98a':'#f4b942',
+            color:'#0f1419', fontWeight:'600', fontSize:'14px', letterSpacing:'0.05em',
+            textTransform:'uppercase', padding:'15px', borderRadius:'6px',
+            border:'none', cursor:(loading||!email||!password)?'not-allowed':'pointer'
+          }}>
             {loading ? 'Signing in...' : 'Sign in →'}
           </button>
         </div>
-        <p className="text-[12px] text-muted text-center mt-6">
-          <Link href="/auth/reset" className="underline hover:text-ink">Forgot password?</Link>
+        <p style={{fontSize:'13px', color:'#8a8680', textAlign:'center', marginTop:'20px'}}>
+          <Link href="/auth/reset" style={{color:'#8a8680', textDecoration:'underline'}}>Forgot password?</Link>
         </p>
       </div>
     </div>
@@ -64,5 +61,5 @@ function SignInContent() {
 }
 
 export default function SignInPage() {
-  return <Suspense fallback={<div className="min-h-screen bg-paper"/>}><SignInContent /></Suspense>
+  return <Suspense fallback={<div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}}/>}><SignInContent /></Suspense>
 }
