@@ -10,6 +10,7 @@ const navItems = [
   { href: '/provider/drivers', label: 'Drivers' },
   { href: '/provider/vehicles', label: 'Fleet' },
   { href: '/provider/reviews', label: 'Reviews' },
+  { href: '/provider/quotes', label: 'Quotes' },
 ]
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
