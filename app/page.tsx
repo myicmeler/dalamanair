@@ -80,138 +80,165 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
-     <div className="relative" style={{backgroundColor:'#0f1419'}}>
-        <Nav lang={lang} onLangChange={setLang} variant="overlay" />
+    <div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}}>
 
-        <div className="relative px-8 md:px-12 py-14 md:py-20 max-w-7xl mx-auto grid md:grid-cols-[1fr_420px] gap-10 items-center min-h-[520px]">
-      <h1 style={{color:'#ffffff'}} className="text-5xl md:text-6xl font-normal leading-[1.05] mb-5">
-           <p className="text-[11px] tracking-[0.25em] uppercase mb-5" style={{color:'#f4b942'}}>{t.tag}</p>
-            <h1 className="text-5xl md:text-6xl font-normal leading-[1.05] mb-5">
-              {t.h1a}<br/><em className="not-italic text-accent font-medium">{t.h1b}</em>
+      {/* HERO */}
+      <div style={{backgroundColor:'#0f1419', position:'relative'}}>
+        <Nav lang={lang} onLangChange={setLang} variant="overlay" />
+        <div style={{
+          maxWidth:'1280px', margin:'0 auto',
+          padding:'56px 48px 72px',
+          display:'grid', gridTemplateColumns:'1fr 420px',
+          gap:'40px', alignItems:'center',
+          minHeight:'520px'
+        }}>
+          {/* Hero text */}
+          <div>
+            <p style={{fontSize:'11px', letterSpacing:'0.25em', color:'#f4b942', textTransform:'uppercase', marginBottom:'20px'}}>
+              {t.tag}
+            </p>
+            <h1 style={{fontSize:'64px', lineHeight:'1.05', fontWeight:'400', color:'#ffffff', marginBottom:'20px'}}>
+              {t.h1a}<br/>
+              <em style={{fontStyle:'normal', color:'#f4b942', fontWeight:'500'}}>{t.h1b}</em>
             </h1>
-            <p className="text-[14px] text-white/75 max-w-md leading-relaxed">{t.sub}</p>
+            <p style={{fontSize:'14px', color:'rgba(255,255,255,0.7)', maxWidth:'420px', lineHeight:'1.6'}}>
+              {t.sub}
+            </p>
           </div>
 
-          <div className="bg-white rounded-md p-6 panel-shadow">
-            <div className="flex border-b border-line mb-4 -mx-6 px-6">
+          {/* Search panel */}
+          <div style={{backgroundColor:'#ffffff', borderRadius:'6px', padding:'24px', boxShadow:'0 8px 28px rgba(0,0,0,0.2)'}}>
+            {/* Tabs */}
+            <div style={{display:'flex', borderBottom:'1px solid #e5e3dd', marginBottom:'16px', marginLeft:'-24px', marginRight:'-24px', paddingLeft:'24px', paddingRight:'24px'}}>
               {(['oneway','return'] as const).map(tt => (
-                <button key={tt} onClick={() => setTripType(tt)}
-                  className={`flex-1 pb-3 text-[11px] tracking-[0.1em] uppercase transition-colors border-b-2 -mb-px ${
-                    tripType === tt ? 'text-ink border-accent font-medium' : 'text-muted border-transparent hover:text-sub'
-                  }`}>
+                <button key={tt} onClick={() => setTripType(tt)} style={{
+                  flex:1, paddingBottom:'12px', fontSize:'11px',
+                  letterSpacing:'0.1em', textTransform:'uppercase',
+                  borderBottom: tripType === tt ? '2px solid #f4b942' : '2px solid transparent',
+                  color: tripType === tt ? '#0f1419' : '#8a8680',
+                  fontWeight: tripType === tt ? '500' : '400',
+                  marginBottom:'-1px', background:'none', cursor:'pointer'
+                }}>
                   {tt === 'oneway' ? t.oneway : t.return}
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] tracking-[0.12em] uppercase text-muted">{t.pickup}</label>
-                <select value={form.pickup} onChange={e => setForm(p => ({ ...p, pickup: e.target.value }))}>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+              <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680'}}>{t.pickup}</label>
+                <select value={form.pickup} onChange={e => setForm(p => ({...p, pickup:e.target.value}))}>
                   <option value="">—</option>
                   {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  {destinations.map(l => <option key={l.id} value={l.id}>{lang === 'tr' ? (l.name_tr || l.name) : l.name}</option>)}
+                  {destinations.map(l => <option key={l.id} value={l.id}>{lang==='tr'?(l.name_tr||l.name):l.name}</option>)}
                 </select>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] tracking-[0.12em] uppercase text-muted">{t.dropoff}</label>
-                <select value={form.dropoff} onChange={e => setForm(p => ({ ...p, dropoff: e.target.value }))}>
+              <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680'}}>{t.dropoff}</label>
+                <select value={form.dropoff} onChange={e => setForm(p => ({...p, dropoff:e.target.value}))}>
                   <option value="">—</option>
-                  {destinations.map(l => <option key={l.id} value={l.id}>{lang === 'tr' ? (l.name_tr || l.name) : l.name}</option>)}
+                  {destinations.map(l => <option key={l.id} value={l.id}>{lang==='tr'?(l.name_tr||l.name):l.name}</option>)}
                   {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] tracking-[0.12em] uppercase text-muted">{t.date}</label>
-                <div className="flex gap-1">
-                  <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="flex-1" />
-                  <input type="time" value={form.time} onChange={e => setForm(p => ({ ...p, time: e.target.value }))} className="w-20" />
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
+              <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680'}}>{t.date}</label>
+                <div style={{display:'flex', gap:'4px'}}>
+                  <input type="date" value={form.date} onChange={e => setForm(p => ({...p, date:e.target.value}))} style={{flex:1}} />
+                  <input type="time" value={form.time} onChange={e => setForm(p => ({...p, time:e.target.value}))} style={{width:'76px'}} />
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] tracking-[0.12em] uppercase text-muted">{t.passengers}</label>
-                <select value={form.passengers} onChange={e => setForm(p => ({ ...p, passengers: e.target.value }))}>
-                  {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+              <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680'}}>{t.passengers}</label>
+                <select value={form.passengers} onChange={e => setForm(p => ({...p, passengers:e.target.value}))}>
+                  {Array.from({length:14},(_,i)=>i+1).map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
             </div>
 
             {tripType === 'return' && (
-              <div className="grid grid-cols-2 gap-2.5 mb-3 pt-3 border-t border-line">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] tracking-[0.12em] uppercase text-muted">{t.returnDate}</label>
-                  <div className="flex gap-1">
-                    <input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} className="flex-1" />
-                    <input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} className="w-20" />
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px', paddingTop:'12px', borderTop:'1px solid #e5e3dd'}}>
+                <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                  <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680'}}>{t.returnDate}</label>
+                  <div style={{display:'flex', gap:'4px'}}>
+                    <input type="date" value={form.returnDate} onChange={e => setForm(p => ({...p, returnDate:e.target.value}))} style={{flex:1}} />
+                    <input type="time" value={form.returnTime} onChange={e => setForm(p => ({...p, returnTime:e.target.value}))} style={{width:'76px'}} />
                   </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] tracking-[0.12em] uppercase text-muted">{t.returnFrom}</label>
-                  <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))}>
+                <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                  <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680'}}>{t.returnFrom}</label>
+                  <select value={form.returnPickup} onChange={e => setForm(p => ({...p, returnPickup:e.target.value}))}>
                     <option value="">—</option>
-                    {destinations.map(l => <option key={l.id} value={l.id}>{lang === 'tr' ? (l.name_tr || l.name) : l.name}</option>)}
+                    {destinations.map(l => <option key={l.id} value={l.id}>{lang==='tr'?(l.name_tr||l.name):l.name}</option>)}
                   </select>
                 </div>
               </div>
             )}
 
-            <button onClick={handleSearch} disabled={!canSearch}
-              className="w-full bg-accent hover:bg-accent-2 disabled:opacity-40 disabled:cursor-not-allowed text-ink font-medium text-[12px] tracking-[0.08em] uppercase py-3 rounded transition-colors mt-2">
+            <button onClick={handleSearch} disabled={!canSearch} style={{
+              width:'100%', backgroundColor: canSearch ? '#f4b942' : '#fad98a',
+              color:'#0f1419', fontWeight:'500', fontSize:'12px',
+              letterSpacing:'0.08em', textTransform:'uppercase',
+              padding:'12px', borderRadius:'3px', border:'none',
+              cursor: canSearch ? 'pointer' : 'not-allowed', marginTop:'8px'
+            }}>
               {t.search} →
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-cream border-y border-line">
-        <div className="max-w-7xl mx-auto px-8 md:px-12 py-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* TRUST BAR */}
+      <div style={{backgroundColor:'#f5f2ea', borderTop:'1px solid #e5e3dd', borderBottom:'1px solid #e5e3dd'}}>
+        <div style={{maxWidth:'1280px', margin:'0 auto', padding:'24px 48px', display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'16px'}}>
           {[
-            { num: '4.8 ★', label: t.rating },
-            { num: '2,400+', label: t.transfers },
-            { num: '24/7', label: t.support },
-            { num: lang === 'en' ? 'Fixed' : 'Sabit', label: t.pricing },
+            {num:'4.8 ★', label:t.rating},
+            {num:'2,400+', label:t.transfers},
+            {num:'24/7', label:t.support},
+            {num: lang==='en'?'Fixed':'Sabit', label:t.pricing},
           ].map(s => (
-            <div key={s.label} className="text-center">
-              <div className="text-[20px] font-medium text-ink">{s.num}</div>
-              <div className="text-[10px] tracking-[0.12em] uppercase text-muted mt-1">{s.label}</div>
+            <div key={s.label} style={{textAlign:'center'}}>
+              <div style={{fontSize:'20px', fontWeight:'500', color:'#0f1419'}}>{s.num}</div>
+              <div style={{fontSize:'10px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', marginTop:'4px'}}>{s.label}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-8 md:px-12 py-16 md:py-24">
-        <p className="text-[11px] tracking-[0.25em] text-accent-2 uppercase mb-3 text-center">{t.why}</p>
-        <div className="grid md:grid-cols-3 gap-10 mt-10">
+      {/* WHY SECTION */}
+      <div style={{maxWidth:'1152px', margin:'0 auto', padding:'80px 48px'}}>
+        <p style={{fontSize:'11px', letterSpacing:'0.25em', color:'#e0a528', textTransform:'uppercase', marginBottom:'12px', textAlign:'center'}}>{t.why}</p>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'40px', marginTop:'40px'}}>
           {[
-            { t: t.w1t, d: t.w1d },
-            { t: t.w2t, d: t.w2d },
-            { t: t.w3t, d: t.w3d },
+            {title:t.w1t, desc:t.w1d},
+            {title:t.w2t, desc:t.w2d},
+            {title:t.w3t, desc:t.w3d},
           ].map(w => (
-            <div key={w.t}>
-              <div className="w-10 h-[2px] bg-accent mb-4" />
-              <h3 className="text-[18px] font-medium text-ink mb-2">{w.t}</h3>
-              <p className="text-[13px] text-sub leading-relaxed">{w.d}</p>
+            <div key={w.title}>
+              <div style={{width:'40px', height:'2px', backgroundColor:'#f4b942', marginBottom:'16px'}} />
+              <h3 style={{fontSize:'18px', fontWeight:'500', color:'#0f1419', marginBottom:'8px'}}>{w.title}</h3>
+              <p style={{fontSize:'13px', color:'#5a574f', lineHeight:'1.6'}}>{w.desc}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <footer className="bg-ink text-white/60 py-10 px-8">
-        <div className="max-w-7xl mx-auto flex flex-wrap justify-between gap-6 text-[12px]">
+      {/* FOOTER */}
+      <footer style={{backgroundColor:'#0f1419', padding:'40px 48px'}}>
+        <div style={{maxWidth:'1280px', margin:'0 auto', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'24px', fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>
           <div>
-            <div className="tracking-[0.22em] text-white font-medium mb-2">DALAMANAIR</div>
-            <div className="text-white/50">Private airport transfers · Marmaris region</div>
+            <div style={{letterSpacing:'0.22em', color:'#ffffff', fontWeight:'500', marginBottom:'8px'}}>DALAMANAIR</div>
+            <div>Private airport transfers · Marmaris region</div>
           </div>
-          <div className="flex gap-8">
-            <a href="/help" className="hover:text-white">Help</a>
-            <a href="/how-it-works" className="hover:text-white">How it works</a>
-            <a href="/provider" className="hover:text-white">For providers</a>
+          <div style={{display:'flex', gap:'32px'}}>
+            <a href="/help" style={{color:'rgba(255,255,255,0.5)'}}>Help</a>
+            <a href="/how-it-works" style={{color:'rgba(255,255,255,0.5)'}}>How it works</a>
+            <a href="/provider" style={{color:'rgba(255,255,255,0.5)'}}>For providers</a>
           </div>
-          <div className="text-white/40">© 2026 · dalaman.me</div>
+          <div>© 2026 · dalaman.me</div>
         </div>
       </footer>
     </div>
