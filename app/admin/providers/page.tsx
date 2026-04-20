@@ -10,96 +10,75 @@ export default function AdminProviders() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('providers')
-        .select('*, user:users(email, full_name)')
-        .order('created_at', { ascending: false })
+      const { data } = await supabase.from('providers').select('*, user:users(email, full_name)').order('created_at', {ascending:false})
       if (data) setProviders(data)
       setLoading(false)
     }
     load()
   }, [])
 
-  async function approve(providerId: string) {
-    await supabase.from('providers').update({ is_approved: true }).eq('id', providerId)
-    setProviders(prev => prev.map(p => p.id === providerId ? { ...p, is_approved: true } : p))
+  async function approve(id: string) {
+    await supabase.from('providers').update({ is_approved:true }).eq('id', id)
+    setProviders(prev => prev.map(p => p.id===id ? {...p, is_approved:true} : p))
   }
 
-  async function unapprove(providerId: string) {
-    await supabase.from('providers').update({ is_approved: false }).eq('id', providerId)
-    setProviders(prev => prev.map(p => p.id === providerId ? { ...p, is_approved: false } : p))
+  async function unapprove(id: string) {
+    await supabase.from('providers').update({ is_approved:false }).eq('id', id)
+    setProviders(prev => prev.map(p => p.id===id ? {...p, is_approved:false} : p))
   }
 
-  const filtered = providers.filter((p: any) => {
-    if (filter === 'pending') return !p.is_approved
-    if (filter === 'approved') return p.is_approved
+  const filtered = providers.filter(p => {
+    if (filter==='pending') return !p.is_approved
+    if (filter==='approved') return p.is_approved
     return true
   })
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-medium">Providers</h1>
+    <div style={{padding:'16px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
+        <h1 style={{fontSize:'20px', fontWeight:'500'}}>Providers</h1>
+        <span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{filtered.length}</span>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div style={{display:'flex', gap:'8px', marginBottom:'16px'}}>
         {(['all','pending','approved'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`text-xs px-3 py-1.5 rounded border capitalize transition-all ${
-              filter === f ? 'border-paper/35 text-paper' : 'border-border text-muted hover:text-paper'
-            }`}>{f}</button>
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding:'7px 14px', borderRadius:'14px', border:'1px solid', fontSize:'11px', cursor:'pointer', textTransform:'capitalize', background:'none',
+            borderColor:filter===f?'#f4b942':'rgba(255,255,255,0.15)',
+            color:filter===f?'#f4b942':'rgba(255,255,255,0.4)',
+          }}>{f}</button>
         ))}
-        <span className="text-xs text-muted self-center ml-2">{filtered.length} providers</span>
       </div>
 
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-white/[0.02]">
-              {['Company', 'Contact', 'Rating', 'Commission', 'Type', 'Status', ''].map(h => (
-                <th key={h} className="text-left text-xs tracking-widest text-muted uppercase px-4 py-3 font-normal">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="text-center text-muted text-sm py-10">Loading...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-muted text-sm py-10">No providers found</td></tr>
-            ) : filtered.map((p: any) => (
-              <tr key={p.id} className="border-b border-border/50 last:border-0 hover:bg-white/[0.01]">
-                <td className="px-4 py-3">
-                  <div className="text-sm font-medium">{p.company_name}</div>
-                  {p.phone && <div className="text-xs text-muted">{p.phone}</div>}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-sm">{p.user?.full_name ?? p.contact_name ?? '—'}</div>
-                  <div className="text-xs text-muted">{p.user?.email ?? '—'}</div>
-                </td>
-                <td className="px-4 py-3 text-sm">{(p.avg_rating || 0).toFixed(1)}★ <span className="text-xs text-muted">({p.total_reviews || 0})</span></td>
-                <td className="px-4 py-3 text-sm">{p.commission_pct || 0}%</td>
-                <td className="px-4 py-3">
-                  <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-muted">
-                    {p.is_subcontractor ? 'Subcontractor' : 'Provider'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded ${p.is_approved ? 'bg-teal/15 text-teal' : 'bg-amber/15 text-amber'}`}>
-                    {p.is_approved ? 'Approved' : 'Pending'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {p.is_approved ? (
-                    <button onClick={() => unapprove(p.id)} className="text-xs text-muted hover:text-paper transition-colors">Unapprove</button>
-                  ) : (
-                    <button onClick={() => approve(p.id)} className="text-xs bg-paper text-ink px-3 py-1.5 rounded hover:bg-paper/90 transition-colors">Approve</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading ? (
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+      ) : (
+        <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+          {filtered.map((p:any) => (
+            <div key={p.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'14px'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px'}}>
+                <div>
+                  <div style={{fontSize:'15px', fontWeight:'500', marginBottom:'2px'}}>{p.company_name}</div>
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{p.user?.email||'—'}</div>
+                </div>
+                <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', flexShrink:0, marginLeft:'8px',
+                  backgroundColor:p.is_approved?'rgba(29,158,117,0.15)':'rgba(239,159,39,0.15)',
+                  color:p.is_approved?'#1D9E75':'#EF9F27'}}>
+                  {p.is_approved?'Approved':'Pending'}
+                </span>
+              </div>
+              <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'12px'}}>
+                {p.avg_rating?.toFixed(1)||'0.0'}★ · {p.commission_pct||0}% commission
+              </div>
+              <button onClick={() => p.is_approved ? unapprove(p.id) : approve(p.id)} style={{
+                width:'100%', padding:'10px', border:'1px solid', borderRadius:'6px', fontSize:'13px', fontWeight:'500', cursor:'pointer', background:'none',
+                borderColor:p.is_approved?'rgba(162,45,45,0.4)':'rgba(29,158,117,0.4)',
+                color:p.is_approved?'#f09595':'#1D9E75',
+              }}>{p.is_approved?'Unapprove':'Approve'}</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -7,101 +7,76 @@ export default function AdminBookings() {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all'|'pending'|'confirmed'|'completed'|'cancelled'>('all')
-  const [search, setSearch] = useState('')
 
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('bookings')
-        .select('*, customer:users(email, full_name), provider:providers(company_name), driver:drivers(full_name), vehicle:vehicles(make, model), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)')
-        .order('created_at', { ascending: false })
+        .select('*, customer:users(email, full_name), provider:providers(company_name), driver:drivers(full_name), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)')
+        .order('created_at', {ascending:false})
       if (data) setBookings(data)
       setLoading(false)
     }
     load()
   }, [])
 
-  const filtered = bookings.filter((b: any) => {
-    if (filter !== 'all') {
-      if (filter === 'confirmed' && !(b.status === 'confirmed' || b.status === 'driver_assigned')) return false
-      if (filter !== 'confirmed' && b.status !== filter) return false
-    }
-    if (search) {
-      const s = search.toLowerCase()
-      const cust = (b.customer?.email || '') + ' ' + (b.customer?.full_name || '')
-      if (!cust.toLowerCase().includes(s) && !b.id.toLowerCase().includes(s)) return false
-    }
-    return true
+  const filtered = bookings.filter(b => {
+    if (filter==='all') return true
+    if (filter==='confirmed') return b.status==='confirmed'||b.status==='driver_assigned'
+    return b.status===filter
   })
 
-  const statusBadge: Record<string, string> = {
-    pending: 'bg-amber/15 text-amber',
-    confirmed: 'bg-teal/15 text-teal',
-    driver_assigned: 'bg-blue/15 text-blue',
-    completed: 'bg-white/10 text-muted',
-    cancelled: 'bg-red-900/20 text-red-400',
+  const statusColor: Record<string,string> = {
+    pending:'#EF9F27', confirmed:'#1D9E75', driver_assigned:'#378ADD', completed:'#8a8680', cancelled:'#E24B4A'
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-medium mb-6">All bookings</h1>
+    <div style={{padding:'16px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
+        <h1 style={{fontSize:'20px', fontWeight:'500'}}>All bookings</h1>
+        <span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{filtered.length}</span>
+      </div>
 
-      <div className="flex gap-3 mb-6 items-center">
-        <div className="flex gap-2">
-          {(['all','pending','confirmed','completed','cancelled'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`text-xs px-3 py-1.5 rounded border capitalize transition-all ${
-                filter === f ? 'border-paper/35 text-paper' : 'border-border text-muted hover:text-paper'
-              }`}>{f}</button>
+      <div style={{display:'flex', gap:'8px', marginBottom:'16px', overflowX:'auto', paddingBottom:'4px'}}>
+        {(['all','pending','confirmed','completed','cancelled'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding:'7px 12px', borderRadius:'14px', border:'1px solid', fontSize:'11px', cursor:'pointer', whiteSpace:'nowrap', textTransform:'capitalize', background:'none',
+            borderColor:filter===f?'#f4b942':'rgba(255,255,255,0.15)',
+            color:filter===f?'#f4b942':'rgba(255,255,255,0.4)',
+          }}>{f}</button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+      ) : (
+        <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+          {filtered.map((b:any) => (
+            <div key={b.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'14px'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px'}}>
+                <div>
+                  <div style={{fontSize:'13px', fontWeight:'500'}}>{b.pickup?.name} → {b.dropoff?.name}</div>
+                  <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', marginTop:'2px'}}>
+                    {new Date(b.pickup_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {new Date(b.pickup_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}
+                  </div>
+                </div>
+                <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', flexShrink:0, marginLeft:'8px', backgroundColor:`${statusColor[b.status]}20`, color:statusColor[b.status]}}>
+                  {b.status?.replace('_',' ')}
+                </span>
+              </div>
+              <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'4px'}}>
+                {b.customer?.full_name||b.customer?.email||'—'} · {b.passengers} pax
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
+                  {b.provider?.company_name||'—'}{b.driver?` · ${b.driver.full_name}`:''}
+                </div>
+                <div style={{fontSize:'14px', fontWeight:'500'}}>€{b.final_price?.toFixed(2)}</div>
+              </div>
+            </div>
           ))}
         </div>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search email or booking ID..."
-          className="px-3 py-1.5 text-xs rounded flex-1 max-w-sm" />
-        <span className="text-xs text-muted">{filtered.length} bookings</span>
-      </div>
-
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-white/[0.02]">
-              {['Date & time', 'Customer', 'Route', 'Provider', 'Driver', 'Price', 'Status'].map(h => (
-                <th key={h} className="text-left text-xs tracking-widest text-muted uppercase px-4 py-3 font-normal">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="text-center text-muted text-sm py-10">Loading...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-muted text-sm py-10">No bookings found</td></tr>
-            ) : filtered.map((b: any) => (
-              <tr key={b.id} className="border-b border-border/50 last:border-0 hover:bg-white/[0.01]">
-                <td className="px-4 py-3">
-                  <div className="text-sm">{new Date(b.pickup_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                  <div className="text-xs text-muted">{new Date(b.pickup_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-sm">{b.customer?.full_name ?? '—'}</div>
-                  <div className="text-xs text-muted">{b.customer?.email ?? '—'}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-sm">{b.pickup?.name} → {b.dropoff?.name}</div>
-                  <div className="text-xs text-muted">{b.direction === 'outbound' ? 'Outbound' : 'Inbound'} · {b.passengers} pax</div>
-                </td>
-                <td className="px-4 py-3 text-sm text-muted">{b.provider?.company_name ?? '—'}</td>
-                <td className="px-4 py-3 text-sm text-muted">{b.driver?.full_name ?? '—'}</td>
-                <td className="px-4 py-3 text-sm">€ {b.final_price?.toFixed(2)}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded capitalize ${statusBadge[b.status] ?? 'bg-white/10 text-muted'}`}>
-                    {b.status?.replace('_', ' ')}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      )}
     </div>
   )
 }

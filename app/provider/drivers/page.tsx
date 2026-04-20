@@ -8,8 +8,8 @@ export default function ProviderDrivers() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [providerId, setProviderId] = useState('')
-  const [form, setForm] = useState({ full_name: '', phone: '', licence_number: '', preferred_language: 'tr' })
   const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ full_name:'', phone:'', licence_number:'', preferred_language:'tr' })
 
   useEffect(() => {
     async function load() {
@@ -28,110 +28,88 @@ export default function ProviderDrivers() {
   async function addDriver() {
     if (!form.full_name || !form.phone) return
     setSaving(true)
-    const { data } = await supabase.from('drivers').insert({
-      ...form, provider_id: providerId, is_active: true, status: 'available'
-    }).select().single()
+    const { data } = await supabase.from('drivers').insert({...form, provider_id:providerId, is_active:true, status:'available'}).select().single()
     if (data) setDrivers(prev => [...prev, data])
-    setForm({ full_name: '', phone: '', licence_number: '', preferred_language: 'tr' })
+    setForm({ full_name:'', phone:'', licence_number:'', preferred_language:'tr' })
     setShowAdd(false)
     setSaving(false)
   }
 
-  async function toggleActive(driverId: string, current: boolean) {
-    await supabase.from('drivers').update({ is_active: !current }).eq('id', driverId)
-    setDrivers(prev => prev.map(d => d.id === driverId ? { ...d, is_active: !current } : d))
+  async function toggleActive(id: string, current: boolean) {
+    await supabase.from('drivers').update({ is_active:!current }).eq('id', id)
+    setDrivers(prev => prev.map(d => d.id===id ? {...d, is_active:!current} : d))
   }
 
-  const statusColor: Record<string, string> = {
-    available: 'bg-teal', on_trip: 'bg-amber', off_duty: 'bg-white/20'
-  }
+  const statusDot: Record<string,string> = { available:'#1D9E75', on_trip:'#EF9F27', off_duty:'rgba(255,255,255,0.2)' }
+  const inputStyle = { width:'100%', fontSize:'15px', padding:'12px', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'#f0ede6', marginTop:'4px' }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-medium">Drivers</h1>
-        <button onClick={() => setShowAdd(!showAdd)}
-          className="text-sm bg-paper text-ink px-4 py-2 rounded hover:bg-paper/90 transition-colors">
-          + Add driver
+    <div style={{padding:'16px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
+        <h1 style={{fontSize:'20px', fontWeight:'500'}}>Drivers</h1>
+        <button onClick={() => setShowAdd(!showAdd)} style={{padding:'9px 16px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'500', cursor:'pointer'}}>
+          + Add
         </button>
       </div>
 
       {showAdd && (
-        <div className="bg-white/[0.03] border border-border rounded-lg p-5 mb-6">
-          <h2 className="text-sm font-medium mb-4">New driver</h2>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {[
-              { label: 'Full name *', key: 'full_name', placeholder: 'Ahmet Yılmaz' },
-              { label: 'Phone *', key: 'phone', placeholder: '+90 532 000 0000' },
-              { label: 'Licence number', key: 'licence_number', placeholder: 'Optional' },
-            ].map(f => (
-              <div key={f.key} className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted">{f.label}</label>
-                <input value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  className="px-3 py-2.5 text-sm" placeholder={f.placeholder} />
-              </div>
-            ))}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-muted">Preferred language</label>
-              <select value={form.preferred_language} onChange={e => setForm(prev => ({ ...prev, preferred_language: e.target.value }))}
-                className="px-3 py-2.5 text-sm">
-                <option value="tr">Turkish</option>
-                <option value="en">English</option>
-              </select>
+        <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'16px', marginBottom:'16px'}}>
+          <h2 style={{fontSize:'14px', fontWeight:'500', marginBottom:'14px'}}>New driver</h2>
+          {[
+            {label:'Full name *', key:'full_name', placeholder:'Ahmet Yılmaz'},
+            {label:'Phone *', key:'phone', placeholder:'+90 532 000 0000'},
+            {label:'Licence number', key:'licence_number', placeholder:'Optional'},
+          ].map(f => (
+            <div key={f.key} style={{marginBottom:'12px'}}>
+              <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)'}}>{f.label}</label>
+              <input value={(form as any)[f.key]} onChange={e => setForm(p => ({...p, [f.key]:e.target.value}))} placeholder={f.placeholder} style={inputStyle} />
             </div>
+          ))}
+          <div style={{marginBottom:'14px'}}>
+            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)'}}>Language</label>
+            <select value={form.preferred_language} onChange={e => setForm(p => ({...p, preferred_language:e.target.value}))} style={inputStyle}>
+              <option value="tr">Turkish</option>
+              <option value="en">English</option>
+            </select>
           </div>
-          <div className="flex gap-3">
-            <button onClick={addDriver} disabled={saving || !form.full_name || !form.phone}
-              className="text-sm bg-paper text-ink px-4 py-2 rounded disabled:opacity-30">
-              {saving ? 'Saving...' : 'Save driver'}
+          <div style={{display:'flex', gap:'10px'}}>
+            <button onClick={addDriver} disabled={saving||!form.full_name||!form.phone}
+              style={{flex:1, padding:'12px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'500', cursor:'pointer', opacity:saving?0.5:1}}>
+              {saving?'Saving...':'Save driver'}
             </button>
-            <button onClick={() => setShowAdd(false)} className="text-sm text-muted hover:text-paper">Cancel</button>
+            <button onClick={() => setShowAdd(false)} style={{padding:'12px 16px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.5)', fontSize:'13px', cursor:'pointer'}}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-white/[0.02]">
-              {['Driver', 'Phone', 'Licence', 'Language', 'Status', 'Active', ''].map(h => (
-                <th key={h} className="text-left text-xs tracking-widest text-muted uppercase px-4 py-3 font-normal">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="text-center text-muted text-sm py-10">Loading...</td></tr>
-            ) : drivers.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-muted text-sm py-10">No drivers yet — add your first driver above</td></tr>
-            ) : drivers.map((d: any) => (
-              <tr key={d.id} className="border-b border-border/50 last:border-0 hover:bg-white/[0.01]">
-                <td className="px-4 py-3 text-sm font-medium">{d.full_name}</td>
-                <td className="px-4 py-3 text-sm text-muted">{d.phone}</td>
-                <td className="px-4 py-3 text-sm text-muted">{d.licence_number || '—'}</td>
-                <td className="px-4 py-3 text-xs text-muted uppercase">{d.preferred_language}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${statusColor[d.status] ?? 'bg-white/20'}`} />
-                    <span className="text-xs text-muted capitalize">{d.status?.replace('_', ' ')}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded ${d.is_active ? 'bg-teal/15 text-teal' : 'bg-white/10 text-muted'}`}>
-                    {d.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button onClick={() => toggleActive(d.id, d.is_active)}
-                    className="text-xs text-muted hover:text-paper transition-colors">
-                    {d.is_active ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading ? (
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+      ) : drivers.length===0 ? (
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)', fontSize:'14px'}}>No drivers yet</div>
+      ) : (
+        <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+          {drivers.map((d:any) => (
+            <div key={d.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'14px', display:'flex', alignItems:'center', gap:'12px'}}>
+              <div style={{width:'36px', height:'36px', borderRadius:'50%', backgroundColor:'rgba(255,255,255,0.08)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'500', flexShrink:0}}>
+                {d.full_name.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
+              </div>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{fontSize:'14px', fontWeight:'500', marginBottom:'2px'}}>{d.full_name}</div>
+                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{d.phone}</div>
+                <div style={{display:'flex', alignItems:'center', gap:'6px', marginTop:'4px'}}>
+                  <div style={{width:'6px', height:'6px', borderRadius:'50%', backgroundColor:statusDot[d.status]??'rgba(255,255,255,0.2)'}} />
+                  <span style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', textTransform:'capitalize'}}>{d.status?.replace('_',' ')}</span>
+                </div>
+              </div>
+              <button onClick={() => toggleActive(d.id, d.is_active)} style={{
+                padding:'7px 12px', border:'1px solid', fontSize:'11px', borderRadius:'5px', cursor:'pointer', background:'none',
+                borderColor: d.is_active ? 'rgba(29,158,117,0.4)' : 'rgba(255,255,255,0.15)',
+                color: d.is_active ? '#1D9E75' : 'rgba(255,255,255,0.4)',
+              }}>{d.is_active?'Active':'Inactive'}</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

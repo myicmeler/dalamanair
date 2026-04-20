@@ -4,135 +4,104 @@ import { createClient } from '@/lib/supabase'
 
 export default function AdminDashboard() {
   const supabase = createClient() as any
-  const [stats, setStats] = useState({
-    totalBookings: 0, bookingsToday: 0, totalRevenue: 0, revenueToday: 0,
-    providers: 0, pendingProviders: 0, drivers: 0, users: 0,
-    pendingReviews: 0, avgRating: 0,
-  })
+  const [stats, setStats] = useState({ totalBookings:0, bookingsToday:0, totalRevenue:0, revenueToday:0, providers:0, pendingProviders:0, pendingReviews:0, users:0, avgRating:0 })
   const [recent, setRecent] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       const today = new Date().toISOString().split('T')[0]
-
-      const [
-        { data: allBookings },
-        { data: todayBookings },
-        { data: providers },
-        { data: drivers },
-        { data: users },
-        { data: reviews },
-        { data: recentBookings },
-      ] = await Promise.all([
+      const [{ data: allBk }, { data: todayBk }, { data: providers }, { data: users }, { data: reviews }, { data: recentBk }] = await Promise.all([
         supabase.from('bookings').select('final_price, status'),
-        supabase.from('bookings').select('final_price').gte('pickup_time', today + 'T00:00:00').lte('pickup_time', today + 'T23:59:59'),
+        supabase.from('bookings').select('final_price').gte('pickup_time', today+'T00:00:00').lte('pickup_time', today+'T23:59:59'),
         supabase.from('providers').select('is_approved, avg_rating'),
-        supabase.from('drivers').select('id'),
         supabase.from('users').select('id'),
         supabase.from('reviews').select('rating, is_published'),
-        supabase.from('bookings').select('*, customer:users(email, full_name), provider:providers(company_name), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)').order('created_at', { ascending: false }).limit(10),
+        supabase.from('bookings').select('*, customer:users(email), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)').order('created_at', {ascending:false}).limit(5),
       ])
-
-      const totalRevenue = (allBookings ?? []).reduce((s: number, b: any) => s + (b.final_price || 0), 0)
-      const revenueToday = (todayBookings ?? []).reduce((s: number, b: any) => s + (b.final_price || 0), 0)
-      const pendingProviders = (providers ?? []).filter((p: any) => !p.is_approved).length
-      const approvedProviders = (providers ?? []).filter((p: any) => p.is_approved).length
-      const pendingReviews = (reviews ?? []).filter((r: any) => !r.is_published).length
-      const avgRating = reviews && reviews.length > 0
-        ? reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length
-        : 0
-
+      const totalRevenue = (allBk??[]).reduce((s:number,b:any)=>s+(b.final_price||0),0)
+      const revenueToday = (todayBk??[]).reduce((s:number,b:any)=>s+(b.final_price||0),0)
+      const avgRating = reviews&&reviews.length>0 ? reviews.reduce((s:number,r:any)=>s+(r.rating||0),0)/reviews.length : 0
       setStats({
-        totalBookings: allBookings?.length ?? 0,
-        bookingsToday: todayBookings?.length ?? 0,
+        totalBookings:allBk?.length??0, bookingsToday:todayBk?.length??0,
         totalRevenue, revenueToday,
-        providers: approvedProviders,
-        pendingProviders,
-        drivers: drivers?.length ?? 0,
-        users: users?.length ?? 0,
-        pendingReviews,
-        avgRating,
+        providers:(providers??[]).filter((p:any)=>p.is_approved).length,
+        pendingProviders:(providers??[]).filter((p:any)=>!p.is_approved).length,
+        pendingReviews:(reviews??[]).filter((r:any)=>!r.is_published).length,
+        users:users?.length??0, avgRating,
       })
-      if (recentBookings) setRecent(recentBookings)
+      if (recentBk) setRecent(recentBk)
       setLoading(false)
     }
     load()
   }, [])
 
+  const statusColor: Record<string,string> = {
+    pending:'#EF9F27', confirmed:'#1D9E75', driver_assigned:'#378ADD', completed:'#8a8680', cancelled:'#E24B4A'
+  }
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-medium mb-1">Platform overview</h1>
-      <p className="text-sm text-muted mb-8">
-        {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+    <div style={{padding:'16px'}}>
+      <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'rgba(255,255,255,0.3)', textTransform:'uppercase', marginBottom:'4px'}}>
+        {new Date().toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'})}
       </p>
+      <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'16px'}}>Platform overview</h1>
 
       {loading ? (
-        <div className="text-muted text-sm py-10 text-center">Loading stats...</div>
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'20px'}}>
             {[
-              { num: stats.bookingsToday, label: 'Bookings today', sub: `${stats.totalBookings} all time` },
-              { num: `€ ${stats.revenueToday.toFixed(0)}`, label: 'Revenue today', sub: `€ ${stats.totalRevenue.toFixed(0)} all time` },
-              { num: stats.users, label: 'Total users', sub: 'Registered customers' },
-              { num: stats.avgRating.toFixed(1) + '★', label: 'Platform rating', sub: 'Published reviews' },
+              {num:stats.bookingsToday, label:'Today', sub:`${stats.totalBookings} total`},
+              {num:`€${stats.revenueToday.toFixed(0)}`, label:'Revenue today', sub:`€${stats.totalRevenue.toFixed(0)} total`},
+              {num:stats.users, label:'Users', sub:'Registered'},
+              {num:stats.avgRating.toFixed(1)+'★', label:'Platform rating', sub:'Reviews'},
             ].map(s => (
-              <div key={s.label} className="bg-white/[0.03] border border-border rounded-lg p-4">
-                <div className="text-2xl font-medium mb-1">{s.num}</div>
-                <div className="text-xs tracking-widest text-muted uppercase">{s.label}</div>
-                <div className="text-xs text-muted/50 mt-0.5">{s.sub}</div>
+              <div key={s.label} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'14px'}}>
+                <div style={{fontSize:'22px', fontWeight:'500', marginBottom:'2px'}}>{s.num}</div>
+                <div style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)'}}>{s.label}</div>
+                <div style={{fontSize:'11px', color:'rgba(255,255,255,0.25)', marginTop:'2px'}}>{s.sub}</div>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-4 gap-3 mb-8">
-            {[
-              { num: stats.providers, label: 'Active providers', alert: false },
-              { num: stats.pendingProviders, label: 'Pending approval', alert: stats.pendingProviders > 0 },
-              { num: stats.drivers, label: 'Total drivers', alert: false },
-              { num: stats.pendingReviews, label: 'Reviews to moderate', alert: stats.pendingReviews > 0 },
-            ].map(s => (
-              <div key={s.label} className={`border rounded-lg p-4 ${s.alert ? 'bg-amber/5 border-amber/30' : 'bg-white/[0.03] border-border'}`}>
-                <div className="text-2xl font-medium mb-1">{s.num}</div>
-                <div className="text-xs tracking-widest text-muted uppercase">{s.label}</div>
+          {(stats.pendingProviders > 0 || stats.pendingReviews > 0) && (
+            <div style={{marginBottom:'20px'}}>
+              <h2 style={{fontSize:'11px', letterSpacing:'0.15em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', marginBottom:'10px'}}>Needs attention</h2>
+              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                {stats.pendingProviders > 0 && (
+                  <a href="/admin/providers" style={{display:'flex', justifyContent:'space-between', alignItems:'center', backgroundColor:'rgba(239,159,39,0.1)', border:'1px solid rgba(239,159,39,0.3)', borderRadius:'8px', padding:'14px', textDecoration:'none'}}>
+                    <span style={{fontSize:'13px', color:'#EF9F27'}}>Providers awaiting approval</span>
+                    <span style={{fontSize:'18px', fontWeight:'500', color:'#EF9F27'}}>{stats.pendingProviders}</span>
+                  </a>
+                )}
+                {stats.pendingReviews > 0 && (
+                  <a href="/admin/reviews" style={{display:'flex', justifyContent:'space-between', alignItems:'center', backgroundColor:'rgba(239,159,39,0.1)', border:'1px solid rgba(239,159,39,0.3)', borderRadius:'8px', padding:'14px', textDecoration:'none'}}>
+                    <span style={{fontSize:'13px', color:'#EF9F27'}}>Reviews to moderate</span>
+                    <span style={{fontSize:'18px', fontWeight:'500', color:'#EF9F27'}}>{stats.pendingReviews}</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          <h2 style={{fontSize:'11px', letterSpacing:'0.15em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', marginBottom:'10px'}}>Recent bookings</h2>
+          <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+            {recent.map((b:any) => (
+              <div key={b.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'2px'}}>{b.pickup?.name} → {b.dropoff?.name}</div>
+                  <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>{b.customer?.email} · {new Date(b.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'4px'}}>€{b.final_price?.toFixed(0)}</div>
+                  <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:`${statusColor[b.status]}20`, color:statusColor[b.status]}}>
+                    {b.status?.replace('_',' ')}
+                  </span>
+                </div>
               </div>
             ))}
-          </div>
-
-          <h2 className="text-xs tracking-widest text-muted uppercase mb-4">Recent bookings</h2>
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-white/[0.02]">
-                  {['Created', 'Customer', 'Route', 'Provider', 'Price', 'Status'].map(h => (
-                    <th key={h} className="text-left text-xs tracking-widest text-muted uppercase px-4 py-3 font-normal">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recent.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center text-muted text-sm py-10">No bookings yet</td></tr>
-                ) : recent.map((b: any) => (
-                  <tr key={b.id} className="border-b border-border/50 last:border-0 hover:bg-white/[0.01]">
-                    <td className="px-4 py-3 text-xs text-muted">
-                      {new Date(b.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {b.customer?.full_name ?? b.customer?.email ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted">{b.pickup?.name} → {b.dropoff?.name}</td>
-                    <td className="px-4 py-3 text-sm text-muted">{b.provider?.company_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm">€ {b.final_price?.toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-1 rounded bg-white/10 text-muted capitalize">
-                        {b.status?.replace('_', ' ')}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </>
       )}

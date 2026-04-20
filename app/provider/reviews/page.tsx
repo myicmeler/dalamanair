@@ -18,8 +18,7 @@ export default function ProviderReviews() {
       const { data: rv } = await supabase
         .from('reviews')
         .select('*, customer:users(full_name), booking:bookings(pickup_time, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name))')
-        .eq('provider_id', provider.id)
-        .order('created_at', { ascending: false })
+        .eq('provider_id', provider.id).order('created_at', {ascending:false})
       if (rv) setReviews(rv)
       setLoading(false)
     }
@@ -27,54 +26,50 @@ export default function ProviderReviews() {
   }, [])
 
   return (
-    <div className="p-8">
-      <div className="flex items-baseline gap-4 mb-8">
-        <h1 className="text-2xl font-medium">Reviews</h1>
-        <div className="text-3xl font-medium text-paper/20">{avgRating.toFixed(1)}★</div>
-        <div className="text-sm text-muted">{reviews.length} reviews</div>
+    <div style={{padding:'16px'}}>
+      <div style={{display:'flex', alignItems:'baseline', gap:'12px', marginBottom:'20px'}}>
+        <h1 style={{fontSize:'20px', fontWeight:'500'}}>Reviews</h1>
+        <span style={{fontSize:'24px', fontWeight:'300', color:'rgba(255,255,255,0.2)'}}>{avgRating.toFixed(1)}★</span>
+        <span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{reviews.length} reviews</span>
       </div>
 
       {loading ? (
-        <div className="text-muted text-sm py-10 text-center">Loading...</div>
-      ) : reviews.length === 0 ? (
-        <div className="text-muted text-sm py-10 text-center">No reviews yet</div>
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+      ) : reviews.length===0 ? (
+        <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)', fontSize:'14px'}}>No reviews yet</div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {reviews.map((r: any) => (
-            <div key={r.id} className="bg-white/[0.03] border border-border rounded-lg p-5">
-              <div className="flex justify-between items-start mb-3">
+        <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+          {reviews.map((r:any) => (
+            <div key={r.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'14px'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px'}}>
                 <div>
-                  <div className="flex gap-0.5 mb-1">
+                  <div style={{display:'flex', gap:'2px', marginBottom:'4px'}}>
                     {[1,2,3,4,5].map(i => (
-                      <div key={i} className={`w-3 h-3 ${i <= r.rating ? 'opacity-80' : 'opacity-15'}`}
-                        style={{ background: 'currentColor', clipPath: 'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }} />
+                      <div key={i} style={{width:'12px', height:'12px', backgroundColor:i<=r.rating?'#f4b942':'rgba(255,255,255,0.15)',
+                        clipPath:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)'}} />
                     ))}
                   </div>
-                  <div className="text-sm font-medium">{r.customer?.full_name ?? 'Anonymous'}</div>
+                  <p style={{fontSize:'13px', fontWeight:'500'}}>{r.customer?.full_name??'Anonymous'}</p>
                   {r.booking && (
-                    <div className="text-xs text-muted mt-0.5">
-                      {r.booking.pickup?.name} → {r.booking.dropoff?.name} ·{' '}
-                      {new Date(r.booking.pickup_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </div>
+                    <p style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', marginTop:'2px'}}>
+                      {r.booking.pickup?.name} → {r.booking.dropoff?.name}
+                    </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded ${r.is_published ? 'bg-teal/15 text-teal' : 'bg-amber/15 text-amber'}`}>
-                    {r.is_published ? 'Published' : 'Pending'}
-                  </span>
-                  <span className="text-xs text-muted">
-                    {new Date(r.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                  </span>
-                </div>
+                <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px',
+                  backgroundColor:r.is_published?'rgba(29,158,117,0.15)':'rgba(239,159,39,0.15)',
+                  color:r.is_published?'#1D9E75':'#EF9F27'}}>
+                  {r.is_published?'Published':'Pending'}
+                </span>
               </div>
-              {r.aspects?.length > 0 && (
-                <div className="flex gap-1 flex-wrap mb-2">
-                  {r.aspects.map((a: string) => (
-                    <span key={a} className="text-xs bg-white/5 px-2 py-0.5 rounded capitalize">{a.replace('_', ' ')}</span>
+              {r.aspects?.length>0 && (
+                <div style={{display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'8px'}}>
+                  {r.aspects.map((a:string) => (
+                    <span key={a} style={{fontSize:'10px', padding:'3px 8px', backgroundColor:'rgba(255,255,255,0.06)', borderRadius:'10px', textTransform:'capitalize', color:'rgba(255,255,255,0.5)'}}>{a.replace('_',' ')}</span>
                   ))}
                 </div>
               )}
-              {r.comment && <p className="text-sm text-muted italic">&ldquo;{r.comment}&rdquo;</p>}
+              {r.comment && <p style={{fontSize:'13px', color:'rgba(255,255,255,0.6)', fontStyle:'italic'}}>"{r.comment}"</p>}
             </div>
           ))}
         </div>

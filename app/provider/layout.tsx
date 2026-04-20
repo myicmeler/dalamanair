@@ -1,47 +1,30 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
-const labels = {
-  en: {
-    main: 'Main', dashboard: 'Dashboard', bookings: 'Bookings',
-    drivers: 'Drivers', fleet: 'Fleet', vehicles: 'Vehicles',
-    subcontractors: 'Subcontractors', account: 'Account',
-    reviews: 'Reviews', settings: 'Settings',
-    notifications: 'notifications', signout: 'Sign out',
-  },
-  tr: {
-    main: 'Ana menü', dashboard: 'Gösterge paneli', bookings: 'Rezervasyonlar',
-    drivers: 'Sürücüler', fleet: 'Filo', vehicles: 'Araçlar',
-    subcontractors: 'Taşeronlar', account: 'Hesap',
-    reviews: 'Değerlendirmeler', settings: 'Ayarlar',
-    notifications: 'bildirim', signout: 'Çıkış yap',
-  }
-}
+const navItems = [
+  { href: '/provider', label: 'Dashboard' },
+  { href: '/provider/bookings', label: 'Bookings' },
+  { href: '/provider/drivers', label: 'Drivers' },
+  { href: '/provider/vehicles', label: 'Fleet' },
+  { href: '/provider/reviews', label: 'Reviews' },
+]
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient() as any
-  const [lang, setLang] = useState<'en'|'tr'>('en')
   const [providerName, setProviderName] = useState('Provider')
-  const [initials, setInitials] = useState('P')
-  const t = labels[lang]
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/signin?redirect=/provider'); return }
-      const { data: provider } = await supabase
-        .from('providers')
-        .select('company_name')
-        .eq('user_id', user.id)
-        .single()
-      if (provider) {
-        setProviderName(provider.company_name)
-        setInitials(provider.company_name.split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase())
-      }
+      const { data: provider } = await supabase.from('providers').select('company_name').eq('user_id', user.id).single()
+      if (provider) setProviderName(provider.company_name)
     }
     load()
   }, [])
@@ -51,55 +34,51 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     router.push('/')
   }
 
-  const navItems = [
-    { href: '/provider', label: t.dashboard, section: t.main },
-    { href: '/provider/bookings', label: t.bookings },
-    { href: '/provider/drivers', label: t.drivers },
-    { href: '/provider/vehicles', label: t.vehicles, section: t.fleet },
-    { href: '/provider/subcontractors', label: t.subcontractors },
-    { href: '/provider/reviews', label: t.reviews, section: t.account },
-    { href: '/provider/settings', label: t.settings },
-  ]
-
   return (
-    <div className="min-h-screen bg-ink text-paper flex flex-col">
+    <div style={{minHeight:'100vh', backgroundColor:'#0f1419', color:'#f0ede6'}}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-border flex-shrink-0">
-        <div className="text-sm font-medium tracking-wide">{providerName}</div>
-        <div className="flex items-center gap-5">
-          <div className="flex gap-0.5 bg-white/5 rounded p-0.5">
-            {(['en','tr'] as const).map(l => (
-              <button key={l} onClick={() => setLang(l)}
-                className={`text-xs px-2.5 py-1 rounded transition-all ${lang===l ? 'bg-white/10 text-paper' : 'text-muted hover:text-paper'}`}>
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <span className="text-xs text-muted cursor-pointer hover:text-paper" onClick={handleSignOut}>{t.signout}</span>
-          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-medium">{initials}</div>
-        </div>
+      <div style={{backgroundColor:'#1a1f26', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'52px', position:'sticky', top:0, zIndex:40}}>
+        <div style={{fontSize:'13px', fontWeight:'500'}}>{providerName}</div>
+        <button onClick={() => setMenuOpen(!menuOpen)} style={{background:'none', border:'none', cursor:'pointer', padding:'8px', display:'flex', flexDirection:'column', gap:'5px'}}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{width:'20px', height:'1.5px', backgroundColor:'#f0ede6', opacity: menuOpen&&i===1?0:1, transition:'all 0.2s',
+              transform: menuOpen?(i===0?'rotate(45deg) translate(4px,4px)':i===2?'rotate(-45deg) translate(4px,-4px)':'none'):'none'}} />
+          ))}
+        </button>
       </div>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <div className="w-52 border-r border-border flex-shrink-0 py-6">
-          {navItems.map((item, i) => (
-            <div key={item.href}>
-              {item.section && (
-                <div className="text-xs tracking-widest text-muted/50 uppercase px-6 pt-5 pb-2">{item.section}</div>
-              )}
-              <Link href={item.href}
-                className="block px-6 py-2.5 text-sm text-muted hover:text-paper transition-colors">
-                {item.label}
-              </Link>
-            </div>
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div style={{position:'fixed', top:'52px', left:0, right:0, bottom:0, backgroundColor:'#1a1f26', zIndex:30, padding:'8px 0', overflowY:'auto'}}>
+          {navItems.map(item => (
+            <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
+              display:'block', padding:'16px 20px', fontSize:'16px',
+              color: pathname===item.href ? '#f4b942' : 'rgba(255,255,255,0.8)',
+              borderBottom:'1px solid rgba(255,255,255,0.06)', textDecoration:'none',
+              fontWeight: pathname===item.href ? '500' : '400',
+            }}>{item.label}</Link>
           ))}
+          <button onClick={handleSignOut} style={{display:'block', width:'100%', padding:'16px 20px', fontSize:'16px', color:'rgba(255,255,255,0.5)', background:'none', border:'none', cursor:'pointer', textAlign:'left', borderTop:'1px solid rgba(255,255,255,0.06)', marginTop:'8px'}}>
+            Sign out
+          </button>
         </div>
+      )}
 
-        {/* Main content */}
-        <div className="flex-1 overflow-auto">
-          {children}
-        </div>
+      {/* Bottom tab bar for quick nav on mobile */}
+      <div style={{position:'fixed', bottom:0, left:0, right:0, backgroundColor:'#1a1f26', borderTop:'1px solid rgba(255,255,255,0.08)', display:'flex', zIndex:20, paddingBottom:'env(safe-area-inset-bottom)'}}>
+        {navItems.map(item => (
+          <Link key={item.href} href={item.href} style={{
+            flex:1, padding:'10px 0', textAlign:'center', textDecoration:'none',
+            fontSize:'10px', letterSpacing:'0.05em',
+            color: pathname===item.href ? '#f4b942' : 'rgba(255,255,255,0.4)',
+            fontWeight: pathname===item.href ? '500' : '400',
+          }}>{item.label}</Link>
+        ))}
+      </div>
+
+      {/* Content with bottom padding for tab bar */}
+      <div style={{paddingBottom:'60px'}}>
+        {children}
       </div>
     </div>
   )
