@@ -8,9 +8,12 @@ const navItems = [
   { href:'/admin', label:'Overview' },
   { href:'/admin/bookings', label:'Bookings' },
   { href:'/admin/providers', label:'Providers' },
+  { href:'/admin/drivers', label:'Drivers' },
+  { href:'/admin/vehicles', label:'Vehicles' },
   { href:'/admin/reviews', label:'Reviews' },
   { href:'/admin/locations', label:'Locations' },
   { href:'/admin/users', label:'Users' },
+  { href:'/admin/import', label:'↑ Import' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -47,6 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <Link href="/" style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', textDecoration:'none'}}>← Site</Link>
+          <button onClick={handleSignOut} style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', background:'none', border:'none', cursor:'pointer'}}>Sign out</button>
           <button onClick={() => setMenuOpen(!menuOpen)} style={{background:'none', border:'none', cursor:'pointer', padding:'8px', display:'flex', flexDirection:'column', gap:'5px'}}>
             {[0,1,2].map(i => (
               <div key={i} style={{width:'20px', height:'1.5px', backgroundColor:'#f0ede6', opacity:menuOpen&&i===1?0:1, transition:'all 0.2s',
@@ -66,9 +70,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               fontWeight:pathname===item.href?'500':'400',
             }}>{item.label}</Link>
           ))}
-          <button onClick={handleSignOut} style={{display:'block', width:'100%', padding:'16px 20px', fontSize:'16px', color:'rgba(255,255,255,0.5)', background:'none', border:'none', cursor:'pointer', textAlign:'left', marginTop:'8px'}}>
-            Sign out
-          </button>
         </div>
       )}
 
