@@ -8,12 +8,12 @@ const TEMPLATES: Record<ImportType, { headers: string[], example: string[], note
   providers: {
     headers: ['company_name', 'contact_name', 'email', 'phone', 'description', 'commission_pct', 'is_approved'],
     example: ['Marmaris Transfer Co.', 'Ahmet Yilmaz', 'ahmet@marmaris.com', '+90 532 100 0001', 'Premium transfers', '15', 'true'],
-    notes: 'A Supabase Auth account is created automatically for each provider using their email. They will receive a password reset email to set their password. user_id is set automatically — do not include it in the CSV.',
+    notes: 'A login account is created automatically for each provider using their email. They will receive a password reset email to set their password. Do not include user_id — it is set automatically.',
   },
   users: {
     headers: ['full_name', 'email', 'phone', 'role'],
     example: ['Tom Henriksen', 'tom@example.com', '+47 900 00000', 'customer'],
-    notes: 'Role must be: customer, provider, driver, or admin. A Supabase Auth account is created automatically. The user will receive a password reset email.',
+    notes: 'Role must be: customer, provider, driver, or admin. A login account is created automatically and a password reset email is sent.',
   },
   drivers: {
     headers: ['provider_email', 'full_name', 'phone', 'licence_number', 'preferred_language', 'status'],
@@ -57,6 +57,18 @@ export default function AdminImport() {
     })
   }
 
+  async function callEdgeFunction(payload: any) {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    return res.json()
+  }
+
   async function handleImport() {
     setImporting(true)
     setResults(null)
@@ -73,103 +85,49 @@ export default function AdminImport() {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       const rowNum = i + 2
+
       try {
         if (activeTab === 'providers') {
-          if (!row.company_name || !row.email) { errors.push(`Row ${rowNum}: company_name and email are required`); continue }
-
-          // Create auth user
-          const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+          if (!row.company_name || !row.email) {
+            errors.push(`Row ${rowNum}: company_name and email are required`)
+            continue
+          }
+          const result = await callEdgeFunction({
             email: row.email,
-            email_confirm: true,
-            user_metadata: { full_name: row.contact_name || row.company_name },
-          })
-          if (authErr) { errors.push(`Row ${rowNum} (${row.email}): ${authErr.message}`); continue }
-
-          const userId = authData.user.id
-
-          // Update user profile
-          await supabase.from('users').upsert({
-            id: userId,
-            email: row.email,
-            full_name: row.contact_name || null,
-            phone: row.phone || null,
             role: 'provider',
-          })
-
-          // Create provider
-          const { error: provErr } = await supabase.from('providers').insert({
-            user_id: userId,
             company_name: row.company_name,
             contact_name: row.contact_name || null,
             phone: row.phone || null,
             description: row.description || null,
-            commission_pct: parseFloat(row.commission_pct) || 15,
-            is_approved: row.is_approved === 'true',
-            is_subcontractor: false,
-            avg_rating: 0,
-            total_reviews: 0,
+            commission_pct: row.commission_pct || '15',
+            is_approved: row.is_approved || 'true',
           })
-          if (provErr) { errors.push(`Row ${rowNum}: Provider insert failed — ${provErr.message}`); continue }
-
-          // Send password reset so they can set their password
-          await supabase.auth.resetPasswordForEmail(row.email)
+          if (result.error) { errors.push(`Row ${rowNum} (${row.email}): ${result.error}`); continue }
           success++
 
         } else if (activeTab === 'users') {
           if (!row.email) { errors.push(`Row ${rowNum}: email is required`); continue }
-
-          const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-            email: row.email,
-            email_confirm: true,
-            user_metadata: { full_name: row.full_name || '' },
-          })
-          if (authErr) { errors.push(`Row ${rowNum} (${row.email}): ${authErr.message}`); continue }
-
-          await supabase.from('users').upsert({
-            id: authData.user.id,
+          const result = await callEdgeFunction({
             email: row.email,
             full_name: row.full_name || null,
             phone: row.phone || null,
             role: row.role || 'customer',
           })
-
-          await supabase.auth.resetPasswordForEmail(row.email)
+          if (result.error) { errors.push(`Row ${rowNum} (${row.email}): ${result.error}`); continue }
           success++
 
         } else if (activeTab === 'drivers') {
           if (!row.provider_email || !row.full_name || !row.phone) {
-            errors.push(`Row ${rowNum}: provider_email, full_name and phone are required`); continue
-          }
-
-          const { data: provider } = await supabase
-            .from('providers')
-            .select('id')
-            .eq('user_id', (await supabase.from('users').select('id').eq('email', row.provider_email).single()).data?.id)
-            .single()
-
-          if (!provider) {
-            // Try finding provider by joining through users
-            const { data: userRow } = await supabase.from('users').select('id').eq('email', row.provider_email).single()
-            if (!userRow) { errors.push(`Row ${rowNum}: No provider found with email ${row.provider_email}`); continue }
-            const { data: prov } = await supabase.from('providers').select('id').eq('user_id', userRow.id).single()
-            if (!prov) { errors.push(`Row ${rowNum}: No provider found with email ${row.provider_email}`); continue }
-
-            const { error: drvErr } = await supabase.from('drivers').insert({
-              provider_id: prov.id,
-              full_name: row.full_name,
-              phone: row.phone,
-              licence_number: row.licence_number || null,
-              preferred_language: row.preferred_language || 'tr',
-              status: row.status || 'available',
-              is_active: true,
-            })
-            if (drvErr) { errors.push(`Row ${rowNum}: ${drvErr.message}`); continue }
-            success++
+            errors.push(`Row ${rowNum}: provider_email, full_name and phone are required`)
             continue
           }
+          const { data: userRow } = await supabase.from('users').select('id').eq('email', row.provider_email).single()
+          if (!userRow) { errors.push(`Row ${rowNum}: No user found with email ${row.provider_email}`); continue }
+          const { data: prov } = await supabase.from('providers').select('id').eq('user_id', userRow.id).single()
+          if (!prov) { errors.push(`Row ${rowNum}: No provider found with email ${row.provider_email}`); continue }
 
           const { error: drvErr } = await supabase.from('drivers').insert({
-            provider_id: provider.id,
+            provider_id: prov.id,
             full_name: row.full_name,
             phone: row.phone,
             licence_number: row.licence_number || null,
@@ -182,9 +140,9 @@ export default function AdminImport() {
 
         } else if (activeTab === 'vehicles') {
           if (!row.provider_email || !row.make || !row.model || !row.seats) {
-            errors.push(`Row ${rowNum}: provider_email, make, model and seats are required`); continue
+            errors.push(`Row ${rowNum}: provider_email, make, model and seats are required`)
+            continue
           }
-
           const { data: userRow } = await supabase.from('users').select('id').eq('email', row.provider_email).single()
           if (!userRow) { errors.push(`Row ${rowNum}: No user found with email ${row.provider_email}`); continue }
           const { data: prov } = await supabase.from('providers').select('id').eq('user_id', userRow.id).single()
@@ -221,26 +179,23 @@ export default function AdminImport() {
   return (
     <div style={{padding:'20px'}}>
       <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'4px'}}>Bulk import</h1>
-      <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Import providers, users, drivers and vehicles from CSV. IDs are created automatically.</p>
+      <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Import providers, users, drivers and vehicles from CSV. IDs and login accounts are created automatically.</p>
 
-      {/* Tabs */}
       <div style={{display:'flex', gap:'4px', marginBottom:'20px', backgroundColor:'rgba(255,255,255,0.04)', padding:'4px', borderRadius:'8px', width:'fit-content'}}>
         {(['providers','users','drivers','vehicles'] as ImportType[]).map(tab => (
           <button key={tab} onClick={() => { setActiveTab(tab); setCsvText(''); setResults(null) }} style={{
             padding:'8px 16px', borderRadius:'6px', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:'500',
-            textTransform:'capitalize', backgroundColor: activeTab===tab?'rgba(255,255,255,0.1)':'transparent',
-            color: activeTab===tab?'#f0ede6':'rgba(255,255,255,0.4)',
+            textTransform:'capitalize', backgroundColor:activeTab===tab?'rgba(255,255,255,0.1)':'transparent',
+            color:activeTab===tab?'#f0ede6':'rgba(255,255,255,0.4)',
           }}>{tab}</button>
         ))}
       </div>
 
-      {/* Notes */}
       <div style={{backgroundColor:'rgba(244,185,66,0.08)', border:'1px solid rgba(244,185,66,0.2)', borderRadius:'8px', padding:'14px', marginBottom:'16px'}}>
         <p style={{fontSize:'12px', color:'#f4b942', fontWeight:'500', marginBottom:'4px'}}>ℹ️ {activeTab.charAt(0).toUpperCase()+activeTab.slice(1)} import</p>
         <p style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', lineHeight:'1.5'}}>{t.notes}</p>
       </div>
 
-      {/* Required columns */}
       <div style={{marginBottom:'16px'}}>
         <p style={{fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:'8px'}}>Required columns</p>
         <div style={{display:'flex', gap:'6px', flexWrap:'wrap'}}>
@@ -250,42 +205,32 @@ export default function AdminImport() {
         </div>
       </div>
 
-      {/* Download template */}
-      <button onClick={() => downloadTemplate(activeTab)} style={{
-        padding:'9px 16px', backgroundColor:'transparent', border:'1px solid rgba(255,255,255,0.15)',
-        borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'12px', cursor:'pointer', marginBottom:'16px',
-      }}>
+      <button onClick={() => downloadTemplate(activeTab)} style={{padding:'9px 16px', backgroundColor:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'12px', cursor:'pointer', marginBottom:'16px'}}>
         ↓ Download template CSV
       </button>
 
-      {/* CSV input */}
       <div style={{marginBottom:'16px'}}>
         <p style={{fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:'8px'}}>Paste CSV content</p>
-        <textarea
-          value={csvText}
-          onChange={e => setCsvText(e.target.value)}
+        <textarea value={csvText} onChange={e => setCsvText(e.target.value)}
           placeholder={`${t.headers.join(',')}\n${t.example.join(',')}`}
-          rows={8}
-          style={{...inputStyle, resize:'vertical', fontFamily:'monospace', fontSize:'12px', lineHeight:'1.5'}}
-        />
+          rows={8} style={{...inputStyle, resize:'vertical', fontFamily:'monospace', fontSize:'12px', lineHeight:'1.5'}} />
       </div>
 
       <button onClick={handleImport} disabled={importing || !csvText.trim()} style={{
-        width:'100%', padding:'13px', backgroundColor: csvText.trim()?'#f4b942':'rgba(244,185,66,0.3)',
+        width:'100%', padding:'13px', backgroundColor:csvText.trim()?'#f4b942':'rgba(244,185,66,0.3)',
         color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600',
-        cursor: csvText.trim()?'pointer':'not-allowed', textTransform:'uppercase', letterSpacing:'0.05em',
+        cursor:csvText.trim()?'pointer':'not-allowed', textTransform:'uppercase', letterSpacing:'0.05em',
       }}>
         {importing ? `Importing ${activeTab}...` : `Import ${activeTab} →`}
       </button>
 
-      {/* Results */}
       {results && (
         <div style={{marginTop:'16px'}}>
           {results.success > 0 && (
             <div style={{backgroundColor:'rgba(29,158,117,0.1)', border:'1px solid rgba(29,158,117,0.3)', borderRadius:'8px', padding:'14px', marginBottom:'10px'}}>
               <p style={{fontSize:'13px', color:'#1D9E75', fontWeight:'500'}}>
                 ✓ {results.success} {activeTab} imported successfully
-                {activeTab === 'providers' || activeTab === 'users' ? ' — password reset emails sent' : ''}
+                {(activeTab==='providers'||activeTab==='users') ? ' — password reset emails sent' : ''}
               </p>
             </div>
           )}
