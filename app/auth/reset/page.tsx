@@ -4,6 +4,20 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
+const inp: React.CSSProperties = {
+  display:'block', width:'100%', boxSizing:'border-box',
+  fontSize:'16px', padding:'14px',
+  background:'rgba(255,255,255,0.07)',
+  border:'1px solid rgba(255,255,255,0.12)',
+  borderRadius:'6px', color:'#ffffff',
+  outline:'none', WebkitAppearance:'none' as any,
+  marginTop:'8px',
+}
+const lbl: React.CSSProperties = {
+  display:'block', fontSize:'11px', letterSpacing:'0.1em',
+  textTransform:'uppercase', color:'rgba(255,255,255,0.4)',
+}
+
 function ResetContent() {
   const router = useRouter()
   const supabase = createClient() as any
@@ -23,104 +37,87 @@ function ResetContent() {
   }, [])
 
   async function handleRequest() {
-    if (!email) return
+    if (!email || loading) return
     setLoading(true); setError('')
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset/`,
+      redirectTo:`${window.location.origin}/auth/reset/`,
     })
     if (error) { setError(error.message); setLoading(false); return }
     setDone(true); setLoading(false)
   }
 
-  async function handleSetPassword() {
+  async function handleSet() {
     if (!password || password !== confirm) { setError('Passwords do not match'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
     setLoading(true); setError('')
     const { error } = await supabase.auth.updateUser({ password })
     if (error) { setError(error.message); setLoading(false); return }
-    setLoading(false)
-    router.push('/auth/signin/?reset=success')
+    router.replace('/auth/signin/?reset=success')
   }
 
-  const inputStyle = {
-    width:'100%', fontSize:'15px', padding:'13px 14px',
-    backgroundColor:'rgba(255,255,255,0.06)',
-    border:'1px solid rgba(255,255,255,0.12)',
-    borderRadius:'6px', color:'#ffffff',
-    outline:'none', boxSizing:'border-box' as const, marginTop:'6px',
-  }
-  const labelStyle = {
-    fontSize:'10px', letterSpacing:'0.12em', textTransform:'uppercase' as const,
-    color:'rgba(255,255,255,0.4)', display:'block',
-  }
-
-  if (mode === 'set') return (
-    <div style={{minHeight:'100vh', backgroundColor:'#0f1419', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
-      <div style={{width:'100%', maxWidth:'400px'}}>
-        <div style={{textAlign:'center', marginBottom:'36px'}}>
-          <Link href="/" style={{fontSize:'12px', fontWeight:'700', letterSpacing:'0.22em', color:'#ffffff', textDecoration:'none'}}>DALAMAN.ME</Link>
-        </div>
-        <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'32px'}}>
-          <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', textAlign:'center', marginBottom:'8px'}}>Set new password</h1>
-          <p style={{fontSize:'14px', color:'rgba(255,255,255,0.45)', textAlign:'center', marginBottom:'24px'}}>Choose a strong password for your account.</p>
-          <div style={{display:'flex', flexDirection:'column', gap:'16px'}}>
-            <div>
-              <label style={labelStyle}>New password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Confirm password</label>
-              <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repeat password" style={inputStyle} onKeyDown={e => e.key==='Enter'&&handleSetPassword()} />
-            </div>
-          </div>
-          {error && <div style={{backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.3)', borderRadius:'6px', padding:'10px 14px', marginTop:'16px'}}><p style={{fontSize:'13px', color:'#f09595', margin:'0', textAlign:'center'}}>{error}</p></div>}
-          <button onClick={handleSetPassword} disabled={loading||!password||!confirm} style={{width:'100%', padding:'14px', marginTop:'20px', backgroundColor:(!loading&&password&&confirm)?'#f4b942':'rgba(244,185,66,0.3)', color:(!loading&&password&&confirm)?'#0f1419':'rgba(255,255,255,0.3)', fontWeight:'600', fontSize:'13px', letterSpacing:'0.06em', textTransform:'uppercase', borderRadius:'6px', border:'none', cursor:(!loading&&password&&confirm)?'pointer':'not-allowed'}}>
-            {loading ? 'Saving...' : 'Set new password →'}
-          </button>
-        </div>
-      </div>
+  const wrap = (content: React.ReactNode) => (
+    <div style={{minHeight:'100vh', background:'#0f1419', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px 16px', boxSizing:'border-box'}}>
+      <Link href="/" style={{fontSize:'13px', fontWeight:'700', letterSpacing:'0.2em', color:'#ffffff', textDecoration:'none', marginBottom:'40px', display:'block'}}>dalaman.me</Link>
+      {content}
     </div>
   )
 
-  if (done) return (
-    <div style={{minHeight:'100vh', backgroundColor:'#0f1419', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
-      <div style={{width:'100%', maxWidth:'400px', textAlign:'center'}}>
-        <Link href="/" style={{fontSize:'12px', fontWeight:'700', letterSpacing:'0.22em', color:'#ffffff', textDecoration:'none', display:'block', marginBottom:'36px'}}>DALAMAN.ME</Link>
-        <div style={{width:'60px', height:'60px', borderRadius:'50%', backgroundColor:'rgba(244,185,66,0.15)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:'24px'}}>✉</div>
-        <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', marginBottom:'10px'}}>Check your email</h1>
-        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', lineHeight:'1.7', marginBottom:'8px'}}>We sent a reset link to <strong style={{color:'rgba(255,255,255,0.8)'}}>{email}</strong></p>
-        <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', marginBottom:'28px'}}>Click the link to set your new password. It expires in 1 hour.</p>
-        <Link href="/auth/signin/" style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>← Back to sign in</Link>
-      </div>
+  if (done) return wrap(
+    <div style={{textAlign:'center', maxWidth:'360px'}}>
+      <div style={{fontSize:'40px', marginBottom:'16px'}}>✉</div>
+      <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', marginBottom:'10px'}}>Check your email</h1>
+      <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', lineHeight:'1.7', marginBottom:'24px'}}>
+        We sent a reset link to <strong style={{color:'rgba(255,255,255,0.8)'}}>{email}</strong>. It expires in 1 hour.
+      </p>
+      <Link href="/auth/signin/" style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>← Back to sign in</Link>
     </div>
   )
 
-  return (
-    <div style={{minHeight:'100vh', backgroundColor:'#0f1419', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
-      <div style={{width:'100%', maxWidth:'400px'}}>
-        <div style={{textAlign:'center', marginBottom:'36px'}}>
-          <Link href="/" style={{fontSize:'12px', fontWeight:'700', letterSpacing:'0.22em', color:'#ffffff', textDecoration:'none'}}>DALAMAN.ME</Link>
-        </div>
-        <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'32px'}}>
-          <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', textAlign:'center', marginBottom:'8px'}}>Forgot password?</h1>
-          <p style={{fontSize:'14px', color:'rgba(255,255,255,0.45)', textAlign:'center', marginBottom:'24px'}}>Enter your email and we'll send you a reset link.</p>
-          <div>
-            <label style={labelStyle}>Email address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" style={inputStyle} onKeyDown={e => e.key==='Enter'&&handleRequest()} />
-          </div>
-          {error && <div style={{backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.3)', borderRadius:'6px', padding:'10px 14px', marginTop:'16px'}}><p style={{fontSize:'13px', color:'#f09595', margin:'0', textAlign:'center'}}>{error}</p></div>}
-          <button onClick={handleRequest} disabled={loading||!email} style={{width:'100%', padding:'14px', marginTop:'20px', backgroundColor:(!loading&&email)?'#f4b942':'rgba(244,185,66,0.3)', color:(!loading&&email)?'#0f1419':'rgba(255,255,255,0.3)', fontWeight:'600', fontSize:'13px', letterSpacing:'0.06em', textTransform:'uppercase', borderRadius:'6px', border:'none', cursor:(!loading&&email)?'pointer':'not-allowed'}}>
-            {loading ? 'Sending...' : 'Send reset link →'}
-          </button>
-        </div>
-        <p style={{fontSize:'13px', color:'rgba(255,255,255,0.3)', textAlign:'center', marginTop:'20px'}}>
-          <Link href="/auth/signin/" style={{color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>← Back to sign in</Link>
-        </p>
+  if (mode === 'set') return wrap(
+    <div style={{width:'100%', maxWidth:'400px', background:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'32px 24px', boxSizing:'border-box'}}>
+      <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>Set new password</h1>
+      <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 28px'}}>Choose a strong password</p>
+      <div style={{marginBottom:'16px'}}>
+        <label style={lbl}>New password</label>
+        <input type="password" value={password} placeholder="Min. 8 characters" onChange={e => setPassword(e.target.value)} style={inp} />
       </div>
+      <div style={{marginBottom:'24px'}}>
+        <label style={lbl}>Confirm password</label>
+        <input type="password" value={confirm} placeholder="Repeat password" onChange={e => setConfirm(e.target.value)} onKeyDown={e => e.key==='Enter'&&handleSet()} style={inp} />
+      </div>
+      {error && <div style={{background:'rgba(162,45,45,0.2)', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'6px', padding:'12px 14px', marginBottom:'16px'}}><p style={{fontSize:'13px', color:'#f09595', margin:0, textAlign:'center'}}>{error}</p></div>}
+      <button onClick={handleSet} disabled={loading||!password||!confirm} style={{display:'block', width:'100%', boxSizing:'border-box', padding:'15px', border:'none', borderRadius:'6px', fontSize:'14px', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', cursor:loading||!password||!confirm?'not-allowed':'pointer', background:loading||!password||!confirm?'rgba(244,185,66,0.3)':'#f4b942', color:loading||!password||!confirm?'rgba(255,255,255,0.3)':'#0f1419'}}>
+        {loading ? 'Saving...' : 'Set new password →'}
+      </button>
     </div>
+  )
+
+  return wrap(
+    <>
+      <div style={{width:'100%', maxWidth:'400px', background:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'32px 24px', boxSizing:'border-box'}}>
+        <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>Forgot password?</h1>
+        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 28px'}}>Enter your email and we&apos;ll send a reset link</p>
+        <div style={{marginBottom:'24px'}}>
+          <label style={lbl}>Email address</label>
+          <input type="email" value={email} placeholder="you@email.com" autoComplete="email"
+            onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter'&&handleRequest()} style={inp} />
+        </div>
+        {error && <div style={{background:'rgba(162,45,45,0.2)', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'6px', padding:'12px 14px', marginBottom:'16px'}}><p style={{fontSize:'13px', color:'#f09595', margin:0, textAlign:'center'}}>{error}</p></div>}
+        <button onClick={handleRequest} disabled={loading||!email} style={{display:'block', width:'100%', boxSizing:'border-box', padding:'15px', border:'none', borderRadius:'6px', fontSize:'14px', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', cursor:loading||!email?'not-allowed':'pointer', background:loading||!email?'rgba(244,185,66,0.3)':'#f4b942', color:loading||!email?'rgba(255,255,255,0.3)':'#0f1419'}}>
+          {loading ? 'Sending...' : 'Send reset link →'}
+        </button>
+      </div>
+      <p style={{marginTop:'20px', fontSize:'13px'}}>
+        <Link href="/auth/signin/" style={{color:'rgba(255,255,255,0.35)', textDecoration:'underline'}}>← Back to sign in</Link>
+      </p>
+    </>
   )
 }
 
 export default function ResetPage() {
-  return <Suspense fallback={<div style={{minHeight:'100vh', backgroundColor:'#0f1419'}} />}><ResetContent /></Suspense>
+  return (
+    <Suspense fallback={<div style={{minHeight:'100vh', background:'#0f1419'}} />}>
+      <ResetContent />
+    </Suspense>
+  )
 }
