@@ -122,7 +122,7 @@ export default function Home() {
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                 <div>
                   <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.pickup}</label>
-                  <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}}>
+                  <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}}>
                     <option value="">—</option>
                     {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     {destinations.map(l => <option key={l.id} value={l.id}>{lang==='tr'?(l.name_tr||l.name):l.name}</option>)}
@@ -130,7 +130,7 @@ export default function Home() {
                 </div>
                 <div>
                   <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.dropoff}</label>
-                  <select value={form.dropoff} onChange={e => setForm(p=>({...p,dropoff:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}}>
+                  <select value={form.dropoff} onChange={e => setForm(p=>({...p,dropoff:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}}>
                     <option value="">—</option>
                     {destinations.map(l => <option key={l.id} value={l.id}>{lang==='tr'?(l.name_tr||l.name):l.name}</option>)}
                     {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -141,17 +141,17 @@ export default function Home() {
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                 <div>
                   <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.date}</label>
-                  <input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}} />
+                  <input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}} />
                 </div>
                 <div>
                   <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.time}</label>
-                  <input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}} />
+                  <input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}} />
                 </div>
               </div>
 
               <div>
                 <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.passengers}</label>
-                <select value={form.passengers} onChange={e => setForm(p=>({...p,passengers:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}}>
+                <select value={form.passengers} onChange={e => setForm(p=>({...p,passengers:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}}>
                   {Array.from({length:14},(_,i)=>i+1).map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
@@ -161,16 +161,16 @@ export default function Home() {
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                     <div>
                       <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.returnDate}</label>
-                      <input type="date" value={form.returnDate} onChange={e => setForm(p=>({...p,returnDate:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}} />
+                      <input type="date" value={form.returnDate} onChange={e => setForm(p=>({...p,returnDate:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}} />
                     </div>
                     <div>
                       <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.returnTime}</label>
-                      <input type="time" value={form.returnTime} onChange={e => setForm(p=>({...p,returnTime:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}} />
+                      <input type="time" value={form.returnTime} onChange={e => setForm(p=>({...p,returnTime:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}} />
                     </div>
                   </div>
                   <div>
                     <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.returnFrom}</label>
-                    <select value={form.returnPickup} onChange={e => setForm(p=>({...p,returnPickup:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px'}}>
+                    <select value={form.returnPickup} onChange={e => setForm(p=>({...p,returnPickup:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}}>
                       <option value="">—</option>
                       {destinations.map(l => <option key={l.id} value={l.id}>{lang==='tr'?(l.name_tr||l.name):l.name}</option>)}
                     </select>
