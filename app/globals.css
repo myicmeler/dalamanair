@@ -9,11 +9,14 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-input, select, textarea {
-  background: #faf8f3 !important;
-  border: 0.5px solid #e5e3dd !important;
+/* Light theme inputs ONLY — not on auth pages */
+body:not(.auth-body) input,
+body:not(.auth-body) select,
+body:not(.auth-body) textarea {
+  background: #faf8f3;
+  border: 0.5px solid #e5e3dd;
   border-radius: 3px;
-  color: #0f1419 !important;
+  color: #0f1419;
   outline: none;
   font-family: inherit;
   padding: 10px 12px;
@@ -21,31 +24,15 @@ input, select, textarea {
   width: 100%;
 }
 
-input:focus, select:focus, textarea:focus {
-  border-color: #f4b942 !important;
-  box-shadow: 0 0 0 2px rgba(244, 185, 66, 0.15);
+body:not(.auth-body) input:focus,
+body:not(.auth-body) select:focus {
+  border-color: #f4b942;
+  box-shadow: 0 0 0 2px rgba(244,185,66,0.15);
 }
 
-select option {
-  background: #fff;
-  color: #0f1419;
-}
-
-input::placeholder, textarea::placeholder {
-  color: #8a8680 !important;
-}
-
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
+input:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 30px #faf8f3 inset !important;
   -webkit-text-fill-color: #0f1419 !important;
-  caret-color: #0f1419;
-}
-
-.hero-overlay {
-  background: linear-gradient(90deg, rgba(15,20,25,0.88) 0%, rgba(15,20,25,0.58) 45%, rgba(15,20,25,0.25) 100%);
 }
 
 .panel-shadow {
