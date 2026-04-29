@@ -29,7 +29,6 @@ export default function QuotePage() {
 
   const airports = locations.filter(l => l.type === 'airport')
   const destinations = locations.filter(l => l.type !== 'airport')
-
   const canSubmit = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime))
 
@@ -37,23 +36,32 @@ export default function QuotePage() {
     setSubmitting(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push(`/auth/signin?redirect=/quote`)
-        return
-      }
+      if (!user) { router.push('/auth/signin?redirect=/quote'); return }
 
-      await supabase.from('quote_requests').insert({
-        customer_id:          user.id,
-        pickup_location_id:   form.pickup,
-        dropoff_location_id:  form.dropoff,
-        pickup_time:          `${form.date}T${form.time}:00`,
-        passengers:           parseInt(form.passengers),
-        luggage:              parseInt(form.luggage),
-        trip_type:            tripType,
-        return_time:          tripType === 'return' ? `${form.returnDate}T${form.returnTime}:00` : null,
-        flight_number:        form.flightNumber || null,
-        notes:                form.notes || null,
-        status:               'open',
+      const { data: request, error } = await supabase.from('quote_requests').insert({
+        customer_id:         user.id,
+        pickup_location_id:  form.pickup,
+        dropoff_location_id: form.dropoff,
+        pickup_time:         `${form.date}T${form.time}:00`,
+        passengers:          parseInt(form.passengers),
+        luggage:             parseInt(form.luggage),
+        trip_type:           tripType,
+        return_time:         tripType === 'return' ? `${form.returnDate}T${form.returnTime}:00` : null,
+        flight_number:       form.flightNumber || null,
+        notes:               form.notes || null,
+        status:              'open',
+      }).select().single()
+
+      if (error || !request) throw error
+
+      // Notify all providers via Edge Function
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ requestId: request.id }),
       })
 
       setSubmitted(true)
@@ -74,7 +82,7 @@ export default function QuotePage() {
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', marginBottom:'10px'}}>Request sent</p>
         <h1 style={{fontSize:'26px', fontWeight:'500', color:'#0f1419', marginBottom:'10px'}}>Quote request submitted</h1>
         <p style={{fontSize:'14px', color:'#5a574f', marginBottom:'8px', lineHeight:'1.6'}}>
-          All approved providers have been notified. You will receive an email for each offer that comes in.
+          All approved providers have been notified by email. You will receive an email for each offer that comes in.
         </p>
         <p style={{fontSize:'13px', color:'#8a8680', marginBottom:'32px'}}>Offers usually arrive within a few hours. Your request is open for 48 hours.</p>
         <div style={{display:'flex', gap:'12px', justifyContent:'center', flexWrap:'wrap'}}>
@@ -99,14 +107,14 @@ export default function QuotePage() {
           Tell us about your transfer and all our approved providers will send you their best price. You choose the offer you like.
         </p>
 
-        {/* Trip type */}
         <div style={{backgroundColor:'#ffffff', border:'1px solid #e5e3dd', borderRadius:'8px', padding:'20px', marginBottom:'12px'}}>
           <div style={{display:'flex', gap:'0', marginBottom:'20px', border:'1px solid #e5e3dd', borderRadius:'6px', overflow:'hidden'}}>
             {(['oneway','return'] as const).map(tt => (
               <button key={tt} onClick={() => setTripType(tt)} style={{
-                flex:1, padding:'11px', fontSize:'13px', fontWeight: tripType===tt?'500':'400',
-                backgroundColor: tripType===tt?'#0f1419':'transparent',
-                color: tripType===tt?'#ffffff':'#8a8680',
+                flex:1, padding:'11px', fontSize:'13px',
+                fontWeight:tripType===tt?'500':'400',
+                backgroundColor:tripType===tt?'#0f1419':'transparent',
+                color:tripType===tt?'#ffffff':'#8a8680',
                 border:'none', cursor:'pointer', transition:'all 0.15s',
                 textTransform:'uppercase', letterSpacing:'0.05em',
               }}>
@@ -145,7 +153,7 @@ export default function QuotePage() {
             </div>
           </div>
 
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom: tripType==='return'?'12px':'0'}}>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:tripType==='return'?'12px':'0'}}>
             <div>
               <label style={labelStyle}>{lang==='en'?'Passengers':'Yolcular'}</label>
               <select value={form.passengers} onChange={e => setForm(p=>({...p,passengers:e.target.value}))} style={inputStyle}>
@@ -174,7 +182,6 @@ export default function QuotePage() {
           )}
         </div>
 
-        {/* Extra details */}
         <div style={{backgroundColor:'#ffffff', border:'1px solid #e5e3dd', borderRadius:'8px', padding:'20px', marginBottom:'16px'}}>
           <p style={{fontSize:'10px', letterSpacing:'0.15em', color:'#e0a528', textTransform:'uppercase', marginBottom:'14px'}}>
             {lang==='en'?'Additional details (optional)':'Ek bilgiler (isteğe bağlı)'}
@@ -191,15 +198,14 @@ export default function QuotePage() {
           </div>
         </div>
 
-        {/* How it works */}
         <div style={{backgroundColor:'#f5f2ea', border:'1px solid #e5e3dd', borderRadius:'8px', padding:'16px', marginBottom:'16px'}}>
           <p style={{fontSize:'11px', letterSpacing:'0.15em', color:'#8a8680', textTransform:'uppercase', marginBottom:'12px'}}>
             {lang==='en'?'How it works':'Nasıl çalışır'}
           </p>
           {[
-            {n:'1', t: lang==='en'?'Submit your request':'Talebinizi gönderin', d: lang==='en'?'All approved providers are notified immediately':'Tüm onaylı sağlayıcılar anında bildirim alır'},
-            {n:'2', t: lang==='en'?'Receive offers':'Teklifleri alın', d: lang==='en'?'Providers send their best price — you get an email for each one':'Sağlayıcılar en iyi fiyatlarını gönderir'},
-            {n:'3', t: lang==='en'?'Accept the best offer':'En iyi teklifi kabul edin', d: lang==='en'?'One click to confirm. Pay the driver on the day.':'Bir tıkla onaylayın. Ödemeyi günü yapın.'},
+            {n:'1', t:lang==='en'?'Submit your request':'Talebinizi gönderin', d:lang==='en'?'All approved providers are notified immediately by email':'Tüm onaylı sağlayıcılar anında e-posta ile bildirim alır'},
+            {n:'2', t:lang==='en'?'Receive offers':'Teklifleri alın', d:lang==='en'?'Providers send their best price — you get an email for each one':'Sağlayıcılar en iyi fiyatlarını gönderir'},
+            {n:'3', t:lang==='en'?'Accept the best offer':'En iyi teklifi kabul edin', d:lang==='en'?'One click to confirm. Pay the driver on the day.':'Bir tıkla onaylayın. Ödemeyi günü yapın.'},
           ].map(s => (
             <div key={s.n} style={{display:'flex', gap:'12px', marginBottom:'10px', alignItems:'flex-start'}}>
               <div style={{width:'22px', height:'22px', borderRadius:'50%', backgroundColor:'#f4b942', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', fontWeight:'600', color:'#0f1419', flexShrink:0, marginTop:'1px'}}>
@@ -214,16 +220,16 @@ export default function QuotePage() {
         </div>
 
         <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{
-          width:'100%', backgroundColor: canSubmit?'#f4b942':'#fad98a',
+          width:'100%', backgroundColor:canSubmit?'#f4b942':'#fad98a',
           color:'#0f1419', fontWeight:'600', fontSize:'14px',
           letterSpacing:'0.05em', textTransform:'uppercase',
           padding:'16px', borderRadius:'6px', border:'none',
-          cursor: canSubmit?'pointer':'not-allowed',
+          cursor:canSubmit?'pointer':'not-allowed',
         }}>
           {submitting ? (lang==='en'?'Sending...':'Gönderiliyor...') : (lang==='en'?'Request quotes →':'Teklif iste →')}
         </button>
         <p style={{textAlign:'center', fontSize:'12px', color:'#8a8680', marginTop:'10px'}}>
-          {lang==='en'?'Free · No obligation · Offers within hours':'Ücretsiz · Bağlayıcı değil · Saatler içinde teklif'}
+          {lang==='en'?'Free · No obligation · Providers notified instantly':'Ücretsiz · Bağlayıcı değil · Sağlayıcılar anında bildirim alır'}
         </p>
       </div>
     </div>

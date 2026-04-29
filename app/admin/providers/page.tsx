@@ -11,6 +11,8 @@ type Provider = {
   description: string | null
   commission_pct: number
   is_approved: boolean
+  tursab_number: string | null
+  insurance_number: string | null
   avg_rating: number
   total_reviews: number
   user?: { email: string }
@@ -25,12 +27,19 @@ export default function AdminProviders() {
   const [editForm, setEditForm] = useState<Partial<Provider>>({})
   const [showAdd, setShowAdd] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [newForm, setNewForm] = useState({ company_name:'', contact_name:'', email:'', phone:'', commission_pct:'15', is_approved:'true' })
+  const [newForm, setNewForm] = useState({
+    company_name:'', contact_name:'', email:'', phone:'',
+    commission_pct:'15', is_approved:'true',
+    tursab_number:'', insurance_number:'',
+  })
 
   useEffect(() => { load() }, [])
 
   async function load() {
-    const { data } = await supabase.from('providers').select('*, user:users(email)').order('created_at', { ascending:false })
+    const { data } = await supabase
+      .from('providers')
+      .select('*, user:users(email)')
+      .order('created_at', { ascending:false })
     if (data) setProviders(data)
     setLoading(false)
   }
@@ -47,19 +56,29 @@ export default function AdminProviders() {
 
   function startEdit(p: Provider) {
     setEditing(p.id)
-    setEditForm({ company_name:p.company_name, contact_name:p.contact_name||'', phone:p.phone||'', description:p.description||'', commission_pct:p.commission_pct })
+    setEditForm({
+      company_name: p.company_name,
+      contact_name: p.contact_name||'',
+      phone: p.phone||'',
+      description: p.description||'',
+      commission_pct: p.commission_pct,
+      tursab_number: p.tursab_number||'',
+      insurance_number: p.insurance_number||'',
+    })
   }
 
   async function saveEdit(id: string) {
     setSaving(true)
     await supabase.from('providers').update({
-      company_name: editForm.company_name,
-      contact_name: editForm.contact_name || null,
-      phone: editForm.phone || null,
-      description: editForm.description || null,
-      commission_pct: parseFloat(String(editForm.commission_pct)) || 15,
+      company_name:     editForm.company_name,
+      contact_name:     editForm.contact_name || null,
+      phone:            editForm.phone || null,
+      description:      editForm.description || null,
+      commission_pct:   parseFloat(String(editForm.commission_pct)) || 15,
+      tursab_number:    editForm.tursab_number || null,
+      insurance_number: editForm.insurance_number || null,
     }).eq('id', id)
-    setProviders(prev => prev.map(p => p.id===id ? {...p, ...editForm} as Provider : p))
+    await load()
     setEditing(null)
     setSaving(false)
   }
@@ -84,25 +103,24 @@ export default function AdminProviders() {
       })
 
       const { data: provider } = await supabase.from('providers').insert({
-        user_id: authData.user.id,
-        company_name: newForm.company_name,
-        contact_name: newForm.contact_name || null,
-        phone: newForm.phone || null,
-        commission_pct: parseFloat(newForm.commission_pct) || 15,
-        is_approved: newForm.is_approved === 'true',
+        user_id:          authData.user.id,
+        company_name:     newForm.company_name,
+        contact_name:     newForm.contact_name || null,
+        phone:            newForm.phone || null,
+        commission_pct:   parseFloat(newForm.commission_pct) || 15,
+        is_approved:      newForm.is_approved === 'true',
+        tursab_number:    newForm.tursab_number || null,
+        insurance_number: newForm.insurance_number || null,
         is_subcontractor: false,
-        avg_rating: 0,
-        total_reviews: 0,
+        avg_rating:       0,
+        total_reviews:    0,
       }).select('*, user:users(email)').single()
 
       await supabase.auth.resetPasswordForEmail(newForm.email)
-
       if (provider) setProviders(prev => [provider, ...prev])
-      setNewForm({ company_name:'', contact_name:'', email:'', phone:'', commission_pct:'15', is_approved:'true' })
+      setNewForm({ company_name:'', contact_name:'', email:'', phone:'', commission_pct:'15', is_approved:'true', tursab_number:'', insurance_number:'' })
       setShowAdd(false)
-    } catch (err: any) {
-      alert(err.message)
-    }
+    } catch (err: any) { alert(err.message) }
     setSaving(false)
   }
 
@@ -113,6 +131,26 @@ export default function AdminProviders() {
   })
 
   const inputStyle = { width:'100%', fontSize:'13px', padding:'9px 10px', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'5px', color:'#f0ede6' }
+  const labelStyle = { fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'4px' }
+
+  const fields = [
+    {label:'Company name *', key:'company_name', placeholder:'Marmaris Transfer Co.'},
+    {label:'Contact name', key:'contact_name', placeholder:'Ahmet Yilmaz'},
+    {label:'Email * (login)', key:'email', placeholder:'ahmet@marmaris.com'},
+    {label:'Phone', key:'phone', placeholder:'+90 532 100 0001'},
+    {label:'Commission %', key:'commission_pct', placeholder:'15'},
+    {label:'TURSAB number', key:'tursab_number', placeholder:'A-XXXX'},
+    {label:'Insurance number', key:'insurance_number', placeholder:'POL-XXXXXXXX'},
+  ]
+
+  const editFields = [
+    {label:'Company name', key:'company_name'},
+    {label:'Contact name', key:'contact_name'},
+    {label:'Phone', key:'phone'},
+    {label:'Commission %', key:'commission_pct'},
+    {label:'TURSAB number', key:'tursab_number'},
+    {label:'Insurance number', key:'insurance_number'},
+  ]
 
   return (
     <div style={{padding:'20px'}}>
@@ -132,30 +170,24 @@ export default function AdminProviders() {
         {(['all','pending','approved'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             padding:'7px 14px', borderRadius:'14px', border:'1px solid', fontSize:'11px', cursor:'pointer', textTransform:'capitalize', background:'none',
-            borderColor:filter===f?'#f4b942':'rgba(255,255,255,0.15)', color:filter===f?'#f4b942':'rgba(255,255,255,0.4)',
+            borderColor:filter===f?'#f4b942':'rgba(255,255,255,0.15)',
+            color:filter===f?'#f4b942':'rgba(255,255,255,0.4)',
           }}>{f} {filter===f&&`(${filtered.length})`}</button>
         ))}
       </div>
 
-      {/* Add form */}
       {showAdd && (
         <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'16px', marginBottom:'16px'}}>
-          <p style={{fontSize:'12px', fontWeight:'500', marginBottom:'14px', color:'rgba(255,255,255,0.7)'}}>New provider — a login account is created automatically</p>
+          <p style={{fontSize:'12px', fontWeight:'500', marginBottom:'14px', color:'rgba(255,255,255,0.7)'}}>New provider — login account created automatically</p>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-            {[
-              {label:'Company name *', key:'company_name', placeholder:'Marmaris Transfer Co.'},
-              {label:'Contact name', key:'contact_name', placeholder:'Ahmet Yilmaz'},
-              {label:'Email * (used for login)', key:'email', placeholder:'ahmet@marmaris.com'},
-              {label:'Phone', key:'phone', placeholder:'+90 532 100 0001'},
-              {label:'Commission %', key:'commission_pct', placeholder:'15'},
-            ].map(f => (
+            {fields.map(f => (
               <div key={f.key}>
-                <label style={{fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'4px'}}>{f.label}</label>
+                <label style={labelStyle}>{f.label}</label>
                 <input value={(newForm as any)[f.key]} onChange={e => setNewForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} style={inputStyle} />
               </div>
             ))}
             <div>
-              <label style={{fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'4px'}}>Approved</label>
+              <label style={labelStyle}>Approved</label>
               <select value={newForm.is_approved} onChange={e => setNewForm(p=>({...p,is_approved:e.target.value}))} style={inputStyle}>
                 <option value="true">Yes — approved</option>
                 <option value="false">No — pending</option>
@@ -163,7 +195,8 @@ export default function AdminProviders() {
             </div>
           </div>
           <div style={{display:'flex', gap:'8px'}}>
-            <button onClick={addProvider} disabled={saving||!newForm.company_name||!newForm.email} style={{flex:1, padding:'11px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'500', cursor:'pointer', opacity:saving?0.5:1}}>
+            <button onClick={addProvider} disabled={saving||!newForm.company_name||!newForm.email}
+              style={{flex:1, padding:'11px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'500', cursor:'pointer', opacity:saving?0.5:1}}>
               {saving?'Creating...':'Create provider & send login email'}
             </button>
             <button onClick={() => setShowAdd(false)} style={{padding:'11px 16px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.5)', fontSize:'13px', cursor:'pointer'}}>Cancel</button>
@@ -171,7 +204,6 @@ export default function AdminProviders() {
         </div>
       )}
 
-      {/* Providers list */}
       {loading ? (
         <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
       ) : (
@@ -181,20 +213,15 @@ export default function AdminProviders() {
               {editing === p.id ? (
                 <div style={{padding:'16px'}}>
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-                    {[
-                      {label:'Company name', key:'company_name'},
-                      {label:'Contact name', key:'contact_name'},
-                      {label:'Phone', key:'phone'},
-                      {label:'Commission %', key:'commission_pct'},
-                    ].map(f => (
+                    {editFields.map(f => (
                       <div key={f.key}>
-                        <label style={{fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'4px'}}>{f.label}</label>
+                        <label style={labelStyle}>{f.label}</label>
                         <input value={(editForm as any)[f.key]??''} onChange={e => setEditForm(prev=>({...prev,[f.key]:e.target.value}))} style={inputStyle} />
                       </div>
                     ))}
                   </div>
                   <div style={{marginBottom:'10px'}}>
-                    <label style={{fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'4px'}}>Description</label>
+                    <label style={labelStyle}>Description</label>
                     <textarea value={(editForm as any).description??''} onChange={e => setEditForm(prev=>({...prev,description:e.target.value}))} rows={2} style={{...inputStyle, resize:'none', width:'100%'}} />
                   </div>
                   <div style={{display:'flex', gap:'8px'}}>
@@ -209,7 +236,29 @@ export default function AdminProviders() {
                   <div style={{flex:1, minWidth:0}}>
                     <div style={{fontSize:'15px', fontWeight:'500', marginBottom:'3px'}}>{p.company_name}</div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>{p.user?.email||'—'} · {p.contact_name||'—'} · {p.phone||'—'}</div>
-                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.3)'}}>Commission: {p.commission_pct}% · Rating: {p.avg_rating?.toFixed(1)||'0.0'}★ ({p.total_reviews} reviews)</div>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.3)', marginBottom:'4px'}}>Commission: {p.commission_pct}% · {p.avg_rating?.toFixed(1)||'0.0'}★ ({p.total_reviews} reviews)</div>
+                    <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                      {p.tursab_number && (
+                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(55,138,221,0.15)', color:'#378ADD', borderRadius:'8px'}}>
+                          TURSAB: {p.tursab_number}
+                        </span>
+                      )}
+                      {p.insurance_number && (
+                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(29,158,117,0.15)', color:'#1D9E75', borderRadius:'8px'}}>
+                          Insurance: {p.insurance_number}
+                        </span>
+                      )}
+                      {!p.tursab_number && (
+                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(239,159,39,0.1)', color:'#EF9F27', borderRadius:'8px'}}>
+                          No TURSAB
+                        </span>
+                      )}
+                      {!p.insurance_number && (
+                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(239,159,39,0.1)', color:'#EF9F27', borderRadius:'8px'}}>
+                          No insurance
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{display:'flex', flexDirection:'column', gap:'6px', alignItems:'flex-end', flexShrink:0}}>
                     <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px',
