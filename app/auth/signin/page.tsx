@@ -5,6 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase'
 
+const S = {
+  page: { minHeight:'100vh', background:'#0f1419', display:'flex' as const, flexDirection:'column' as const, alignItems:'center' as const, justifyContent:'center' as const, padding:'24px 16px', boxSizing:'border-box' as const },
+  card: { width:'100%', maxWidth:'400px', background:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'32px 24px', boxSizing:'border-box' as const },
+  label: { display:'block' as const, fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'rgba(255,255,255,0.4)', marginBottom:'6px' },
+  input: { display:'block' as const, width:'100%', boxSizing:'border-box' as const, fontSize:'16px', padding:'14px 12px', background:'#2a2f36', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'#ffffff', outline:'none', fontFamily:'inherit' },
+  btn: (on: boolean) => ({ display:'block' as const, width:'100%', boxSizing:'border-box' as const, padding:'15px', border:'none', borderRadius:'6px', fontSize:'14px', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' as const, fontFamily:'inherit', background: on ? '#f4b942' : '#3a3520', color: on ? '#0f1419' : '#666340', cursor: on ? 'pointer' as const : 'not-allowed' as const }),
+}
+
 function SignInContent() {
   const router = useRouter()
   const params = useSearchParams()
@@ -35,157 +43,53 @@ function SignInContent() {
     router.refresh()
   }
 
+  const on = !!(email && password && !loading)
+
   return (
-    <>
-      <style>{`
-        .auth-page {
-          min-height: 100vh;
-          background: #0f1419 !important;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 24px 16px;
-          box-sizing: border-box;
-        }
-        .auth-card {
-          width: 100%;
-          max-width: 400px;
-          background: #1a1f26;
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 12px;
-          padding: 32px 24px;
-          box-sizing: border-box;
-        }
-        .auth-input {
-          display: block !important;
-          width: 100% !important;
-          box-sizing: border-box !important;
-          font-size: 16px !important;
-          padding: 14px !important;
-          background: rgba(255,255,255,0.07) !important;
-          border: 1px solid rgba(255,255,255,0.12) !important;
-          border-radius: 6px !important;
-          color: #ffffff !important;
-          outline: none !important;
-          margin-top: 8px !important;
-          font-family: inherit !important;
-          box-shadow: none !important;
-        }
-        .auth-input:focus {
-          border-color: rgba(244,185,66,0.5) !important;
-          box-shadow: 0 0 0 2px rgba(244,185,66,0.1) !important;
-        }
-        .auth-input:-webkit-autofill,
-        .auth-input:-webkit-autofill:hover,
-        .auth-input:-webkit-autofill:focus {
-          -webkit-box-shadow: 0 0 0 30px #1a1f26 inset !important;
-          -webkit-text-fill-color: #ffffff !important;
-          caret-color: #ffffff !important;
-        }
-        .auth-btn {
-          display: block !important;
-          width: 100% !important;
-          box-sizing: border-box !important;
-          padding: 15px !important;
-          border: none !important;
-          border-radius: 6px !important;
-          font-size: 14px !important;
-          font-weight: 700 !important;
-          letter-spacing: 0.06em !important;
-          text-transform: uppercase !important;
-          font-family: inherit !important;
-        }
-        .auth-btn:not(:disabled) {
-          background: #f4b942 !important;
-          color: #0f1419 !important;
-          cursor: pointer !important;
-        }
-        .auth-btn:disabled {
-          background: rgba(244,185,66,0.3) !important;
-          color: rgba(255,255,255,0.3) !important;
-          cursor: not-allowed !important;
-        }
-        .auth-label {
-          display: block;
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,0.4);
-        }
-        .auth-error {
-          background: rgba(162,45,45,0.2);
-          border: 1px solid rgba(162,45,45,0.4);
-          border-radius: 6px;
-          padding: 12px 14px;
-          margin-bottom: 16px;
-          text-align: center;
-          font-size: 13px;
-          color: #f09595;
-        }
-      `}</style>
+    <div style={S.page}>
+      <Link href="/" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'8px', textDecoration:'none', marginBottom:'32px'}}>
+        <Image src="/logo.jpg" alt="dalaman.me" width={64} height={64} style={{borderRadius:'50%', objectFit:'cover'}} />
+        <span style={{fontSize:'12px', fontWeight:700, letterSpacing:'0.2em', color:'#ffffff'}}>dalaman.me</span>
+      </Link>
 
-      <div className="auth-page">
-        <Link href="/" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'8px', textDecoration:'none', marginBottom:'32px'}}>
-          <Image src="/logo.jpg" alt="dalaman.me" width={64} height={64} style={{borderRadius:'50%', objectFit:'cover'}} />
-          <span style={{fontSize:'12px', fontWeight:'700', letterSpacing:'0.2em', color:'#ffffff'}}>dalaman.me</span>
-        </Link>
+      <div style={S.card}>
+        <h1 style={{fontSize:'22px', fontWeight:500, color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>Sign in</h1>
+        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 24px'}}>
+          New here?{' '}
+          <Link href="/auth/signup/" style={{color:'#f4b942', textDecoration:'none', fontWeight:500}}>Create an account</Link>
+        </p>
 
-        <div className="auth-card">
-          <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>
-            Sign in
-          </h1>
-          <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 24px'}}>
-            New here?{' '}
-            <Link href="/auth/signup/" style={{color:'#f4b942', textDecoration:'none', fontWeight:'500'}}>
-              Create an account
-            </Link>
-          </p>
-
-          <div style={{marginBottom:'16px'}}>
-            <label className="auth-label">Email</label>
-            <input
-              className="auth-input"
-              type="email"
-              autoComplete="email"
-              value={email}
-              placeholder="you@email.com"
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-            />
-          </div>
-
-          <div style={{marginBottom:'24px'}}>
-            <label className="auth-label">Password</label>
-            <input
-              className="auth-input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              placeholder="••••••••"
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-            />
-          </div>
-
-          {error && <div className="auth-error">{error}</div>}
-
-          <button
-            className="auth-btn"
-            onClick={handleSignIn}
-            disabled={!email || !password || loading}
-          >
-            {loading ? 'Signing in...' : 'Sign in →'}
-          </button>
+        <div style={{marginBottom:'16px'}}>
+          <label style={S.label}>Email</label>
+          <input type="email" autoComplete="email" value={email} placeholder="you@email.com"
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && handleSignIn()}
+            style={S.input} />
         </div>
 
-        <p style={{marginTop:'20px', fontSize:'13px'}}>
-          <Link href="/auth/reset/" style={{color:'rgba(255,255,255,0.35)', textDecoration:'underline'}}>
-            Forgot password?
-          </Link>
-        </p>
+        <div style={{marginBottom:'24px'}}>
+          <label style={S.label}>Password</label>
+          <input type="password" autoComplete="current-password" value={password} placeholder="••••••••"
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && handleSignIn()}
+            style={S.input} />
+        </div>
+
+        {error && (
+          <div style={{background:'rgba(162,45,45,0.3)', border:'1px solid #A32D2D', borderRadius:'6px', padding:'12px', marginBottom:'16px', textAlign:'center', fontSize:'13px', color:'#f09595'}}>
+            {error}
+          </div>
+        )}
+
+        <button onClick={handleSignIn} disabled={!on} style={S.btn(on)}>
+          {loading ? 'Signing in...' : 'Sign in →'}
+        </button>
       </div>
-    </>
+
+      <p style={{marginTop:'20px', fontSize:'13px'}}>
+        <Link href="/auth/reset/" style={{color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>Forgot password?</Link>
+      </p>
+    </div>
   )
 }
 

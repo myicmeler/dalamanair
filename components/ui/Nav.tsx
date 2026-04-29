@@ -19,32 +19,45 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
   const router = useRouter()
   const supabase = createClient() as any
   const [user, setUser] = useState<any>(null)
-  const [role, setRole] = useState<string>('')
+  const [role, setRole] = useState<string>('customer')
   const [menuOpen, setMenuOpen] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-        if (profile) setRole(profile.role)
-      }
+  async function fetchRole(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .single()
+      if (!error && data?.role) setRole(data.role)
+    } catch {
+      // silently fail — default role is customer
     }
-    load()
+  }
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (session?.user) {
+        setUser(session.user)
+        fetchRole(session.user.id)
+      }
+    })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => {
       if (session?.user) {
         setUser(session.user)
-        supabase.from('users').select('role').eq('id', session.user.id).single()
-          .then(({ data }: any) => { if (data) setRole(data.role) })
-      } else { setUser(null); setRole('') }
+        fetchRole(session.user.id)
+      } else {
+        setUser(null)
+        setRole('customer')
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    setUser(null); setRole(''); setMenuOpen(false)
+    setUser(null); setRole('customer'); setMenuOpen(false)
     router.push('/'); router.refresh()
   }
 
@@ -57,69 +70,43 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
   return (
     <nav style={{backgroundColor:bg, borderBottom:`1px solid ${borderColor}`, position:'relative', zIndex:30}}>
       <div style={{maxWidth:'1280px', margin:'0 auto', padding:'0 20px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px'}}>
-        {/* Logo */}
         <Link href="/" style={{display:'flex', alignItems:'center', gap:'10px', textDecoration:'none'}}>
-          <Image
-            src="/logo.jpg"
-            alt="dalaman.me"
-            width={40}
-            height={40}
-            style={{borderRadius:'50%', objectFit:'cover'}}
-          />
+          <Image src="/logo.jpg" alt="dalaman.me" width={40} height={40} style={{borderRadius:'50%', objectFit:'cover'}} />
           <span style={{fontSize:'13px', fontWeight:'700', letterSpacing:'0.12em', color: isOverlay ? '#ffffff' : '#0f1419'}}>
             dalaman.me
           </span>
         </Link>
 
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          {/* Language toggle */}
           {onLangChange && (
             <div style={{display:'flex', gap:'2px', fontSize:'11px'}}>
               {(['en','tr'] as const).map((l, i) => (
                 <span key={l} style={{display:'flex', alignItems:'center', gap:'4px'}}>
                   {i > 0 && <span style={{color:'rgba(128,128,128,0.4)', margin:'0 2px'}}>·</span>}
-                  <button onClick={() => onLangChange(l)} style={{
-                    background:'none', border:'none', cursor:'pointer', padding:'2px 4px',
-                    color: lang===l ? (isOverlay ? '#ffffff' : '#0f1419') : textColor,
-                    fontWeight: lang===l ? '700' : '400', fontSize:'11px', letterSpacing:'0.08em',
-                  }}>{l.toUpperCase()}</button>
+                  <button onClick={() => onLangChange(l)} style={{background:'none', border:'none', cursor:'pointer', padding:'2px 4px', color: lang===l ? (isOverlay ? '#ffffff' : '#0f1419') : textColor, fontWeight: lang===l ? '700' : '400', fontSize:'11px', letterSpacing:'0.08em'}}>
+                    {l.toUpperCase()}
+                  </button>
                 </span>
               ))}
             </div>
           )}
 
-          {/* Sign in */}
           {!user && (
-            <Link href="/auth/signin/" style={{
-              fontSize:'11px', fontWeight:'700', letterSpacing:'0.08em', textTransform:'uppercase',
-              backgroundColor:'#f4b942', color:'#0f1419', padding:'8px 16px',
-              borderRadius:'4px', textDecoration:'none', whiteSpace:'nowrap',
-            }}>{t.signin}</Link>
+            <Link href="/auth/signin/" style={{fontSize:'11px', fontWeight:'700', letterSpacing:'0.08em', textTransform:'uppercase', backgroundColor:'#f4b942', color:'#0f1419', padding:'8px 16px', borderRadius:'4px', textDecoration:'none', whiteSpace:'nowrap'}}>
+              {t.signin}
+            </Link>
           )}
 
-          {/* Hamburger */}
-          <button onClick={() => setMenuOpen(!menuOpen)} style={{
-            background:'none', border:'none', cursor:'pointer', padding:'6px',
-            display:'flex', flexDirection:'column', gap:'5px',
-          }}>
+          <button onClick={() => setMenuOpen(!menuOpen)} style={{background:'none', border:'none', cursor:'pointer', padding:'6px', display:'flex', flexDirection:'column', gap:'5px'}}>
             {[0,1,2].map(i => (
-              <div key={i} style={{
-                width:'22px', height:'1.5px', backgroundColor:burgerColor, transition:'all 0.2s',
-                opacity: menuOpen && i===1 ? 0 : 1,
-                transform: menuOpen ? (i===0 ? 'rotate(45deg) translate(4px,4px)' : i===2 ? 'rotate(-45deg) translate(4px,-4px)' : 'none') : 'none',
-              }} />
+              <div key={i} style={{width:'22px', height:'1.5px', backgroundColor:burgerColor, transition:'all 0.2s', opacity: menuOpen && i===1 ? 0 : 1, transform: menuOpen ? (i===0 ? 'rotate(45deg) translate(4px,4px)' : i===2 ? 'rotate(-45deg) translate(4px,-4px)' : 'none') : 'none'}} />
             ))}
           </button>
         </div>
       </div>
 
-      {/* Full screen menu */}
       {menuOpen && (
-        <div style={{
-          position:'fixed', top:'60px', left:0, right:0, bottom:0, zIndex:100,
-          backgroundColor:'#0f1419', overflowY:'auto', padding:'16px 24px 40px',
-        }}>
-          {/* Logo in menu */}
+        <div style={{position:'fixed', top:'60px', left:0, right:0, bottom:0, zIndex:100, backgroundColor:'#0f1419', overflowY:'auto', padding:'16px 24px 40px'}}>
           <div style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px 0 20px', borderBottom:'1px solid rgba(255,255,255,0.08)', marginBottom:'8px'}}>
             <Image src="/logo.jpg" alt="dalaman.me" width={48} height={48} style={{borderRadius:'50%', objectFit:'cover'}} />
             <div>
@@ -129,31 +116,24 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
           </div>
 
           {[
-            { href:'/', label:t.transfers },
-            { href:'/quote/', label:t.quote },
-            { href:'/how-it-works/', label:t.how },
-            { href:'/help/', label:t.help },
+            { href:'/', label: t.transfers },
+            { href:'/quote/', label: t.quote },
+            { href:'/how-it-works/', label: t.how },
+            { href:'/help/', label: t.help },
           ].map(item => (
-            <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
-              display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px',
-              padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none',
-            }}>{item.label}</Link>
+            <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>
+              {item.label}
+            </Link>
           ))}
 
-          {user && role === 'customer' && (
+          {user && (
             <>
               <Link href="/bookings/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.myBookings}</Link>
               <Link href="/quotes/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.myQuotes}</Link>
+              {role === 'provider' && <Link href="/provider/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.dashboard}</Link>}
+              {role === 'driver' && <Link href="/driver/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>My trips</Link>}
+              {role === 'admin' && <Link href="/admin/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.admin}</Link>}
             </>
-          )}
-          {user && role === 'provider' && (
-            <Link href="/provider/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.dashboard}</Link>
-          )}
-          {user && role === 'driver' && (
-            <Link href="/driver/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>My trips</Link>
-          )}
-          {user && role === 'admin' && (
-            <Link href="/admin/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.admin}</Link>
           )}
 
           <div style={{marginTop:'20px', paddingTop:'20px', borderTop:'1px solid rgba(255,255,255,0.1)'}}>
