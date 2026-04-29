@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase'
 
 function SignInContent() {
@@ -83,8 +84,9 @@ function SignInContent() {
 
   return (
     <div style={page}>
-      <Link href="/" style={{fontSize:'13px', fontWeight:'700', letterSpacing:'0.2em', color:'#ffffff', textDecoration:'none', marginBottom:'40px', display:'block'}}>
-        dalaman.me
+      <Link href="/" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'8px', textDecoration:'none', marginBottom:'36px'}}>
+        <Image src="/logo.jpg" alt="dalaman.me" width={64} height={64} style={{borderRadius:'50%', objectFit:'cover'}} />
+        <span style={{fontSize:'12px', fontWeight:'700', letterSpacing:'0.2em', color:'#ffffff'}}>dalaman.me</span>
       </Link>
 
       <div style={card}>

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -48,7 +49,10 @@ export default function HelpPage() {
     <div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}}>
       {/* Nav */}
       <div style={{backgroundColor:'#0f1419', padding:'0 20px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'56px'}}>
-        <Link href="/" style={{fontSize:'13px', fontWeight:'600', letterSpacing:'0.18em', color:'#ffffff', textDecoration:'none'}}>dalaman.me</Link>
+        <Link href="/" style={{display:'flex', alignItems:'center', gap:'10px', textDecoration:'none'}}>
+          <Image src="/logo.jpg" alt="dalaman.me" width={36} height={36} style={{borderRadius:'50%', objectFit:'cover'}} />
+          <span style={{fontSize:'13px', fontWeight:'700', letterSpacing:'0.12em', color:'#ffffff'}}>dalaman.me</span>
+        </Link>
         <Link href="/auth/signin/" style={{fontSize:'11px', fontWeight:'600', letterSpacing:'0.08em', textTransform:'uppercase', backgroundColor:'#f4b942', color:'#0f1419', padding:'8px 16px', borderRadius:'4px', textDecoration:'none'}}>Sign in</Link>
       </div>
 

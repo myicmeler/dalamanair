@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase'
 
 const labels = {
@@ -233,17 +234,20 @@ export default function Home() {
       </div>
 
       {/* FOOTER */}
-      <footer style={{backgroundColor:'#0f1419', padding:'36px 20px'}}>
-        <div style={{maxWidth:'1280px', margin:'0 auto', display:'flex', flexDirection:'column', gap:'16px', fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>
-          <div>
-            <div style={{fontSize:'13px', letterSpacing:'0.18em', color:'#ffffff', fontWeight:'600', marginBottom:'6px'}}>dalaman.me</div>
-            <div>Private airport transfers · Marmaris region</div>
+      <footer style={{backgroundColor:'#0f1419', padding:'40px 20px'}}>
+        <div style={{maxWidth:'1280px', margin:'0 auto'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'14px', marginBottom:'24px', paddingBottom:'24px', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+            <Image src="/logo.jpg" alt="dalaman.me" width={56} height={56} style={{borderRadius:'50%', objectFit:'cover'}} />
+            <div>
+              <div style={{fontSize:'15px', fontWeight:'700', color:'#ffffff', letterSpacing:'0.1em', marginBottom:'2px'}}>dalaman.me</div>
+              <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>Airport transfers · Marmaris region</div>
+            </div>
           </div>
-          <div style={{display:'flex', gap:'20px', flexWrap:'wrap'}}>
-            <a href="/help/" style={{color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>Help</a>
-            <a href="/how-it-works/" style={{color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>How it works</a>
-            <a href="/quote/" style={{color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>Request a quote</a>
-            <a href="/provider/" style={{color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>For providers</a>
+          <div style={{display:'flex', gap:'20px', flexWrap:'wrap', marginBottom:'20px'}}>
+            <a href="/help/" style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>Help</a>
+            <a href="/how-it-works/" style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>How it works</a>
+            <a href="/quote/" style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>Request a quote</a>
+            <a href="/provider/" style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', textDecoration:'none'}}>For providers</a>
           </div>
           <div style={{fontSize:'11px', color:'rgba(255,255,255,0.25)'}}>
             © 2026 · dalaman.me · An independent transfer booking platform
