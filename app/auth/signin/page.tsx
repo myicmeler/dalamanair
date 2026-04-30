@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -10,40 +10,41 @@ const S = {
   card: { width:'100%', maxWidth:'400px', background:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'32px 24px', boxSizing:'border-box' as const },
   label: { display:'block' as const, fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'rgba(255,255,255,0.4)', marginBottom:'6px' },
   input: { display:'block' as const, width:'100%', boxSizing:'border-box' as const, fontSize:'16px', padding:'14px 12px', background:'#2a2f36', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'#ffffff', outline:'none', fontFamily:'inherit' },
-  btn: (on: boolean) => ({ display:'block' as const, width:'100%', boxSizing:'border-box' as const, padding:'15px', border:'none', borderRadius:'6px', fontSize:'14px', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' as const, fontFamily:'inherit', background: on ? '#f4b942' : '#3a3520', color: on ? '#0f1419' : '#666340', cursor: on ? 'pointer' as const : 'not-allowed' as const }),
 }
 
 function SignInContent() {
-  const router = useRouter()
   const params = useSearchParams()
   const supabase = createClient() as any
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const redirect = params.get('redirect') ?? '/'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (session) router.replace(decodeURIComponent(redirect))
+      if (session) window.location.href = decodeURIComponent(redirect)
     })
   }, [])
 
   async function handleSignIn() {
-    if (!email || !password || loading) return
+    const emailVal = emailRef.current?.value ?? ''
+    const passwordVal = passwordRef.current?.value ?? ''
+    if (!emailVal || !passwordVal || loading) return
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({
+      email: emailVal,
+      password: passwordVal,
+    })
     if (error) {
       setError(error.message)
       setLoading(false)
       return
     }
-    router.replace(decodeURIComponent(redirect))
-    router.refresh()
+    // Force full page reload so Nav re-reads the session
+    window.location.href = decodeURIComponent(redirect)
   }
-
-  const on = !!(email && password && !loading)
 
   return (
     <div style={S.page}>
@@ -61,18 +62,26 @@ function SignInContent() {
 
         <div style={{marginBottom:'16px'}}>
           <label style={S.label}>Email</label>
-          <input type="email" autoComplete="email" value={email} placeholder="you@email.com"
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && handleSignIn()}
-            style={S.input} />
+          <input
+            ref={emailRef}
+            type="email"
+            autoComplete="email"
+            placeholder="you@email.com"
+            onKeyDown={e => e.key === 'Enter' && handleSignIn()}
+            style={S.input}
+          />
         </div>
 
         <div style={{marginBottom:'24px'}}>
           <label style={S.label}>Password</label>
-          <input type="password" autoComplete="current-password" value={password} placeholder="••••••••"
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && handleSignIn()}
-            style={S.input} />
+          <input
+            ref={passwordRef}
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            onKeyDown={e => e.key === 'Enter' && handleSignIn()}
+            style={S.input}
+          />
         </div>
 
         {error && (
@@ -81,7 +90,18 @@ function SignInContent() {
           </div>
         )}
 
-        <button onClick={handleSignIn} disabled={!on} style={S.btn(on)}>
+        <button
+          onClick={handleSignIn}
+          disabled={loading}
+          style={{
+            display:'block', width:'100%', boxSizing:'border-box' as const,
+            padding:'15px', border:'none', borderRadius:'6px',
+            fontSize:'14px', fontWeight:700, letterSpacing:'0.06em',
+            textTransform:'uppercase' as const, fontFamily:'inherit',
+            background: loading ? '#b8892e' : '#f4b942',
+            color:'#0f1419', cursor: loading ? 'not-allowed' : 'pointer',
+          }}
+        >
           {loading ? 'Signing in...' : 'Sign in →'}
         </button>
       </div>
