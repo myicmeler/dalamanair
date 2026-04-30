@@ -20,27 +20,33 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
   const supabase = createClient() as any
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<{ full_name:string, avatar_url:string, role:string }>({ full_name:'', avatar_url:'', role:'customer' })
+  const [fullName, setFullName] = useState('')
+  const [role, setRole] = useState('customer')
   const [menuOpen, setMenuOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  async function fetchProfile(userId: string) {
+  async function fetchProfile(u: any) {
+    // Get name from auth metadata first (always available)
+    const metaName = u.user_metadata?.full_name || ''
+    setFullName(metaName)
+    // Try DB for role
     try {
-      const { data } = await supabase.from('users').select('full_name, avatar_url, role').eq('id', userId).single()
-      if (data) setProfile({ full_name: data.full_name || '', avatar_url: data.avatar_url || '', role: data.role || 'customer' })
+      const { data } = await supabase.from('users').select('full_name, role').eq('id', u.id).single()
+      if (data) {
+        setFullName(data.full_name || metaName)
+        setRole(data.role || 'customer')
+      }
     } catch {}
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (session?.user) { setUser(session.user); fetchProfile(session.user.id) }
+      if (session?.user) { setUser(session.user); fetchProfile(session.user) }
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => {
-      if (session?.user) { setUser(session.user); fetchProfile(session.user.id) }
-      else { setUser(null); setProfile({ full_name:'', avatar_url:'', role:'customer' }) }
+      if (session?.user) { setUser(session.user); fetchProfile(session.user) }
+      else { setUser(null); setFullName(''); setRole('customer') }
     })
-
-    // Close dropdown on outside click
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
     }
@@ -58,25 +64,18 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
   const bg = isOverlay ? 'rgba(15,20,25,0.95)' : '#ffffff'
   const borderColor = isOverlay ? 'rgba(255,255,255,0.08)' : '#e5e3dd'
   const burgerColor = isOverlay ? '#ffffff' : '#0f1419'
-  const role = profile.role
-
-  const initials = profile.full_name
-    ? profile.full_name.split(' ').map((n:string) => n[0]).join('').toUpperCase().slice(0,2)
-    : user?.email?.[0]?.toUpperCase() || '?'
-
-  const firstName = profile.full_name?.split(' ')[0] || user?.email?.split('@')[0] || ''
+  const initials = fullName ? fullName.split(' ').map((n:string) => n[0]).join('').toUpperCase().slice(0,2) : user?.email?.[0]?.toUpperCase() || '?'
+  const firstName = fullName?.split(' ')[0] || user?.email?.split('@')[0] || ''
 
   return (
     <nav style={{backgroundColor:bg, borderBottom:`1px solid ${borderColor}`, position:'relative', zIndex:30}}>
       <div style={{maxWidth:'1280px', margin:'0 auto', padding:'0 20px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px'}}>
-        {/* Logo */}
         <Link href="/" style={{display:'flex', alignItems:'center', gap:'10px', textDecoration:'none'}}>
           <Image src="/logo.jpg" alt="dalaman.me" width={40} height={40} style={{borderRadius:'50%', objectFit:'cover'}} />
           <span style={{fontSize:'13px', fontWeight:700, letterSpacing:'0.12em', color: isOverlay ? '#ffffff' : '#0f1419'}}>dalaman.me</span>
         </Link>
 
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          {/* Language toggle */}
           {onLangChange && (
             <div style={{display:'flex', fontSize:'11px'}}>
               {(['en','tr'] as const).map((l, i) => (
@@ -90,35 +89,24 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
             </div>
           )}
 
-          {/* Avatar dropdown (logged in) */}
           {user && (
             <div ref={dropdownRef} style={{position:'relative'}}>
               <button onClick={() => setDropdownOpen(!dropdownOpen)} style={{display:'flex', alignItems:'center', gap:'8px', background:'none', border:'none', cursor:'pointer', padding:'4px'}}>
-                {/* Avatar */}
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt={firstName} style={{width:'34px', height:'34px', borderRadius:'50%', objectFit:'cover', border:'2px solid rgba(244,185,66,0.4)'}} />
-                ) : (
-                  <div style={{width:'34px', height:'34px', borderRadius:'50%', background:'rgba(244,185,66,0.15)', border:'2px solid rgba(244,185,66,0.4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, color:'#f4b942'}}>
-                    {initials}
-                  </div>
-                )}
-                {/* Name — hide on small screens */}
-                <span style={{fontSize:'13px', fontWeight:500, color: isOverlay ? '#ffffff' : '#0f1419', display:'none', whiteSpace:'nowrap'}}
-                  className="nav-name">
+                <div style={{width:'34px', height:'34px', borderRadius:'50%', background:'rgba(244,185,66,0.15)', border:'2px solid rgba(244,185,66,0.4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, color:'#f4b942', flexShrink:0}}>
+                  {initials}
+                </div>
+                <span style={{fontSize:'13px', fontWeight:500, color: isOverlay ? '#ffffff' : '#0f1419', whiteSpace:'nowrap', display:'none'}} className="nav-name">
                   {firstName}
                 </span>
                 <style>{`@media(min-width:640px){.nav-name{display:block!important}}`}</style>
               </button>
 
-              {/* Dropdown */}
               {dropdownOpen && (
                 <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, width:'200px', background:'#1a1f26', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', boxShadow:'0 8px 24px rgba(0,0,0,0.4)', overflow:'hidden', zIndex:50}}>
-                  {/* User info */}
                   <div style={{padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-                    <div style={{fontSize:'13px', fontWeight:500, color:'#ffffff', marginBottom:'2px'}}>{profile.full_name || firstName}</div>
+                    <div style={{fontSize:'13px', fontWeight:500, color:'#ffffff', marginBottom:'2px'}}>{fullName || firstName}</div>
                     <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{user.email}</div>
                   </div>
-                  {/* Links */}
                   {[
                     { href:'/profile/', label: t.profile },
                     ...(role === 'customer' ? [{ href:'/bookings/', label: t.myBookings }, { href:'/quotes/', label: t.myQuotes }] : []),
@@ -131,8 +119,7 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
                       {item.label}
                     </Link>
                   ))}
-                  <button onClick={handleSignOut}
-                    style={{display:'block', width:'100%', padding:'11px 16px', fontSize:'13px', color:'rgba(255,255,255,0.4)', textAlign:'left', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit'}}>
+                  <button onClick={handleSignOut} style={{display:'block', width:'100%', padding:'11px 16px', fontSize:'13px', color:'rgba(255,255,255,0.4)', textAlign:'left', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit'}}>
                     {t.signout}
                   </button>
                 </div>
@@ -140,14 +127,12 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
             </div>
           )}
 
-          {/* Sign in (not logged in) */}
           {!user && (
             <Link href="/auth/signin/" style={{fontSize:'11px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', backgroundColor:'#f4b942', color:'#0f1419', padding:'8px 16px', borderRadius:'4px', textDecoration:'none', whiteSpace:'nowrap'}}>
               {t.signin}
             </Link>
           )}
 
-          {/* Hamburger */}
           <button onClick={() => setMenuOpen(!menuOpen)} style={{background:'none', border:'none', cursor:'pointer', padding:'6px', display:'flex', flexDirection:'column', gap:'5px'}}>
             {[0,1,2].map(i => (
               <div key={i} style={{width:'22px', height:'1.5px', backgroundColor:burgerColor, transition:'all 0.2s', opacity: menuOpen&&i===1?0:1, transform: menuOpen?(i===0?'rotate(45deg) translate(4px,4px)':i===2?'rotate(-45deg) translate(4px,-4px)':'none'):'none'}} />
@@ -156,50 +141,28 @@ export default function Nav({ lang = 'en', onLangChange, variant = 'light' }: {
         </div>
       </div>
 
-      {/* Full screen mobile menu */}
       {menuOpen && (
         <div style={{position:'fixed', top:'60px', left:0, right:0, bottom:0, zIndex:100, backgroundColor:'#0f1419', overflowY:'auto', padding:'16px 24px 40px'}}>
-          {/* User card in menu */}
           {user && (
             <div style={{display:'flex', alignItems:'center', gap:'12px', padding:'12px 0 20px', borderBottom:'1px solid rgba(255,255,255,0.08)', marginBottom:'8px'}}>
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={firstName} style={{width:'48px', height:'48px', borderRadius:'50%', objectFit:'cover', border:'2px solid rgba(244,185,66,0.4)', flexShrink:0}} />
-              ) : (
-                <div style={{width:'48px', height:'48px', borderRadius:'50%', background:'rgba(244,185,66,0.15)', border:'2px solid rgba(244,185,66,0.4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:700, color:'#f4b942', flexShrink:0}}>
-                  {initials}
-                </div>
-              )}
+              <div style={{width:'48px', height:'48px', borderRadius:'50%', background:'rgba(244,185,66,0.15)', border:'2px solid rgba(244,185,66,0.4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:700, color:'#f4b942', flexShrink:0}}>
+                {initials}
+              </div>
               <div style={{minWidth:0}}>
-                <div style={{fontSize:'15px', fontWeight:500, color:'#ffffff', marginBottom:'2px'}}>{profile.full_name || firstName}</div>
+                <div style={{fontSize:'15px', fontWeight:500, color:'#ffffff', marginBottom:'2px'}}>{fullName || firstName}</div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{user.email}</div>
               </div>
             </div>
           )}
-
-          {[
-            { href:'/', label: t.transfers },
-            { href:'/quote/', label: t.quote },
-            { href:'/how-it-works/', label: t.how },
-            { href:'/help/', label: t.help },
-          ].map(item => (
-            <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>
-              {item.label}
-            </Link>
+          {[{href:'/',label:t.transfers},{href:'/quote/',label:t.quote},{href:'/how-it-works/',label:t.how},{href:'/help/',label:t.help}].map(item => (
+            <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{item.label}</Link>
           ))}
-
-          {user && (
-            <>
-              <Link href="/profile/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.profile}</Link>
-              {role === 'customer' && <>
-                <Link href="/bookings/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.myBookings}</Link>
-                <Link href="/quotes/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.myQuotes}</Link>
-              </>}
-              {role === 'provider' && <Link href="/provider/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.dashboard}</Link>}
-              {role === 'driver' && <Link href="/driver/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>My trips</Link>}
-              {role === 'admin' && <Link href="/admin/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.admin}</Link>}
-            </>
-          )}
-
+          {user && <>
+            <Link href="/profile/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.profile}</Link>
+            {role==='customer'&&<><Link href="/bookings/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.myBookings}</Link><Link href="/quotes/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.myQuotes}</Link></>}
+            {role==='provider'&&<Link href="/provider/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.dashboard}</Link>}
+            {role==='admin'&&<Link href="/admin/" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(255,255,255,0.85)', fontSize:'16px', padding:'15px 0', borderBottom:'1px solid rgba(255,255,255,0.07)', textDecoration:'none'}}>{t.admin}</Link>}
+          </>}
           <div style={{marginTop:'20px', paddingTop:'20px', borderTop:'1px solid rgba(255,255,255,0.1)'}}>
             {user ? (
               <button onClick={handleSignOut} style={{background:'none', border:'none', cursor:'pointer', padding:0, color:'rgba(255,255,255,0.4)', fontSize:'15px', fontFamily:'inherit'}}>{t.signout}</button>
