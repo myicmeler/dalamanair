@@ -129,7 +129,7 @@ export default function ProviderBookings() {
     return true
   })
 
-  const inp: React.CSSProperties = { width:'100%', fontSize:'14px', padding:'11px 10px', backgroundColor:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#f0ede6', outline:'none', boxSizing:'border-box' }
+  const inp: React.CSSProperties = { width:'100%', fontSize:'14px', padding:'11px 10px', backgroundColor:'#1e2530', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#f0ede6', outline:'none', boxSizing:'border-box', colorScheme:'dark' }
   const lbl: React.CSSProperties = { fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px' }
   const card: React.CSSProperties = { backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', overflow:'hidden' }
 
@@ -207,7 +207,7 @@ export default function ProviderBookings() {
               <select style={inp} value={form.channel} onChange={e => setForm(p=>({...p,channel:e.target.value}))}>
                 <option value="phone">📞 Phone call</option>
                 <option value="whatsapp">💬 WhatsApp</option>
-                <option value="email">✉ Email</option>
+                <option value="email">✉️ Email</option>
                 <option value="hotel">🏨 Hotel referral</option>
                 <option value="walkin">🚶 Walk-in</option>
                 <option value="repeat">🔁 Repeat customer</option>
@@ -274,7 +274,7 @@ export default function ProviderBookings() {
                       )}
                       {isManual && (b as any).channel && (
                         <span style={{fontSize:'9px', padding:'2px 8px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.45)', flexShrink:0}}>
-                          {({'phone':'📞 Phone','whatsapp':'💬 WhatsApp','email':'✉ Email','hotel':'🏨 Hotel','walkin':'🚶 Walk-in','repeat':'🔁 Repeat','other':'Other'} as any)[(b as any).channel] || (b as any).channel}
+                          {({'phone':'📞 Phone','whatsapp':'💬 WhatsApp','email':'✉️ Email','hotel':'🏨 Hotel','walkin':'🚶 Walk-in','repeat':'🔁 Repeat','other':'Other'} as any)[(b as any).channel] || (b as any).channel}
                         </span>
                       )}
                     </div>
