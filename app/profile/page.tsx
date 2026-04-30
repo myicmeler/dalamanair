@@ -40,7 +40,7 @@ export default function ProfilePage() {
       if (uploadErr) throw uploadErr
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
       const avatarUrl = `${publicUrl}?t=${Date.now()}`
-      await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', user.id)
+      await supabase.from('users').upsert({ id: user.id, email: user.email, avatar_url: avatarUrl })
       setProfile(p => ({ ...p, avatar_url: avatarUrl }))
     } catch (err: any) {
       setError(err.message)
@@ -51,10 +51,12 @@ export default function ProfilePage() {
   async function handleSave() {
     if (!user) return
     setSaving(true); setError('')
-    const { error } = await supabase.from('users').update({
+    const { error } = await supabase.from('users').upsert({
+      id: user.id,
+      email: user.email,
       full_name: profile.full_name,
       phone: profile.phone,
-    }).eq('id', user.id)
+    })
     if (error) { setError(error.message); setSaving(false); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
