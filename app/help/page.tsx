@@ -1,5 +1,5 @@
-'use client'
 import Image from 'next/image'
+'use client'
 import { useState } from 'react'
 import Link from 'next/link'
 
@@ -46,14 +46,14 @@ export default function HelpPage() {
   const [open, setOpen] = useState<string|null>(null)
 
   return (
-    <div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}}>
+    <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}}>
       {/* Nav */}
       <div style={{backgroundColor:'#0f1419', padding:'0 20px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'56px'}}>
         <Link href="/" style={{display:'flex', alignItems:'center', gap:'10px', textDecoration:'none'}}>
           <Image src="/logo.jpg" alt="dalaman.me" width={36} height={36} style={{borderRadius:'50%', objectFit:'cover'}} />
           <span style={{fontSize:'13px', fontWeight:'700', letterSpacing:'0.12em', color:'#ffffff'}}>dalaman.me</span>
         </Link>
-        <Link href="/auth/signin/" style={{fontSize:'11px', fontWeight:'600', letterSpacing:'0.08em', textTransform:'uppercase', backgroundColor:'#f4b942', color:'#0f1419', padding:'8px 16px', borderRadius:'4px', textDecoration:'none'}}>Sign in</Link>
+        <Link href="/auth/signin/" style={{fontSize:'11px', fontWeight:'600', letterSpacing:'0.08em', textTransform:'uppercase', backgroundColor:'#f4b942', color:'#ffffff', padding:'8px 16px', borderRadius:'4px', textDecoration:'none'}}>Sign in</Link>
       </div>
 
       {/* Hero */}
@@ -77,10 +77,10 @@ export default function HelpPage() {
             { icon:'📋', title:'How it works', desc:'Full booking guide', href:'/how-it-works/' },
             { icon:'🚐', title:'For providers', desc:'Join dalaman.me', href:'/provider/' },
           ].map(c => (
-            <a key={c.title} href={c.href} style={{backgroundColor:'#ffffff', border:'1px solid #e5e3dd', borderRadius:'8px', padding:'20px', textDecoration:'none', display:'block', transition:'border-color 0.15s'}}>
+            <a key={c.title} href={c.href} style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'20px', textDecoration:'none', display:'block', transition:'border-color 0.15s'}}>
               <div style={{fontSize:'24px', marginBottom:'8px'}}>{c.icon}</div>
-              <div style={{fontSize:'14px', fontWeight:'500', color:'#0f1419', marginBottom:'4px'}}>{c.title}</div>
-              <div style={{fontSize:'12px', color:'#8a8680'}}>{c.desc}</div>
+              <div style={{fontSize:'14px', fontWeight:'500', color:'#ffffff', marginBottom:'4px'}}>{c.title}</div>
+              <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)'}}>{c.desc}</div>
             </a>
           ))}
         </div>
@@ -90,17 +90,17 @@ export default function HelpPage() {
           <div key={section.category} style={{marginBottom:'40px'}}>
             <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', marginBottom:'16px'}}>{section.category}</p>
             {section.items.map(faq => (
-              <div key={faq.q} style={{borderBottom:'1px solid #e5e3dd'}}>
+              <div key={faq.q} style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
                 <button
                   onClick={() => setOpen(open === faq.q ? null : faq.q)}
                   style={{width:'100%', padding:'18px 0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'none', border:'none', cursor:'pointer', textAlign:'left', gap:'16px'}}
                 >
-                  <span style={{fontSize:'14px', fontWeight:'500', color:'#0f1419', lineHeight:'1.4'}}>{faq.q}</span>
+                  <span style={{fontSize:'14px', fontWeight:'500', color:'#ffffff', lineHeight:'1.4'}}>{faq.q}</span>
                   <span style={{fontSize:'18px', color:'#f4b942', flexShrink:0, transform: open===faq.q ? 'rotate(45deg)' : 'none', transition:'transform 0.2s'}}>+</span>
                 </button>
                 {open === faq.q && (
                   <div style={{paddingBottom:'18px'}}>
-                    <p style={{fontSize:'13px', color:'#5a574f', lineHeight:'1.7', margin:0}}>{faq.a}</p>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.5)', lineHeight:'1.7', margin:0}}>{faq.a}</p>
                   </div>
                 )}
               </div>
@@ -114,13 +114,13 @@ export default function HelpPage() {
           <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', marginBottom:'20px', lineHeight:'1.6'}}>
             Can't find what you're looking for? Email us and we'll get back to you as soon as possible.
           </p>
-          <a href="mailto:hello@dalaman.me" style={{display:'inline-block', backgroundColor:'#f4b942', color:'#0f1419', padding:'12px 24px', borderRadius:'4px', fontSize:'13px', fontWeight:'600', letterSpacing:'0.06em', textTransform:'uppercase', textDecoration:'none'}}>
+          <a href="mailto:hello@dalaman.me" style={{display:'inline-block', backgroundColor:'#f4b942', color:'#ffffff', padding:'12px 24px', borderRadius:'4px', fontSize:'13px', fontWeight:'600', letterSpacing:'0.06em', textTransform:'uppercase', textDecoration:'none'}}>
             Email hello@dalaman.me →
           </a>
         </div>
 
         {/* Disclaimer */}
-        <p style={{fontSize:'11px', color:'#8a8680', lineHeight:'1.6', marginTop:'32px', textAlign:'center'}}>
+        <p style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', lineHeight:'1.6', marginTop:'32px', textAlign:'center'}}>
           dalaman.me is an independent booking platform connecting travellers with local transfer providers. Transfers are operated by approved third-party companies.
         </p>
       </div>

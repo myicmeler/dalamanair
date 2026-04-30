@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
@@ -11,165 +10,76 @@ export default function MyBookings() {
   const [lang, setLang] = useState<'en'|'tr'>('en')
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'upcoming'|'past'|'all'>('upcoming')
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/signin?redirect=/bookings')
-        return
-      }
-      const { data } = await supabase
-        .from('bookings')
-        .select('*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), vehicle:vehicles(make, model, type), driver:drivers(full_name, phone), provider:providers(company_name)')
-        .eq('customer_id', user.id)
-        .order('pickup_time', { ascending: false })
+      if (!user) { router.push('/auth/signin/?redirect=/bookings/'); return }
+      const { data } = await supabase.from('bookings')
+        .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name),
+          provider:providers(company_name,phone), vehicle:vehicles(make,model,seats), driver:drivers(name,phone)`)
+        .eq('customer_id', user.id).order('pickup_time', { ascending:false })
       if (data) setBookings(data)
       setLoading(false)
     }
     load()
   }, [])
 
-  const now = new Date()
-  const filtered = bookings.filter((b: any) => {
-    const bookingDate = new Date(b.pickup_time)
-    if (filter === 'upcoming') return bookingDate >= now && b.status !== 'cancelled'
-    if (filter === 'past') return bookingDate < now || b.status === 'completed'
-    return true
-  })
-
-  const statusBadge: Record<string, string> = {
-    pending: 'bg-amber/15 text-amber',
-    confirmed: 'bg-teal/15 text-teal',
-    driver_assigned: 'bg-blue/15 text-blue',
-    in_progress: 'bg-blue/15 text-blue',
-    completed: 'bg-white/10 text-muted',
-    cancelled: 'bg-red-900/20 text-red-400',
-  }
-
-  const statusLabel: Record<string, string> = {
-    pending: lang === 'en' ? 'Awaiting confirmation' : 'Onaylanıyor',
-    confirmed: lang === 'en' ? 'Confirmed' : 'Onaylandı',
-    driver_assigned: lang === 'en' ? 'Driver assigned' : 'Sürücü atandı',
-    in_progress: lang === 'en' ? 'In progress' : 'Devam ediyor',
-    completed: lang === 'en' ? 'Completed' : 'Tamamlandı',
-    cancelled: lang === 'en' ? 'Cancelled' : 'İptal edildi',
+  const statusMap: Record<string,{bg:string,color:string,label:string}> = {
+    pending:         {bg:'rgba(244,185,66,0.12)', color:'#f4b942', label:'Pending'},
+    confirmed:       {bg:'rgba(29,158,117,0.12)', color:'#1D9E75', label:'Confirmed'},
+    driver_assigned: {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:'Driver assigned'},
+    completed:       {bg:'rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.4)', label:'Completed'},
+    cancelled:       {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled'},
   }
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}}>
       <Nav lang={lang} onLangChange={setLang} />
-      <div className="max-w-4xl mx-auto px-8 py-10">
-        <div className="mb-8">
-          <p className="text-[11px] tracking-[0.25em] text-accent-2 uppercase mb-2">
-            {lang === 'en' ? 'Your trips' : 'Seyahatleriniz'}
-          </p>
-          <h1 className="text-3xl md:text-4xl font-medium text-ink">
-            {lang === 'en' ? 'My bookings' : 'Rezervasyonlarım'}
-          </h1>
+      <div style={{maxWidth:'680px', margin:'0 auto', padding:'28px 16px 48px'}}>
+        <div style={{marginBottom:'24px'}}>
+          <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>Your trips</p>
+          <h1 style={{fontSize:'26px', fontWeight:'500', color:'#ffffff'}}>My bookings</h1>
         </div>
-
-        <div className="flex gap-2 mb-6">
-          {(['upcoming','past','all'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`text-[11px] px-4 py-2 rounded border capitalize transition-all ${
-                filter === f ? 'border-ink bg-ink text-white' : 'border-line text-sub hover:border-sub'
-              }`}>
-              {lang === 'en' ? f : (f === 'upcoming' ? 'Yaklaşan' : f === 'past' ? 'Geçmiş' : 'Tümü')}
-            </button>
-          ))}
-          <span className="text-[11px] text-muted self-center ml-2">
-            {filtered.length} {lang === 'en' ? 'bookings' : 'rezervasyon'}
-          </span>
-        </div>
-
         {loading ? (
-          <div className="text-muted text-[13px] py-20 text-center">Loading...</div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-white border border-line rounded-md p-12 text-center">
-            <p className="text-muted text-[14px] mb-4">
-              {filter === 'upcoming' 
-                ? (lang === 'en' ? 'No upcoming trips.' : 'Yaklaşan seyahat yok.')
-                : (lang === 'en' ? 'No bookings found.' : 'Rezervasyon bulunamadı.')}
-            </p>
-            <Link href="/" className="inline-block text-[11px] tracking-wider uppercase bg-accent hover:bg-accent-2 text-ink font-medium px-5 py-2.5 rounded transition-colors">
-              {lang === 'en' ? 'Book a transfer' : 'Transfer rezerve et'} →
-            </Link>
+          <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+        ) : bookings.length === 0 ? (
+          <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', padding:'48px', textAlign:'center'}}>
+            <p style={{fontSize:'15px', color:'rgba(255,255,255,0.4)', marginBottom:'16px'}}>No bookings yet</p>
+            <a href="/" style={{padding:'12px 24px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'13px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Search transfers →</a>
           </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {filtered.map((b: any) => {
-              const bookingDate = new Date(b.pickup_time)
-              const isUpcoming = bookingDate >= now && b.status !== 'cancelled'
-              return (
-                <div key={b.id} className="bg-white border border-line rounded-md p-5 grid grid-cols-[auto_1fr_auto] gap-5 items-center">
-                  <div className="text-center min-w-[70px]">
-                    <div className="text-[10px] tracking-widest text-muted uppercase">
-                      {bookingDate.toLocaleDateString(lang === 'en' ? 'en-GB' : 'tr-TR', { month: 'short' })}
-                    </div>
-                    <div className="text-3xl font-medium text-ink my-0.5">
-                      {bookingDate.getDate()}
-                    </div>
-                    <div className="text-[11px] text-muted">
-                      {bookingDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-
-                  <div className="border-l border-line pl-5">
-                    <div className="text-[15px] font-medium text-ink mb-1">
-                      {b.pickup?.name ?? '...'} → {b.dropoff?.name ?? '...'}
-                    </div>
-                    <div className="flex gap-3 text-[12px] text-sub mb-2">
-                      <span>{b.vehicle ? `${b.vehicle.make} ${b.vehicle.model}` : '—'}</span>
-                      <span className="text-line">·</span>
-                      <span>{b.passengers} {lang === 'en' ? (b.passengers === 1 ? 'passenger' : 'passengers') : 'yolcu'}</span>
-                      {b.provider?.company_name && <>
-                        <span className="text-line">·</span>
-                        <span className="text-muted">{b.provider.company_name}</span>
-                      </>}
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className={`text-[11px] px-2 py-1 rounded ${statusBadge[b.status] ?? 'bg-white/10 text-muted'}`}>
-                        {statusLabel[b.status] ?? b.status}
-                      </span>
-                      {b.driver && (
-                        <span className="text-[11px] text-muted">
-                          {lang === 'en' ? 'Driver:' : 'Sürücü:'} {b.driver.full_name}
-                          {isUpcoming && b.driver.phone && (
-                            <a href={`tel:${b.driver.phone}`} className="text-ink ml-2 underline hover:text-accent-2">
-                              {b.driver.phone}
-                            </a>
-                          )}
-                        </span>
-                      )}
-                      {b.flight_number && (
-                        <span className="text-[11px] text-muted">
-                          {lang === 'en' ? 'Flight:' : 'Uçuş:'} <span className="text-ink">{b.flight_number}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-xl font-medium text-ink">€ {b.final_price?.toFixed(2)}</div>
-                    <div className="text-[10px] tracking-widest text-muted uppercase mt-1">
-                      {b.direction === 'outbound' 
-                        ? (lang === 'en' ? 'Outbound' : 'Gidiş')
-                        : (lang === 'en' ? 'Return' : 'Dönüş')}
-                    </div>
+        ) : bookings.map((b:any) => {
+          const s = statusMap[b.status] ?? statusMap.pending
+          const dt = new Date(b.pickup_time)
+          const isPast = dt < new Date()
+          return (
+            <div key={b.id} style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', overflow:'hidden', marginBottom:'14px'}}>
+              <div style={{padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px'}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:'15px', fontWeight:'500', color:'#ffffff', marginBottom:'4px'}}>{b.pickup?.name} → {b.dropoff?.name}</div>
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
+                    {dt.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {b.passengers} pax
+                    {b.flight_number&&` · ✈ ${b.flight_number}`}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        <div className="mt-10 text-center">
-          <Link href="/" className="text-[13px] text-muted hover:text-ink transition-colors">
-            ← {lang === 'en' ? 'Book another transfer' : 'Başka transfer rezerve et'}
-          </Link>
-        </div>
+                <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'6px', flexShrink:0}}>
+                  <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>€ {b.final_price?.toFixed(2)}</span>
+                  <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'10px', backgroundColor:s.bg, color:s.color, fontWeight:'500'}}>{s.label}</span>
+                </div>
+              </div>
+              <div style={{padding:'14px 20px'}}>
+                {b.provider&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Provider</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.provider.company_name}{b.provider.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.provider.phone}</span>}</div></div>}
+                {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.driver.name}{b.driver.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.driver.phone}</span>}</div></div>}
+                {b.vehicle&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Vehicle</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.vehicle.make} {b.vehicle.model} · {b.vehicle.seats} seats</div></div>}
+                {!isPast && b.status!=='cancelled' && (
+                  <div style={{marginTop:'10px', padding:'10px 14px', backgroundColor:'rgba(29,158,117,0.08)', border:'1px solid rgba(29,158,117,0.15)', borderRadius:'6px', fontSize:'12px', color:'#1D9E75'}}>
+                    💵 Pay your driver directly on the day of transfer — cash or card
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
