@@ -90,21 +90,10 @@ export default function Home() {
 
   return (
     <div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}}>
-      <style>{`
-        @media (max-width: 640px) {
-          .trust-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .form-row { grid-template-columns: 1fr !important; }
-          .why-grid { grid-template-columns: 1fr !important; }
-          .search-panel { max-width: 100% !important; }
-          .hero-inner { padding: 24px 16px 36px !important; }
-          .section-inner { padding: 36px 16px !important; }
-          .footer-inner { padding: 28px 16px !important; }
-        }
-      `}</style>
       {/* HERO */}
       <div style={{backgroundColor:'#0f1419'}}>
         <Nav lang={lang} onLangChange={setLang} variant="overlay" />
-        <div style={{padding:'32px 20px 48px', maxWidth:'1280px', margin:'0 auto'}} className="hero-inner">
+        <div style={{padding:'32px 20px 48px', maxWidth:'1280px', margin:'0 auto'}}>
           <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'14px'}}>{t.tag}</p>
           <h1 style={{fontSize:'clamp(28px, 6vw, 58px)', lineHeight:'1.1', fontWeight:'400', color:'#ffffff', marginBottom:'14px', maxWidth:'780px'}}>
             {t.h1a}<br/>
@@ -113,7 +102,7 @@ export default function Home() {
           <p style={{fontSize:'15px', color:'rgba(255,255,255,0.65)', lineHeight:'1.7', marginBottom:'36px', maxWidth:'520px'}}>{t.sub}</p>
 
           {/* Search panel */}
-          <div style={{backgroundColor:'#ffffff', borderRadius:'8px', padding:'20px', boxShadow:'0 8px 32px rgba(0,0,0,0.25)', maxWidth:'560px'}} className="search-panel">
+          <div style={{backgroundColor:'#ffffff', borderRadius:'8px', padding:'20px', boxShadow:'0 8px 32px rgba(0,0,0,0.25)', maxWidth:'560px'}}>
             {/* Trip type tabs */}
             <div style={{display:'flex', borderBottom:'1px solid #e5e3dd', marginBottom:'16px', marginLeft:'-20px', marginRight:'-20px', paddingLeft:'20px', paddingRight:'20px'}}>
               {(['oneway','return'] as const).map(tt => (
@@ -130,7 +119,7 @@ export default function Home() {
             </div>
 
             <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}} className="form-row">
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                 <div>
                   <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.pickup}</label>
                   <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}}>
@@ -149,7 +138,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}} className="form-row">
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                 <div>
                   <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.date}</label>
                   <input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}} />
@@ -169,7 +158,7 @@ export default function Home() {
 
               {tripType === 'return' && (
                 <div style={{borderTop:'1px solid #e5e3dd', paddingTop:'12px', display:'flex', flexDirection:'column', gap:'12px'}}>
-                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}} className="form-row">
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                     <div>
                       <label style={{fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', display:'block', marginBottom:'4px'}}>{t.returnDate}</label>
                       <input type="date" value={form.returnDate} onChange={e => setForm(p=>({...p,returnDate:e.target.value}))} style={{width:'100%', fontSize:'14px', padding:'11px 10px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const}} />
@@ -202,27 +191,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* TRUST BAR */}
-      <div style={{backgroundColor:'#f5f2ea', borderTop:'1px solid #e5e3dd', borderBottom:'1px solid #e5e3dd'}}>
-        <div style={{maxWidth:'1280px', margin:'0 auto', padding:'20px', display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'16px'}} className="trust-grid">
-          {[
-            {num:'4.8 ★', label:t.rating},
-            {num:'2,400+', label:t.transfers},
-            {num:'24/7', label:t.support},
-            {num:lang==='en'?'Fixed':'Sabit', label:t.pricing},
-          ].map(s => (
-            <div key={s.label} style={{textAlign:'center'}}>
-              <div style={{fontSize:'20px', fontWeight:'500', color:'#0f1419'}}>{s.num}</div>
-              <div style={{fontSize:'10px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#8a8680', marginTop:'4px'}}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* WHY BOOK WITH US */}
       <div style={{maxWidth:'1100px', margin:'0 auto', padding:'56px 20px 48px'}}>
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', textAlign:'center', marginBottom:'10px'}}>{t.why}</p>
-        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'32px', marginTop:'32px'}} className="why-grid">
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'32px', marginTop:'32px'}}>
           {[
             {title:t.w1t, desc:t.w1d},
             {title:t.w2t, desc:t.w2d},
