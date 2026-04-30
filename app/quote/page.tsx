@@ -1,21 +1,31 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
-export default function QuotePage() {
+function QuoteContent() {
   const router = useRouter()
+  const urlParams = useSearchParams()
   const supabase = createClient() as any
   const [lang, setLang] = useState<'en'|'tr'>('en')
   const [locations, setLocations] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [tripType, setTripType] = useState<'oneway'|'return'>('oneway')
+
+  // Pre-fill from URL params (coming from search)
+  const [tripType, setTripType] = useState<'oneway'|'return'>((urlParams.get('tripType') as any) ?? 'oneway')
   const [form, setForm] = useState({
-    pickup:'', dropoff:'', date:'', time:'14:00',
-    passengers:'2', luggage:'2',
-    returnDate:'', returnTime:'10:00', flightNumber:'', notes:'',
+    pickup:      urlParams.get('pickup') ?? '',
+    dropoff:     urlParams.get('dropoff') ?? '',
+    date:        urlParams.get('date') ?? '',
+    time:        urlParams.get('time') ?? '14:00',
+    passengers:  urlParams.get('passengers') ?? '2',
+    luggage:     '2',
+    returnDate:  urlParams.get('returnDate') ?? '',
+    returnTime:  urlParams.get('returnTime') ?? '10:00',
+    flightNumber:'',
+    notes:       '',
   })
 
   useEffect(() => {
@@ -26,29 +36,18 @@ export default function QuotePage() {
     load()
   }, [])
 
-  const airports = locations.filter(l => l.type === 'airport')
+  const airports     = locations.filter(l => l.type === 'airport')
   const destinations = locations.filter(l => l.type !== 'airport')
-  const canSubmit = form.pickup && form.dropoff && form.date && form.time
+  const canSubmit    = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime))
-
-  async function callEmail(type: string, to: string, data: any) {
-    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ type, to, data }),
-    })
-  }
 
   async function handleSubmit() {
     setSubmitting(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/signin?redirect=/quote'); return }
+      if (!user) { router.push('/auth/signin/?redirect=/quote/'); return }
 
-      const pickup = locations.find(l => l.id === form.pickup)
+      const pickup  = locations.find(l => l.id === form.pickup)
       const dropoff = locations.find(l => l.id === form.dropoff)
 
       const { data: request, error } = await supabase.from('quote_requests').insert({
@@ -67,28 +66,10 @@ export default function QuotePage() {
 
       if (error || !request) throw error
 
-      const emailData = {
-        pickup: pickup?.name ?? '—',
-        dropoff: dropoff?.name ?? '—',
-        date: new Date(`${form.date}T${form.time}`).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' }),
-        time: form.time,
-        passengers: form.passengers,
-        tripType,
-      }
-
-      // Email customer confirmation
-      const { data: profile } = await supabase.from('users').select('email').eq('id', user.id).single()
-      if (profile?.email) {
-        await callEmail('quote_submitted', profile.email, emailData)
-      }
-
-      // Notify all providers
+      // Notify providers
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ requestId: request.id }),
       })
 
@@ -99,8 +80,8 @@ export default function QuotePage() {
     setSubmitting(false)
   }
 
-  const inputStyle = { width:'100%', fontSize:'15px', padding:'13px 12px', marginTop:'4px' }
-  const labelStyle = { fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'#8a8680' }
+  const inputStyle  = { width:'100%', fontSize:'15px', padding:'13px 12px', border:'0.5px solid #e5e3dd', borderRadius:'4px', backgroundColor:'#faf8f3', color:'#0f1419', outline:'none', boxSizing:'border-box' as const }
+  const labelStyle  = { fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'#8a8680' }
 
   if (submitted) return (
     <div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}}>
@@ -110,9 +91,9 @@ export default function QuotePage() {
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', marginBottom:'10px'}}>Request sent</p>
         <h1 style={{fontSize:'26px', fontWeight:'500', color:'#0f1419', marginBottom:'10px'}}>Quote request submitted</h1>
         <p style={{fontSize:'14px', color:'#5a574f', marginBottom:'8px', lineHeight:'1.6'}}>
-          All approved providers have been notified. A confirmation email has been sent to you, and you will receive a new email each time a provider submits an offer.
+          All approved providers have been notified. You will receive an email each time a provider submits an offer.
         </p>
-        <p style={{fontSize:'13px', color:'#8a8680', marginBottom:'32px'}}>Offers usually arrive within a few hours. Your request is open for 48 hours.</p>
+        <p style={{fontSize:'13px', color:'#8a8680', marginBottom:'32px'}}>Prices are hidden until a provider responds. Your request is open for 48 hours.</p>
         <div style={{display:'flex', gap:'12px', justifyContent:'center', flexWrap:'wrap'}}>
           <a href="/quotes/" style={{padding:'12px 24px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'13px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>
             View my quotes →
@@ -132,17 +113,18 @@ export default function QuotePage() {
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', marginBottom:'8px'}}>Free · No obligation</p>
         <h1 style={{fontSize:'28px', fontWeight:'500', color:'#0f1419', marginBottom:'6px'}}>Request a quote</h1>
         <p style={{fontSize:'14px', color:'#5a574f', marginBottom:'28px', lineHeight:'1.6'}}>
-          Tell us about your transfer and all our approved providers will send you their best price. You choose the offer you like.
+          Providers will respond with their best price. You choose the offer you like — no payment until transfer day.
         </p>
 
         <div style={{backgroundColor:'#ffffff', border:'1px solid #e5e3dd', borderRadius:'8px', padding:'20px', marginBottom:'12px'}}>
+          {/* Trip type tabs */}
           <div style={{display:'flex', gap:'0', marginBottom:'20px', border:'1px solid #e5e3dd', borderRadius:'6px', overflow:'hidden'}}>
             {(['oneway','return'] as const).map(tt => (
               <button key={tt} onClick={() => setTripType(tt)} style={{
                 flex:1, padding:'11px', fontSize:'13px',
-                fontWeight:tripType===tt?'500':'400',
-                backgroundColor:tripType===tt?'#0f1419':'transparent',
-                color:tripType===tt?'#ffffff':'#8a8680',
+                fontWeight: tripType===tt ? '500' : '400',
+                backgroundColor: tripType===tt ? '#0f1419' : 'transparent',
+                color: tripType===tt ? '#ffffff' : '#8a8680',
                 border:'none', cursor:'pointer', textTransform:'uppercase', letterSpacing:'0.05em',
               }}>
                 {tt === 'oneway' ? 'One way' : 'Return'}
@@ -180,7 +162,7 @@ export default function QuotePage() {
             </div>
           </div>
 
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:tripType==='return'?'12px':'0'}}>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom: tripType==='return' ? '12px' : '0'}}>
             <div>
               <label style={labelStyle}>Passengers</label>
               <select value={form.passengers} onChange={e => setForm(p=>({...p,passengers:e.target.value}))} style={inputStyle}>
@@ -224,18 +206,26 @@ export default function QuotePage() {
         </div>
 
         <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{
-          width:'100%', backgroundColor:canSubmit?'#f4b942':'#fad98a',
+          width:'100%', backgroundColor: canSubmit ? '#f4b942' : '#fad98a',
           color:'#0f1419', fontWeight:'600', fontSize:'14px',
           letterSpacing:'0.05em', textTransform:'uppercase',
           padding:'16px', borderRadius:'6px', border:'none',
-          cursor:canSubmit?'pointer':'not-allowed',
+          cursor: canSubmit ? 'pointer' : 'not-allowed',
         }}>
           {submitting ? 'Sending...' : 'Request quotes →'}
         </button>
         <p style={{textAlign:'center', fontSize:'12px', color:'#8a8680', marginTop:'10px'}}>
-          Free · No obligation · Confirmation email sent instantly
+          Free · No obligation · Pay your driver directly on transfer day
         </p>
       </div>
     </div>
+  )
+}
+
+export default function QuotePage() {
+  return (
+    <Suspense fallback={<div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}} />}>
+      <QuoteContent />
+    </Suspense>
   )
 }
