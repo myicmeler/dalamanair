@@ -29,7 +29,7 @@ export default function AdminProviders() {
   const [saving, setSaving] = useState(false)
   const [newForm, setNewForm] = useState({
     company_name:'', contact_name:'', email:'', phone:'',
-    commission_pct:'15', is_approved:'true',
+     is_approved:'true',
     tursab_number:'', insurance_number:'',
   })
 
@@ -107,7 +107,7 @@ export default function AdminProviders() {
         company_name:     newForm.company_name,
         contact_name:     newForm.contact_name || null,
         phone:            newForm.phone || null,
-        commission_pct:   parseFloat(newForm.commission_pct) || 15,
+        
         is_approved:      newForm.is_approved === 'true',
         tursab_number:    newForm.tursab_number || null,
         insurance_number: newForm.insurance_number || null,
@@ -118,7 +118,7 @@ export default function AdminProviders() {
 
       await supabase.auth.resetPasswordForEmail(newForm.email)
       if (provider) setProviders(prev => [provider, ...prev])
-      setNewForm({ company_name:'', contact_name:'', email:'', phone:'', commission_pct:'15', is_approved:'true', tursab_number:'', insurance_number:'' })
+      setNewForm({ company_name:'', contact_name:'', email:'', phone:'',  is_approved:'true', tursab_number:'', insurance_number:'' })
       setShowAdd(false)
     } catch (err: any) { alert(err.message) }
     setSaving(false)
@@ -138,8 +138,7 @@ export default function AdminProviders() {
     {label:'Contact name', key:'contact_name', placeholder:'Ahmet Yilmaz'},
     {label:'Email * (login)', key:'email', placeholder:'ahmet@marmaris.com'},
     {label:'Phone', key:'phone', placeholder:'+90 532 100 0001'},
-    {label:'Commission %', key:'commission_pct', placeholder:'15'},
-    {label:'TURSAB number', key:'tursab_number', placeholder:'A-XXXX'},
+        {label:'TURSAB number', key:'tursab_number', placeholder:'A-XXXX'},
     {label:'Insurance number', key:'insurance_number', placeholder:'POL-XXXXXXXX'},
   ]
 
@@ -147,8 +146,7 @@ export default function AdminProviders() {
     {label:'Company name', key:'company_name'},
     {label:'Contact name', key:'contact_name'},
     {label:'Phone', key:'phone'},
-    {label:'Commission %', key:'commission_pct'},
-    {label:'TURSAB number', key:'tursab_number'},
+        {label:'TURSAB number', key:'tursab_number'},
     {label:'Insurance number', key:'insurance_number'},
   ]
 
@@ -236,8 +234,7 @@ export default function AdminProviders() {
                   <div style={{flex:1, minWidth:0}}>
                     <div style={{fontSize:'15px', fontWeight:'500', marginBottom:'3px'}}>{p.company_name}</div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>{p.user?.email||'—'} · {p.contact_name||'—'} · {p.phone||'—'}</div>
-                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.3)', marginBottom:'4px'}}>Commission: {p.commission_pct}% · {p.avg_rating?.toFixed(1)||'0.0'}★ ({p.total_reviews} reviews)</div>
-                    <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.3)', marginBottom:'4px'}}>                    <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                       {p.tursab_number && (
                         <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(55,138,221,0.15)', color:'#378ADD', borderRadius:'8px'}}>
                           TURSAB: {p.tursab_number}
