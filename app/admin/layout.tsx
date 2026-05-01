@@ -5,16 +5,17 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 const navItems = [
-  { href:'/admin',           label:'Overview' },
-  { href:'/admin/bookings',  label:'Bookings' },
-  { href:'/admin/providers', label:'Providers' },
-  { href:'/admin/drivers',   label:'Drivers' },
-  { href:'/admin/vehicles',  label:'Vehicles' },
-  { href:'/admin/reviews',   label:'Reviews' },
-  { href:'/admin/locations', label:'Locations' },
-  { href:'/admin/users',     label:'Users' },
-  { href:'/admin/import',    label:'↑ Import' },
-  { href:'/admin/outreach',  label:'Outreach' },
+  { href:'/admin/',           label:'Overview' },
+  { href:'/admin/bookings/',  label:'Bookings' },
+  { href:'/admin/quotes/',    label:'Quotes' },
+  { href:'/admin/providers/', label:'Providers' },
+  { href:'/admin/drivers/',   label:'Drivers' },
+  { href:'/admin/vehicles/',  label:'Vehicles' },
+  { href:'/admin/reviews/',   label:'Reviews' },
+  { href:'/admin/locations/', label:'Locations' },
+  { href:'/admin/users/',     label:'Users' },
+  { href:'/admin/import/',    label:'↑ Import' },
+  { href:'/admin/outreach/',  label:'Outreach' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -27,7 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     async function check() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/signin?redirect=/admin'); return }
+      if (!user) { router.push('/auth/signin/?redirect=/admin/'); return }
       const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
       if (!profile || profile.role !== 'admin') { router.push('/'); return }
       setLoading(false)
@@ -48,7 +49,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419', color:'#f0ede6'}}>
-      {/* Top bar */}
       <div style={{backgroundColor:'#1a1f26', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'52px', position:'sticky', top:0, zIndex:40}}>
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
           <span style={{fontSize:'12px', fontWeight:'500', letterSpacing:'0.1em'}}>ADMIN</span>
@@ -66,7 +66,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
 
-      {/* Full screen mobile menu */}
       {menuOpen && (
         <div style={{position:'fixed', top:'52px', left:0, right:0, bottom:0, backgroundColor:'#1a1f26', zIndex:30, padding:'8px 0', overflowY:'auto'}}>
           {navItems.map(item => (
@@ -80,7 +79,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       )}
 
-      {/* Scrollable tab bar */}
       <div style={{display:'flex', overflowX:'auto', borderBottom:'1px solid rgba(255,255,255,0.08)', backgroundColor:'#1a1f26', padding:'0 16px', gap:'4px', scrollbarWidth:'none'}}>
         {navItems.map(item => (
           <Link key={item.href} href={item.href} style={{
