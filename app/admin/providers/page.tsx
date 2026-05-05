@@ -83,21 +83,30 @@ export default function AdminProviders() {
     if (!newForm.company_name || !newForm.email) return
     setSaving(true)
     try {
-      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-        email: newForm.email,
-        email_confirm: true,
-        user_metadata: { full_name: newForm.contact_name || newForm.company_name },
+      // Use create-user Edge Function instead of admin API directly
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: newForm.email,
+          full_name: newForm.contact_name || newForm.company_name,
+          role: 'provider',
+          phone: newForm.phone || null,
+        }),
       })
-      if (authErr) throw authErr
-      await supabase.from('users').upsert({
-        id: authData.user.id,
-        email: newForm.email,
-        full_name: newForm.contact_name || null,
-        phone: newForm.phone || null,
-        role: 'provider',
-      })
-      const { data: provider } = await supabase.from('providers').insert({
-        user_id:          authData.user.id,
+
+      const result = await res.json()
+      if (!res.ok || result.error) throw new Error(result.error || 'Failed to create user')
+
+      const userId = result.user?.id || result.id
+      if (!userId) throw new Error('No user ID returned')
+
+      // Create provider record
+      const { data: provider, error: provErr } = await supabase.from('providers').insert({
+        user_id:          userId,
         company_name:     newForm.company_name,
         contact_name:     newForm.contact_name || null,
         phone:            newForm.phone || null,
@@ -108,11 +117,18 @@ export default function AdminProviders() {
         avg_rating:       0,
         total_reviews:    0,
       }).select('*, user:users(email)').single()
+
+      if (provErr) throw provErr
+
+      // Send password reset so they can set their password
       await supabase.auth.resetPasswordForEmail(newForm.email)
+
       if (provider) setProviders(prev => [provider, ...prev])
       setNewForm({ company_name:'', contact_name:'', email:'', phone:'', is_approved:'true', tursab_number:'', insurance_number:'' })
       setShowAdd(false)
-    } catch (err: any) { alert(err.message) }
+    } catch (err: any) {
+      alert(err.message)
+    }
     setSaving(false)
   }
 
@@ -147,7 +163,7 @@ export default function AdminProviders() {
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', flexWrap:'wrap', gap:'10px'}}>
         <h1 style={{fontSize:'20px', fontWeight:'500'}}>Providers</h1>
         <div style={{display:'flex', gap:'8px'}}>
-          <a href="/admin/import" style={{padding:'9px 14px', backgroundColor:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'12px', textDecoration:'none'}}>
+          <a href="/admin/import/" style={{padding:'9px 14px', backgroundColor:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'12px', textDecoration:'none'}}>
             ↑ Bulk import
           </a>
           <button onClick={() => setShowAdd(!showAdd)} style={{padding:'9px 14px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:'500', cursor:'pointer'}}>
@@ -168,7 +184,7 @@ export default function AdminProviders() {
 
       {showAdd && (
         <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'16px', marginBottom:'16px'}}>
-          <p style={{fontSize:'12px', fontWeight:'500', marginBottom:'14px', color:'rgba(255,255,255,0.7)'}}>New provider — login account created automatically</p>
+          <p style={{fontSize:'12px', fontWeight:'500', marginBottom:'14px', color:'rgba(255,255,255,0.7)'}}>New provider — login account created automatically, password set link emailed</p>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
             {fields.map(f => (
               <div key={f.key}>
@@ -229,24 +245,14 @@ export default function AdminProviders() {
                       {p.user?.email||'—'} · {p.contact_name||'—'} · {p.phone||'—'}
                     </div>
                     <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                      {p.tursab_number && (
-                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(55,138,221,0.15)', color:'#378ADD', borderRadius:'8px'}}>TURSAB: {p.tursab_number}</span>
-                      )}
-                      {p.insurance_number && (
-                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(29,158,117,0.15)', color:'#1D9E75', borderRadius:'8px'}}>Insurance: {p.insurance_number}</span>
-                      )}
-                      {!p.tursab_number && (
-                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(239,159,39,0.1)', color:'#EF9F27', borderRadius:'8px'}}>No TURSAB</span>
-                      )}
-                      {!p.insurance_number && (
-                        <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(239,159,39,0.1)', color:'#EF9F27', borderRadius:'8px'}}>No insurance</span>
-                      )}
+                      {p.tursab_number && <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(55,138,221,0.15)', color:'#378ADD', borderRadius:'8px'}}>TURSAB: {p.tursab_number}</span>}
+                      {p.insurance_number && <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(29,158,117,0.15)', color:'#1D9E75', borderRadius:'8px'}}>Insurance: {p.insurance_number}</span>}
+                      {!p.tursab_number && <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(239,159,39,0.1)', color:'#EF9F27', borderRadius:'8px'}}>No TURSAB</span>}
+                      {!p.insurance_number && <span style={{fontSize:'10px', padding:'2px 8px', backgroundColor:'rgba(239,159,39,0.1)', color:'#EF9F27', borderRadius:'8px'}}>No insurance</span>}
                     </div>
                   </div>
                   <div style={{display:'flex', flexDirection:'column', gap:'6px', alignItems:'flex-end', flexShrink:0}}>
-                    <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px',
-                      backgroundColor:p.is_approved?'rgba(29,158,117,0.15)':'rgba(239,159,39,0.15)',
-                      color:p.is_approved?'#1D9E75':'#EF9F27'}}>
+                    <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:p.is_approved?'rgba(29,158,117,0.15)':'rgba(239,159,39,0.15)', color:p.is_approved?'#1D9E75':'#EF9F27'}}>
                       {p.is_approved?'Approved':'Pending'}
                     </span>
                     <div style={{display:'flex', gap:'6px'}}>
