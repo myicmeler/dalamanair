@@ -101,7 +101,7 @@ export default function AdminProviders() {
       const result = await res.json()
       if (!res.ok || result.error) throw new Error(result.error || 'Failed to create user')
 
-      const userId = result.user?.id || result.id
+     const userId = result.userId || result.user?.id || result.id
       if (!userId) throw new Error('No user ID returned')
 
       // Create provider record
