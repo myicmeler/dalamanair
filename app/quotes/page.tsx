@@ -55,6 +55,17 @@ export default function MyQuotes() {
           <div>
             <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>Your requests</p>
             <h1 style={{fontSize:'26px', fontWeight:'500', color:'#ffffff'}}>My quote requests</h1>
+
+        {/* Service notice */}
+        <div style={{backgroundColor:"rgba(244,185,66,0.08)", border:"1px solid rgba(244,185,66,0.25)", borderLeft:"4px solid #f4b942", borderRadius:"6px", padding:"16px 20px", marginBottom:"24px"}}>
+          <div style={{display:"flex", alignItems:"flex-start", gap:"12px"}}>
+            <span style={{fontSize:"18px", flexShrink:0}}>⚠️</span>
+            <div>
+              <p style={{fontSize:"13px", fontWeight:"600", color:"#f4b942", margin:"0 0 6px", letterSpacing:"0.05em", textTransform:"uppercase"}}>Service notice</p>
+              <p style={{fontSize:"13px", color:"rgba(255,255,255,0.7)", lineHeight:"1.7", margin:0}}>We are currently experiencing issues with our third-party email provider, which is affecting our ability to reach transfer providers and customers. You are welcome to create an account, but we kindly ask you to hold off on submitting quote requests until further notice. If you have already submitted a quote request, we will contact you personally as soon as possible. We apologise for the inconvenience and are working to resolve this quickly.</p>
+            </div>
+          </div>
+        </div>
           </div>
           <a href="/quote/" style={{padding:'10px 18px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'12px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase', whiteSpace:'nowrap'}}>+ New request</a>
         </div>
