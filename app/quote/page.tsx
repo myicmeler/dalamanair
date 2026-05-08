@@ -53,21 +53,21 @@ function QuoteContent() {
     setSubmitting(false)
   }
 
-  const inp = { width:'100%', fontSize:'14px', padding:'12px 10px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#ffffff', outline:'none', boxSizing:'border-box' as const, colorScheme:'dark' as any }
-  const lbl = { fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'rgba(255,255,255,0.4)' }
+  const inp = { width:'100%', fontSize:'16px', padding:'13px 12px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#ffffff', outline:'none', boxSizing:'border-box' as const, colorScheme:'dark' as any }
+  const lbl = { fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase' as const, color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px' }
   const card = { backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'20px', marginBottom:'12px' }
 
   if (submitted) return (
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}}>
       <Nav lang={lang} onLangChange={setLang} />
-      <div style={{maxWidth:'480px', margin:'0 auto', padding:'60px 20px', textAlign:'center'}}>
+      <div style={{maxWidth:'480px', margin:'0 auto', padding:'48px 20px', textAlign:'center'}}>
         <div style={{width:'64px', height:'64px', borderRadius:'50%', backgroundColor:'rgba(244,185,66,0.15)', border:'1px solid rgba(244,185,66,0.3)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px', fontSize:'28px'}}>✓</div>
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'10px'}}>Request sent</p>
         <h1 style={{fontSize:'26px', fontWeight:'500', color:'#ffffff', marginBottom:'10px'}}>Quote request submitted</h1>
         <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', marginBottom:'8px', lineHeight:'1.6'}}>All approved providers have been notified. You will receive an email each time a provider submits an offer.</p>
-        <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', marginBottom:'32px'}}>Prices are hidden until a provider responds. Your request is open for 48 hours.</p>
-        <div style={{display:'flex', gap:'12px', justifyContent:'center', flexWrap:'wrap'}}>
-          <a href="/quotes/" style={{padding:'12px 24px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'13px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>View my quotes →</a>
+        <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', marginBottom:'32px'}}>Prices are hidden until a provider responds.</p>
+        <div style={{display:'flex', flexDirection:'column', gap:'12px', alignItems:'center'}}>
+          <a href="/quotes/" style={{width:'100%', maxWidth:'300px', padding:'14px 24px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'13px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase', textAlign:'center', display:'block'}}>View my quotes →</a>
           <a href="/" style={{padding:'12px 24px', border:'1px solid rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.6)', borderRadius:'6px', fontSize:'13px', textDecoration:'none'}}>Back to home</a>
         </div>
       </div>
@@ -76,32 +76,41 @@ function QuoteContent() {
 
   return (
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}}>
+      <style>{`
+        * { box-sizing: border-box; }
+        @media(max-width:600px) {
+          .quote-grid { grid-template-columns: 1fr !important; }
+          .quote-wrap { padding: 20px 16px 40px !important; }
+        }
+      `}</style>
       <Nav lang={lang} onLangChange={setLang} />
-      <div style={{maxWidth:'580px', margin:'0 auto', padding:'32px 16px 48px'}}>
+      <div className="quote-wrap" style={{maxWidth:'580px', margin:'0 auto', padding:'32px 16px 48px'}}>
 
         {/* Service notice */}
-        <div style={{backgroundColor:"rgba(244,185,66,0.08)", border:"1px solid rgba(244,185,66,0.25)", borderLeft:"4px solid #f4b942", borderRadius:"6px", padding:"16px 20px", marginBottom:"24px"}}>
-          <div style={{display:"flex", alignItems:"flex-start", gap:"12px"}}>
-            <span style={{fontSize:"18px", flexShrink:0}}>⚠️</span>
+        <div style={{backgroundColor:'rgba(244,185,66,0.08)', border:'1px solid rgba(244,185,66,0.25)', borderLeft:'4px solid #f4b942', borderRadius:'6px', padding:'16px', marginBottom:'24px'}}>
+          <div style={{display:'flex', alignItems:'flex-start', gap:'10px'}}>
+            <span style={{fontSize:'16px', flexShrink:0}}>⚠️</span>
             <div>
-              <p style={{fontSize:"13px", fontWeight:"600", color:"#f4b942", margin:"0 0 6px", letterSpacing:"0.05em", textTransform:"uppercase"}}>Service notice</p>
-              <p style={{fontSize:"13px", color:"rgba(255,255,255,0.7)", lineHeight:"1.7", margin:0}}>We are currently experiencing issues with our third-party email provider, which is affecting our ability to reach transfer providers and customers. You are welcome to create an account, but we kindly ask you to hold off on submitting quote requests until further notice. If you have already submitted a quote request, we will contact you personally as soon as possible. We apologise for the inconvenience and are working to resolve this quickly.</p>
+              <p style={{fontSize:'12px', fontWeight:'600', color:'#f4b942', margin:'0 0 4px', letterSpacing:'0.05em', textTransform:'uppercase'}}>Service notice</p>
+              <p style={{fontSize:'12px', color:'rgba(255,255,255,0.7)', lineHeight:'1.7', margin:0}}>We are currently experiencing issues with our third-party email provider. Please hold off on submitting quote requests until further notice. If you have already submitted a request, we will contact you personally.</p>
             </div>
           </div>
         </div>
+
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'8px'}}>Free · No obligation</p>
-        <h1 style={{fontSize:'28px', fontWeight:'500', color:'#ffffff', marginBottom:'6px'}}>Request a quote</h1>
-        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', marginBottom:'28px', lineHeight:'1.6'}}>Providers will respond with their best price. Pay your driver directly on transfer day.</p>
+        <h1 style={{fontSize:'clamp(22px,5vw,28px)', fontWeight:'500', color:'#ffffff', marginBottom:'6px'}}>Request a quote</h1>
+        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', marginBottom:'24px', lineHeight:'1.6'}}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
 
         <div style={card}>
           <div style={{display:'flex', gap:'0', marginBottom:'20px', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'6px', overflow:'hidden'}}>
             {(['oneway','return'] as const).map(tt => (
-              <button key={tt} onClick={() => setTripType(tt)} style={{flex:1, padding:'11px', fontSize:'13px', fontWeight:tripType===tt?'500':'400', backgroundColor:tripType===tt?'#f4b942':'transparent', color:tripType===tt?'#0f1419':'rgba(255,255,255,0.4)', border:'none', cursor:'pointer', textTransform:'uppercase', letterSpacing:'0.05em'}}>
+              <button key={tt} onClick={() => setTripType(tt)} style={{flex:1, padding:'12px', fontSize:'13px', fontWeight:tripType===tt?'600':'400', backgroundColor:tripType===tt?'#f4b942':'transparent', color:tripType===tt?'#0f1419':'rgba(255,255,255,0.4)', border:'none', cursor:'pointer', textTransform:'uppercase', letterSpacing:'0.05em'}}>
                 {tt==='oneway'?'One way':'Return'}
               </button>
             ))}
           </div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
+
+          <div className="quote-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
             <div><label style={lbl}>Pick-up</label>
               <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={inp}>
                 <option value="">—</option>
@@ -117,11 +126,11 @@ function QuoteContent() {
               </select>
             </div>
           </div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
+          <div className="quote-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
             <div><label style={lbl}>Date</label><input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={inp} /></div>
             <div><label style={lbl}>Time</label><input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} style={inp} /></div>
           </div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
+          <div className="quote-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
             <div><label style={lbl}>Passengers</label>
               <select value={form.passengers} onChange={e => setForm(p=>({...p,passengers:e.target.value}))} style={inp}>
                 {Array.from({length:14},(_,i)=>i+1).map(n => <option key={n} value={n}>{n}</option>)}
@@ -134,9 +143,11 @@ function QuoteContent() {
             </div>
           </div>
           {tripType==='return' && (
-            <div style={{borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:'12px', marginTop:'12px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
-              <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p=>({...p,returnDate:e.target.value}))} style={inp} /></div>
-              <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p=>({...p,returnTime:e.target.value}))} style={inp} /></div>
+            <div style={{borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:'12px', marginTop:'12px'}}>
+              <div className="quote-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
+                <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p=>({...p,returnDate:e.target.value}))} style={inp} /></div>
+                <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p=>({...p,returnTime:e.target.value}))} style={inp} /></div>
+              </div>
             </div>
           )}
         </div>
@@ -147,7 +158,7 @@ function QuoteContent() {
           <div><label style={lbl}>Special requirements</label><textarea value={form.notes} onChange={e => setForm(p=>({...p,notes:e.target.value}))} placeholder="Child seat, wheelchair access..." rows={3} style={{...inp, resize:'none'}} /></div>
         </div>
 
-        <button onClick={handleSubmit} disabled={submitting||!canSubmit} style={{width:'100%', backgroundColor:canSubmit?'#f4b942':'rgba(244,185,66,0.3)', color:canSubmit?'#0f1419':'rgba(255,255,255,0.3)', fontWeight:'600', fontSize:'14px', letterSpacing:'0.05em', textTransform:'uppercase', padding:'16px', borderRadius:'6px', border:'none', cursor:canSubmit?'pointer':'not-allowed'}}>
+        <button onClick={handleSubmit} disabled={submitting||!canSubmit} style={{width:'100%', backgroundColor:canSubmit?'#f4b942':'rgba(244,185,66,0.3)', color:canSubmit?'#0f1419':'rgba(255,255,255,0.3)', fontWeight:'600', fontSize:'15px', letterSpacing:'0.05em', textTransform:'uppercase', padding:'16px', borderRadius:'6px', border:'none', cursor:canSubmit?'pointer':'not-allowed'}}>
           {submitting?'Sending...':'Request quotes →'}
         </button>
         <p style={{textAlign:'center', fontSize:'12px', color:'rgba(255,255,255,0.3)', marginTop:'10px'}}>Free · No obligation · Pay your driver directly on transfer day</p>
