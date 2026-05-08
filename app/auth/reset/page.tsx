@@ -31,18 +31,17 @@ function ResetContent() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const [isNewUser, setIsNewUser] = useState(false)
 
   useEffect(() => {
-    // Check URL for token — Supabase appends #access_token or ?code= to the reset URL
     const hashParams = new URLSearchParams(window.location.hash.replace('#', ''))
     const type = hashParams.get('type') || searchParams.get('type')
     const code = searchParams.get('code')
+    const newUser = searchParams.get('new_user') === 'true'
+    if (newUser) setIsNewUser(true)
 
-    if (type === 'recovery' || code) {
-      // We have a recovery token — switch to set password mode
+    if (type === 'recovery' || code || newUser) {
       setMode('set')
-      
-      // If there's a code, exchange it for a session
       if (code) {
         supabase.auth.exchangeCodeForSession(code).then(({ error }: any) => {
           if (error) setError('Reset link is invalid or has expired. Please request a new one.')
@@ -50,9 +49,13 @@ function ResetContent() {
       }
     }
 
-    // Also listen for the auth state change
+    // Check if already logged in via magic link
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (session && newUser) setMode('set')
+    })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: any) => {
-      if (event === 'PASSWORD_RECOVERY') setMode('set')
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && newUser)) setMode('set')
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -74,7 +77,6 @@ function ResetContent() {
     setLoading(true); setError('')
     const { error } = await supabase.auth.updateUser({ password })
     if (error) { setError(error.message); setLoading(false); return }
-    // Sign out and redirect to sign in
     await supabase.auth.signOut()
     window.location.href = '/auth/signin/'
   }
@@ -95,8 +97,12 @@ function ResetContent() {
     <div style={S.page}>
       <Logo />
       <div style={S.card}>
-        <h1 style={{fontSize:'22px', fontWeight:500, color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>Set new password</h1>
-        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 24px'}}>Choose a strong password for your account</p>
+        <h1 style={{fontSize:'22px', fontWeight:500, color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>
+          {isNewUser ? 'Set your password' : 'Set new password'}
+        </h1>
+        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 24px'}}>
+          {isNewUser ? 'Welcome! Please set a password to access your account.' : 'Choose a strong password for your account'}
+        </p>
         <div style={{marginBottom:'16px'}}>
           <label style={S.label}>New password</label>
           <input type="password" value={password} placeholder="Min. 8 characters"
@@ -115,7 +121,7 @@ function ResetContent() {
           </div>
         )}
         <button onClick={handleSet} disabled={!password || !confirm || loading} style={S.btn(!!(password && confirm && !loading))}>
-          {loading ? 'Saving...' : 'Set new password →'}
+          {loading ? 'Saving...' : isNewUser ? 'Set password & sign in →' : 'Set new password →'}
         </button>
       </div>
     </div>
