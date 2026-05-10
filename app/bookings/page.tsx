@@ -19,7 +19,7 @@ export default function MyBookings() {
     if (!user) { router.push('/auth/signin/?redirect=/bookings/'); return }
     const { data } = await supabase.from('bookings')
       .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name),
-        provider:providers(company_name,phone,user_id), vehicle:vehicles(make,model,seats), driver:drivers(name,phone)`)
+        provider:providers(company_name,phone,user_id), vehicle:vehicles(make,model,seats), driver:drivers(full_name,phone)`)
       .eq('customer_id', user.id).order('pickup_time', { ascending: false })
     if (data) setBookings(data)
     setLoading(false)
@@ -127,7 +127,7 @@ export default function MyBookings() {
                 )}
 
                 {b.provider&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Provider</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.provider.company_name}{b.provider.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.provider.phone}</span>}</div></div>}
-                {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.driver.name}{b.driver.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.driver.phone}</span>}</div></div>}
+                {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.driver.full_name}{b.driver.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.driver.phone}</span>}</div></div>}
                 {b.vehicle&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Vehicle</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.vehicle.make} {b.vehicle.model} · {b.vehicle.seats} seats</div></div>}
 
                 {!isPast && b.status==='confirmed' && (

@@ -22,7 +22,7 @@ export default function ProviderBookings() {
     setProvider(prov)
     const [{ data: bks }, { data: drv }] = await Promise.all([
       supabase.from('bookings')
-        .select(`*, customer:users!customer_id(full_name,email,phone), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), vehicle:vehicles(make,model,seats), driver:drivers(name,phone)`)
+        .select(`*, customer:users!customer_id(full_name,email,phone), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), vehicle:vehicles(make,model,seats), driver:drivers(full_name,phone)`)
         .eq('provider_id', prov.id)
         .order('pickup_time', { ascending: false }),
       supabase.from('drivers').select('*').eq('provider_id', prov.id).eq('is_active', true)
@@ -97,12 +97,12 @@ export default function ProviderBookings() {
     await supabase.from('booking_status_history').insert({
       booking_id: booking.id, status: 'driver_assigned',
       changed_by: user?.id, changed_by_role: 'provider',
-      note: `Driver assigned: ${driver?.name}`
+      note: `Driver assigned: ${driver?.full_name}`
     })
     await supabase.from('user_notifications').insert({
       user_id: booking.customer_id, type: 'driver_assigned',
       title: 'Driver assigned to your transfer',
-      body: `${driver?.name} will be your driver. Phone: ${driver?.phone}`,
+      body: `${driver?.full_name} will be your driver. Phone: ${driver?.phone}`,
       link: '/bookings/'
     })
     await load()
@@ -155,7 +155,7 @@ export default function ProviderBookings() {
             <div style={{padding:'12px 16px'}}>
               {b.customer&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Customer</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.customer.full_name}{b.customer.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.customer.phone}</span>}</div><div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{b.customer.email}</div></div>}
               {b.vehicle&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Vehicle</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.vehicle.make} {b.vehicle.model} · {b.vehicle.seats} seats</div></div>}
-              {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.driver.name}</div></div>}
+              {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.driver.full_name}</div></div>}
               {b.customer_notes&&<div style={{marginBottom:'8px', padding:'8px 12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', fontSize:'12px', color:'rgba(255,255,255,0.6)', fontStyle:'italic'}}>"{b.customer_notes}"</div>}
 
               {needsConfirm && (
@@ -177,7 +177,7 @@ export default function ProviderBookings() {
                   <select onChange={e => { if (e.target.value) assignDriver(b, e.target.value) }} disabled={processing===b.id}
                     style={{width:'100%', fontSize:'14px', padding:'10px', backgroundColor:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'#ffffff', fontFamily:'inherit'}}>
                     <option value="">Select a driver...</option>
-                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
                   </select>
                 </div>
               )}
