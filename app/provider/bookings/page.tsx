@@ -21,11 +21,21 @@ export default function ProviderBookings() {
     const { data: prov } = await supabase.from('providers').select('*').eq('user_id', user.id).single()
     if (!prov) { router.push('/'); return }
     setProvider(prov)
-    const [{ data: bks }, { data: drv }] = await Promise.all([
-      supabase.from('bookings').select(`*, customer:users!customer_id(full_name,email,phone), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), vehicle:vehicles(make,model,seats), driver:drivers(name,phone)`).eq('provider_id', prov.id).order('pickup_time', { ascending: false }),
+    const [{ data: bks, error: bksErr }, { data: drv }] = await Promise.all([
+      supabase.from('bookings').select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), vehicle:vehicles(make,model,seats), driver:drivers(name,phone)`).eq('provider_id', prov.id).order('pickup_time', { ascending: false }),
       supabase.from('drivers').select('*').eq('provider_id', prov.id).eq('is_active', true)
     ])
-    if (bks) setBookings(bks)
+    if (bksErr) console.error('Bookings query error:', bksErr)
+    
+    // Load customer info separately for each booking
+    let bookingsWithCustomer = bks || []
+    if (bks && bks.length > 0) {
+      const customerIds = [...new Set(bks.map((b: any) => b.customer_id))]
+      const { data: customers } = await supabase.from('users').select('id, full_name, email, phone').in('id', customerIds)
+      const customerMap = new Map((customers || []).map((c: any) => [c.id, c]))
+      bookingsWithCustomer = bks.map((b: any) => ({...b, customer: customerMap.get(b.customer_id)}))
+    }
+    setBookings(bookingsWithCustomer)
     if (drv) setDrivers(drv)
     setLoading(false)
   }
