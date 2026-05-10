@@ -47,6 +47,23 @@ export default function ProviderBookings() {
         body: `${provider.company_name} confirmed. Please acknowledge to fully confirm.`,
         link: '/bookings/'
       })
+      // Email customer
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
+          body: JSON.stringify({
+            type: 'provider_confirmed_acknowledge',
+            customerId: booking.customer_id,
+            data: {
+              pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+              date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
+              time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+              providerName: provider.company_name,
+              price: booking.final_price?.toFixed(2),
+            }
+          })
+        })
+      } catch (e) { console.error(e) }
       await load()
     } catch (err) { console.error(err) }
     setProcessing(null)
