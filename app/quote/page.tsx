@@ -36,12 +36,14 @@ function QuoteContent() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/signin/?redirect=/quote/'); return }
+      const pickupDateTime = `${form.date}T${form.time}:00`
       const { data: request, error } = await supabase.from('quote_requests').insert({
         customer_id: user.id, pickup_location_id: form.pickup, dropoff_location_id: form.dropoff,
-        pickup_time: `${form.date}T${form.time}:00`, passengers: parseInt(form.passengers),
+        pickup_time: pickupDateTime, passengers: parseInt(form.passengers),
         luggage: parseInt(form.luggage), trip_type: tripType,
         return_time: tripType==='return' ? `${form.returnDate}T${form.returnTime}:00` : null,
         flight_number: form.flightNumber||null, notes: form.notes||null, status:'open',
+        expires_at: pickupDateTime,
       }).select().single()
       if (error||!request) throw error
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
