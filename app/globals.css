@@ -1,15 +1,104 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html, body {
-  background-color: #0f1419;
-  color: #f0ede6;
-  font-family: 'Inter', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
+/* Existing globals - keeping any base styles */
+:root {
+  color-scheme: dark;
 }
 
-.panel-shadow { box-shadow: 0 8px 28px rgba(0,0,0,0.4); }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+html {
+  background-color: #0f1419;
+}
+
+body {
+  margin: 0;
+  background-color: #0f1419;
+  color: #f0ede6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Native select dropdowns — dark theme */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='rgba(255,255,255,0.5)' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px !important;
+}
+
+select option {
+  background-color: #1a1f26 !important;
+  color: #ffffff !important;
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:focus,
+select option:active,
+select option:checked {
+  background-color: #f4b942 !important;
+  color: #0f1419 !important;
+}
+
+select:focus {
+  border-color: #f4b942 !important;
+  outline: none;
+}
+
+/* Date and time inputs — dark icons */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+/* Number input — remove spinner arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Better focus styles for all inputs */
+input:focus,
+textarea:focus {
+  border-color: #f4b942 !important;
+  outline: none;
+}
+
+/* Smooth transitions */
+button, a, select, input {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Better tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scrollbar dark theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1419;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
