@@ -30,7 +30,7 @@ export default function ProviderBookings() {
     // Load customer info separately for each booking
     let bookingsWithCustomer = bks || []
     if (bks && bks.length > 0) {
-      const customerIds = [...new Set(bks.map((b: any) => b.customer_id))]
+      const customerIds = Array.from(new Set(bks.map((b: any) => b.customer_id)))
       const { data: customers } = await supabase.from('users').select('id, full_name, email, phone').in('id', customerIds)
       const customerMap = new Map((customers || []).map((c: any) => [c.id, c]))
       bookingsWithCustomer = bks.map((b: any) => ({...b, customer: customerMap.get(b.customer_id)}))
