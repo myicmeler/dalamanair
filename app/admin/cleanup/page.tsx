@@ -18,46 +18,69 @@ export default function AdminCleanup() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [result, setResult] = useState<any>(null)
+  const [patternError, setPatternError] = useState('')
 
   function toggleStatus(status: string) {
     setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])
   }
 
   async function runPreview() {
+    setPatternError('')
+
+    // CRITICAL: Email pattern is MANDATORY — never allow deleting all records
+    if (!emailPattern.trim()) {
+      setPatternError('Email pattern is required. Use * as wildcard (e.g. thenri66+* or *test*). This prevents accidental deletion of all data.')
+      return
+    }
+
+    // Must contain @ or * to be a meaningful pattern
+    if (!emailPattern.includes('@') && !emailPattern.includes('*')) {
+      setPatternError('Pattern must contain @ or * — e.g. thenri66+* or *@test.com')
+      return
+    }
+
     setLoading(true)
     setPreview(null)
     setResult(null)
+
     try {
-      // Build user filter — find matching user IDs by email pattern
-      let matchingUserIds: string[] = []
-      if (emailPattern.trim()) {
-        const pattern = emailPattern.replace(/\*/g, '%')
-        const { data: matchedUsers } = await supabase.from('users').select('id, email').ilike('email', pattern)
-        matchingUserIds = (matchedUsers ?? []).map((u: any) => u.id)
-        setPreview((p: any) => ({ ...p, users: matchedUsers || [] }))
+      const pattern = emailPattern.trim().replace(/\*/g, '%')
+
+      // Step 1: Find matching users ONLY
+      const { data: matchedUsers } = await supabase
+        .from('users')
+        .select('id, email')
+        .ilike('email', pattern)
+
+      if (!matchedUsers || matchedUsers.length === 0) {
+        setPreview({ users: [], requests: [], bookings: [], matchingUserIds: [] })
+        setLoading(false)
+        return
       }
 
-      // Quote requests
+      const matchingUserIds = matchedUsers.map((u: any) => u.id)
+
+      // Step 2: ONLY get quote requests belonging to matched users
       let reqQuery = supabase.from('quote_requests')
         .select(`id, status, pickup_time, created_at, customer:users!customer_id(email),
           pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
-      if (matchingUserIds.length > 0) reqQuery = reqQuery.in('customer_id', matchingUserIds)
+        .in('customer_id', matchingUserIds)  // ALWAYS filter by matched users
       if (dateFrom) reqQuery = reqQuery.gte('created_at', dateFrom)
       if (dateTo) reqQuery = reqQuery.lte('created_at', dateTo + 'T23:59:59')
       if (statusFilter.length > 0) reqQuery = reqQuery.in('status', statusFilter)
-      const { data: requests } = await reqQuery.limit(100)
+      const { data: requests } = await reqQuery.limit(200)
 
-      // Bookings
+      // Step 3: ONLY get bookings belonging to matched users
       let bookQuery = supabase.from('bookings')
         .select(`id, status, pickup_time, created_at, customer:users!customer_id(email),
           pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
-      if (matchingUserIds.length > 0) bookQuery = bookQuery.in('customer_id', matchingUserIds)
+        .in('customer_id', matchingUserIds)  // ALWAYS filter by matched users
       if (dateFrom) bookQuery = bookQuery.gte('created_at', dateFrom)
       if (dateTo) bookQuery = bookQuery.lte('created_at', dateTo + 'T23:59:59')
-      const { data: bookings } = await bookQuery.limit(100)
+      const { data: bookings } = await bookQuery.limit(200)
 
       setPreview({
-        users: preview?.users || [],
+        users: matchedUsers,
         requests: requests || [],
         bookings: bookings || [],
         matchingUserIds,
@@ -72,6 +95,7 @@ export default function AdminCleanup() {
     try {
       const r: any = { requests: 0, bookings: 0, users: 0, authUsers: 0 }
 
+      // SAFETY CHECK: never delete without specific IDs from preview
       if (deleteRequests && preview?.requests?.length > 0) {
         const ids = preview.requests.map((x: any) => x.id)
         const { count } = await supabase.from('quote_requests').delete({ count: 'exact' }).in('id', ids)
@@ -101,13 +125,17 @@ export default function AdminCleanup() {
       setPreview(null)
       setShowConfirm(false)
       setConfirmText('')
+      setDeleteRequests(false)
+      setDeleteBookings(false)
+      setDeleteUsers(false)
+      setDeleteAuth(false)
     } catch (err) { console.error(err) }
     setDeleting(false)
   }
 
-  const hasAnythingToDelete = (deleteRequests && preview?.requests?.length > 0) ||
-                              (deleteBookings && preview?.bookings?.length > 0) ||
-                              (deleteUsers && preview?.users?.length > 0)
+  const hasAnythingToDelete = (deleteRequests && (preview?.requests?.length ?? 0) > 0) ||
+                              (deleteBookings && (preview?.bookings?.length ?? 0) > 0) ||
+                              (deleteUsers && (preview?.users?.length ?? 0) > 0)
 
   const inp: React.CSSProperties = { width:'100%', fontSize:'14px', padding:'10px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'#ffffff', boxSizing:'border-box', fontFamily:'inherit' }
   const lbl: React.CSSProperties = { fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.5)', display:'block', marginBottom:'6px' }
@@ -115,27 +143,38 @@ export default function AdminCleanup() {
 
   return (
     <div style={{padding:'20px', maxWidth:'960px', margin:'0 auto'}}>
-      <div style={{marginBottom:'8px'}}>
-        <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#a32d2d', textTransform:'uppercase', marginBottom:'4px'}}>⚠️ Danger zone</p>
-        <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', marginBottom:'4px'}}>Clean up test data</h1>
-        <p style={{fontSize:'13px', color:'rgba(255,255,255,0.5)', marginBottom:'20px'}}>Bulk delete quote requests, bookings, and users. Use with care.</p>
+      <div style={{marginBottom:'16px', padding:'16px', backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'8px'}}>
+        <p style={{fontSize:'13px', fontWeight:'600', color:'#f09595', marginBottom:'6px'}}>⚠️ DANGER ZONE — Permanent deletion</p>
+        <p style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', margin:0, lineHeight:'1.6'}}>
+          Deleted data cannot be recovered. Email pattern is mandatory — you cannot delete without specifying which users to target. Always expand and verify the preview lists before proceeding.
+        </p>
       </div>
 
+      <h1 style={{fontSize:'22px', fontWeight:'500', color:'#ffffff', marginBottom:'4px'}}>Clean up test data</h1>
+      <p style={{fontSize:'13px', color:'rgba(255,255,255,0.5)', marginBottom:'20px'}}>Bulk delete quote requests, bookings, and users by email pattern.</p>
+
       <div style={card}>
-        <h2 style={{fontSize:'13px', fontWeight:'500', color:'#ffffff', marginBottom:'14px'}}>1. Filter what to find</h2>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'14px'}}>
-          <div>
-            <label style={lbl}>Email pattern</label>
-            <input value={emailPattern} onChange={e => setEmailPattern(e.target.value)} placeholder="e.g. thenri66+* or *test*" style={inp} />
-            <p style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', marginTop:'4px'}}>Use * as wildcard. Leave empty to match all users.</p>
-          </div>
+        <h2 style={{fontSize:'13px', fontWeight:'500', color:'#ffffff', marginBottom:'14px'}}>1. Filter — email pattern required</h2>
+        
+        <div style={{marginBottom:'14px'}}>
+          <label style={lbl}>Email pattern <span style={{color:'#f09595'}}>* required</span></label>
+          <input 
+            value={emailPattern} 
+            onChange={e => { setEmailPattern(e.target.value); setPatternError('') }} 
+            placeholder="e.g. thenri66+* or *test* or *@testdomain.com" 
+            style={{...inp, borderColor: patternError ? '#f09595' : 'rgba(255,255,255,0.15)'}} 
+          />
+          {patternError && <p style={{fontSize:'12px', color:'#f09595', marginTop:'6px'}}>{patternError}</p>}
+          {!patternError && <p style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', marginTop:'4px'}}>Use * as wildcard. Only records belonging to matching users will be shown and deleted.</p>}
         </div>
+
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'14px'}}>
-          <div><label style={lbl}>Created from</label><input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Created to</label><input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Created from (optional)</label><input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Created to (optional)</label><input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} /></div>
         </div>
-        <div>
-          <label style={lbl}>Quote request status (leave empty for all)</label>
+
+        <div style={{marginBottom:'14px'}}>
+          <label style={lbl}>Quote request status — optional filter</label>
           <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
             {['open','accepted','expired','cancelled'].map(s => (
               <button key={s} onClick={() => toggleStatus(s)} style={{
@@ -148,8 +187,9 @@ export default function AdminCleanup() {
             ))}
           </div>
         </div>
+
         <button onClick={runPreview} disabled={loading}
-          style={{marginTop:'16px', padding:'11px 22px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', letterSpacing:'0.05em', textTransform:'uppercase'}}>
+          style={{padding:'11px 22px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', letterSpacing:'0.05em', textTransform:'uppercase'}}>
           {loading ? 'Searching...' : 'Run preview'}
         </button>
       </div>
@@ -157,25 +197,40 @@ export default function AdminCleanup() {
       {preview && (
         <>
           <div style={card}>
-            <h2 style={{fontSize:'13px', fontWeight:'500', color:'#ffffff', marginBottom:'14px'}}>2. Preview matches</h2>
+            <h2 style={{fontSize:'13px', fontWeight:'500', color:'#ffffff', marginBottom:'6px'}}>2. Preview — verify before deleting</h2>
+            <p style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'14px'}}>
+              Matching email pattern: <strong style={{color:'#f4b942'}}>{emailPattern}</strong> — {preview.users.length} user{preview.users.length !== 1 ? 's' : ''} matched
+            </p>
+
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginBottom:'16px'}}>
               <div style={{background:'rgba(255,255,255,0.04)', padding:'14px', borderRadius:'6px', textAlign:'center'}}>
-                <div style={{fontSize:'24px', fontWeight:'600', color:'#f4b942', marginBottom:'4px'}}>{preview.requests?.length || 0}</div>
+                <div style={{fontSize:'24px', fontWeight:'600', color: preview.requests?.length > 0 ? '#f09595' : 'rgba(255,255,255,0.4)', marginBottom:'4px'}}>{preview.requests?.length || 0}</div>
                 <div style={{fontSize:'11px', color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.05em'}}>Quote requests</div>
               </div>
               <div style={{background:'rgba(255,255,255,0.04)', padding:'14px', borderRadius:'6px', textAlign:'center'}}>
-                <div style={{fontSize:'24px', fontWeight:'600', color:'#f4b942', marginBottom:'4px'}}>{preview.bookings?.length || 0}</div>
+                <div style={{fontSize:'24px', fontWeight:'600', color: preview.bookings?.length > 0 ? '#f09595' : 'rgba(255,255,255,0.4)', marginBottom:'4px'}}>{preview.bookings?.length || 0}</div>
                 <div style={{fontSize:'11px', color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.05em'}}>Bookings</div>
               </div>
               <div style={{background:'rgba(255,255,255,0.04)', padding:'14px', borderRadius:'6px', textAlign:'center'}}>
-                <div style={{fontSize:'24px', fontWeight:'600', color:'#f4b942', marginBottom:'4px'}}>{preview.users?.length || 0}</div>
+                <div style={{fontSize:'24px', fontWeight:'600', color: preview.users?.length > 0 ? '#f09595' : 'rgba(255,255,255,0.4)', marginBottom:'4px'}}>{preview.users?.length || 0}</div>
                 <div style={{fontSize:'11px', color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.05em'}}>Users</div>
               </div>
             </div>
+
+            <p style={{fontSize:'12px', color:'#f09595', marginBottom:'12px', fontWeight:'500'}}>⚠️ Expand each section below and verify the records before proceeding</p>
+
+            {preview.users?.length > 0 && (
+              <details style={{marginBottom:'10px'}}>
+                <summary style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', cursor:'pointer', padding:'6px 0', fontWeight:'500'}}>Show matched users ({preview.users.length}) — VERIFY THESE</summary>
+                <div style={{marginTop:'8px', maxHeight:'200px', overflow:'auto', fontSize:'12px', color:'rgba(255,255,255,0.7)', padding:'8px 12px', background:'rgba(0,0,0,0.3)', borderRadius:'4px'}}>
+                  {preview.users.map((u: any) => <div key={u.id} style={{padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,0.04)'}}>{u.email}</div>)}
+                </div>
+              </details>
+            )}
             {preview.requests?.length > 0 && (
               <details style={{marginBottom:'10px'}}>
-                <summary style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', cursor:'pointer', padding:'6px 0'}}>Show quote requests ({preview.requests.length})</summary>
-                <div style={{marginTop:'8px', maxHeight:'200px', overflow:'auto', fontSize:'12px', color:'rgba(255,255,255,0.5)', padding:'8px 12px', background:'rgba(0,0,0,0.2)', borderRadius:'4px'}}>
+                <summary style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', cursor:'pointer', padding:'6px 0', fontWeight:'500'}}>Show quote requests ({preview.requests.length}) — VERIFY THESE</summary>
+                <div style={{marginTop:'8px', maxHeight:'200px', overflow:'auto', fontSize:'12px', color:'rgba(255,255,255,0.7)', padding:'8px 12px', background:'rgba(0,0,0,0.3)', borderRadius:'4px'}}>
                   {preview.requests.map((r: any) => (
                     <div key={r.id} style={{padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
                       {r.pickup?.name} → {r.dropoff?.name} · {new Date(r.created_at).toLocaleDateString('en-GB')} · {r.status} · {r.customer?.email}
@@ -185,9 +240,9 @@ export default function AdminCleanup() {
               </details>
             )}
             {preview.bookings?.length > 0 && (
-              <details style={{marginBottom:'10px'}}>
-                <summary style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', cursor:'pointer', padding:'6px 0'}}>Show bookings ({preview.bookings.length})</summary>
-                <div style={{marginTop:'8px', maxHeight:'200px', overflow:'auto', fontSize:'12px', color:'rgba(255,255,255,0.5)', padding:'8px 12px', background:'rgba(0,0,0,0.2)', borderRadius:'4px'}}>
+              <details>
+                <summary style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', cursor:'pointer', padding:'6px 0', fontWeight:'500'}}>Show bookings ({preview.bookings.length}) — VERIFY THESE</summary>
+                <div style={{marginTop:'8px', maxHeight:'200px', overflow:'auto', fontSize:'12px', color:'rgba(255,255,255,0.7)', padding:'8px 12px', background:'rgba(0,0,0,0.3)', borderRadius:'4px'}}>
                   {preview.bookings.map((b: any) => (
                     <div key={b.id} style={{padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
                       {b.pickup?.name} → {b.dropoff?.name} · {new Date(b.created_at).toLocaleDateString('en-GB')} · {b.status} · {b.customer?.email}
@@ -196,45 +251,45 @@ export default function AdminCleanup() {
                 </div>
               </details>
             )}
-            {preview.users?.length > 0 && (
-              <details>
-                <summary style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', cursor:'pointer', padding:'6px 0'}}>Show users ({preview.users.length})</summary>
-                <div style={{marginTop:'8px', maxHeight:'200px', overflow:'auto', fontSize:'12px', color:'rgba(255,255,255,0.5)', padding:'8px 12px', background:'rgba(0,0,0,0.2)', borderRadius:'4px'}}>
-                  {preview.users.map((u: any) => <div key={u.id} style={{padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,0.04)'}}>{u.email}</div>)}
-                </div>
-              </details>
+
+            {preview.users?.length === 0 && (
+              <div style={{textAlign:'center', padding:'20px', color:'rgba(255,255,255,0.4)', fontSize:'13px'}}>
+                No users match that email pattern — nothing to delete.
+              </div>
             )}
           </div>
 
-          <div style={card}>
-            <h2 style={{fontSize:'13px', fontWeight:'500', color:'#ffffff', marginBottom:'14px'}}>3. Choose what to delete</h2>
-            {[
-              {key:'deleteRequests', label:'Delete quote requests', count: preview.requests?.length || 0, sub:'cascades to offers, history, declines', state: deleteRequests, setter: setDeleteRequests},
-              {key:'deleteBookings', label:'Delete bookings', count: preview.bookings?.length || 0, sub:'cascades to booking history, notifications', state: deleteBookings, setter: setDeleteBookings},
-              {key:'deleteUsers', label:'Delete users (profiles)', count: preview.users?.length || 0, sub:'cascades to all their data', state: deleteUsers, setter: setDeleteUsers},
-            ].map(o => (
-              <label key={o.key} style={{display:'flex', alignItems:'flex-start', gap:'12px', padding:'10px 0', cursor:o.count>0?'pointer':'not-allowed', opacity:o.count>0?1:0.4}}>
-                <input type="checkbox" checked={o.state} disabled={o.count===0} onChange={e => o.setter(e.target.checked)} style={{marginTop:'3px', width:'18px', height:'18px', accentColor:'#f4b942'}} />
-                <div style={{flex:1}}>
-                  <div style={{fontSize:'14px', color:'#ffffff', fontWeight:'500'}}>{o.label} ({o.count})</div>
-                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{o.sub}</div>
-                </div>
-              </label>
-            ))}
-            {deleteUsers && (
-              <label style={{display:'flex', alignItems:'flex-start', gap:'12px', padding:'10px 0 10px 28px', cursor:'pointer', marginTop:'4px'}}>
-                <input type="checkbox" checked={deleteAuth} onChange={e => setDeleteAuth(e.target.checked)} style={{marginTop:'3px', width:'18px', height:'18px', accentColor:'#a32d2d'}} />
-                <div style={{flex:1}}>
-                  <div style={{fontSize:'13px', color:'#f09595', fontWeight:'500'}}>Also delete auth accounts (Yes/No)</div>
-                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>Permanently removes the auth user so the email can be reused for signup</div>
-                </div>
-              </label>
-            )}
-            <button onClick={() => setShowConfirm(true)} disabled={!hasAnythingToDelete}
-              style={{marginTop:'16px', padding:'12px 22px', backgroundColor:hasAnythingToDelete?'#a32d2d':'rgba(162,45,45,0.3)', color:'#ffffff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:hasAnythingToDelete?'pointer':'not-allowed', fontFamily:'inherit', letterSpacing:'0.05em', textTransform:'uppercase'}}>
-              Continue to confirmation
-            </button>
-          </div>
+          {(preview.users?.length > 0 || preview.requests?.length > 0 || preview.bookings?.length > 0) && (
+            <div style={card}>
+              <h2 style={{fontSize:'13px', fontWeight:'500', color:'#ffffff', marginBottom:'14px'}}>3. Choose what to delete</h2>
+              {[
+                {key:'deleteRequests', label:'Delete quote requests', count: preview.requests?.length || 0, sub:'cascades to offers, history, declines', state: deleteRequests, setter: setDeleteRequests},
+                {key:'deleteBookings', label:'Delete bookings', count: preview.bookings?.length || 0, sub:'cascades to booking history, notifications', state: deleteBookings, setter: setDeleteBookings},
+                {key:'deleteUsers', label:'Delete users (profiles)', count: preview.users?.length || 0, sub:'cascades to all their data', state: deleteUsers, setter: setDeleteUsers},
+              ].map(o => (
+                <label key={o.key} style={{display:'flex', alignItems:'flex-start', gap:'12px', padding:'10px 0', cursor:o.count>0?'pointer':'not-allowed', opacity:o.count>0?1:0.4}}>
+                  <input type="checkbox" checked={o.state} disabled={o.count===0} onChange={e => o.setter(e.target.checked)} style={{marginTop:'3px', width:'18px', height:'18px', accentColor:'#f4b942'}} />
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:'14px', color:'#ffffff', fontWeight:'500'}}>{o.label} ({o.count})</div>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{o.sub}</div>
+                  </div>
+                </label>
+              ))}
+              {deleteUsers && (
+                <label style={{display:'flex', alignItems:'flex-start', gap:'12px', padding:'10px 0 10px 28px', cursor:'pointer', marginTop:'4px'}}>
+                  <input type="checkbox" checked={deleteAuth} onChange={e => setDeleteAuth(e.target.checked)} style={{marginTop:'3px', width:'18px', height:'18px', accentColor:'#a32d2d'}} />
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:'13px', color:'#f09595', fontWeight:'500'}}>Also delete auth accounts</div>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>Permanently removes the auth user so the email can be reused for signup</div>
+                  </div>
+                </label>
+              )}
+              <button onClick={() => setShowConfirm(true)} disabled={!hasAnythingToDelete}
+                style={{marginTop:'16px', padding:'12px 22px', backgroundColor:hasAnythingToDelete?'#a32d2d':'rgba(162,45,45,0.3)', color:'#ffffff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:hasAnythingToDelete?'pointer':'not-allowed', fontFamily:'inherit', letterSpacing:'0.05em', textTransform:'uppercase'}}>
+                Continue to confirmation
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -250,25 +305,23 @@ export default function AdminCleanup() {
         </div>
       )}
 
-      {/* Confirmation dialog */}
       {showConfirm && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', zIndex:100}}>
-          <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'10px', padding:'24px', maxWidth:'440px', width:'100%'}}>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', zIndex:100}}>
+          <div style={{backgroundColor:'#1a1f26', border:'2px solid #a32d2d', borderRadius:'10px', padding:'24px', maxWidth:'440px', width:'100%'}}>
             <p style={{fontSize:'12px', color:'#a32d2d', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'6px'}}>⚠️ This cannot be undone</p>
-            <h3 style={{fontSize:'18px', fontWeight:'500', color:'#ffffff', marginBottom:'12px'}}>Confirm deletion</h3>
-            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.6)', marginBottom:'12px', lineHeight:'1.6'}}>
-              You are about to delete:
-            </p>
-            <ul style={{fontSize:'13px', color:'#ffffff', margin:'0 0 16px', paddingLeft:'20px'}}>
-              {deleteRequests && preview?.requests?.length > 0 && <li>{preview.requests.length} quote requests</li>}
-              {deleteBookings && preview?.bookings?.length > 0 && <li>{preview.bookings.length} bookings</li>}
-              {deleteUsers && preview?.users?.length > 0 && <li>{preview.users.length} users{deleteAuth && ' (including auth accounts)'}</li>}
+            <h3 style={{fontSize:'18px', fontWeight:'500', color:'#ffffff', marginBottom:'12px'}}>Final confirmation</h3>
+            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.6)', marginBottom:'8px'}}>Pattern: <strong style={{color:'#f4b942'}}>{emailPattern}</strong></p>
+            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.6)', marginBottom:'12px', lineHeight:'1.6'}}>You are about to permanently delete:</p>
+            <ul style={{fontSize:'13px', color:'#f09595', margin:'0 0 16px', paddingLeft:'20px'}}>
+              {deleteRequests && (preview?.requests?.length ?? 0) > 0 && <li>{preview.requests.length} quote requests</li>}
+              {deleteBookings && (preview?.bookings?.length ?? 0) > 0 && <li>{preview.bookings.length} bookings</li>}
+              {deleteUsers && (preview?.users?.length ?? 0) > 0 && <li>{preview.users.length} users{deleteAuth && ' (including auth accounts)'}</li>}
             </ul>
             <label style={{fontSize:'11px', color:'rgba(255,255,255,0.5)', display:'block', marginBottom:'5px'}}>Type DELETE to confirm:</label>
-            <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DELETE" style={{...inp, marginBottom:'14px'}} />
+            <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DELETE" style={{...inp, marginBottom:'14px', borderColor: confirmText === 'DELETE' ? '#a32d2d' : 'rgba(255,255,255,0.15)'}} />
             <div style={{display:'flex', gap:'10px'}}>
               <button onClick={() => { setShowConfirm(false); setConfirmText('') }} style={{flex:1, padding:'11px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'13px', cursor:'pointer', fontFamily:'inherit'}}>Cancel</button>
-              <button onClick={executeDelete} disabled={confirmText!=='DELETE' || deleting}
+              <button onClick={executeDelete} disabled={confirmText !== 'DELETE' || deleting}
                 style={{flex:1, padding:'11px', backgroundColor:confirmText==='DELETE'?'#a32d2d':'rgba(162,45,45,0.3)', color:'#ffffff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:confirmText==='DELETE'?'pointer':'not-allowed', fontFamily:'inherit'}}>
                 {deleting ? 'Deleting...' : 'Delete now'}
               </button>
