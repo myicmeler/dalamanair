@@ -171,16 +171,6 @@ export default function MyQuotes() {
       <style>{`* { box-sizing: border-box; }`}</style>
       <Nav lang={lang} onLangChange={setLang} />
       <div style={{maxWidth:'680px', margin:'0 auto', padding:'24px 16px 48px'}}>
-        <div style={{backgroundColor:'rgba(244,185,66,0.08)', border:'1px solid rgba(244,185,66,0.25)', borderLeft:'4px solid #f4b942', borderRadius:'6px', padding:'14px 18px', marginBottom:'20px'}}>
-          <div style={{display:'flex', alignItems:'flex-start', gap:'10px'}}>
-            <span style={{fontSize:'16px', flexShrink:0}}>⚠️</span>
-            <div>
-              <p style={{fontSize:'12px', fontWeight:600, color:'#f4b942', margin:'0 0 4px', letterSpacing:'0.05em', textTransform:'uppercase'}}>Service notice</p>
-              <p style={{fontSize:'12px', color:'rgba(255,255,255,0.7)', lineHeight:'1.7', margin:0}}>We are currently experiencing issues with our third-party email provider. Please hold off on submitting quote requests until further notice.</p>
-            </div>
-          </div>
-        </div>
-
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px', gap:'10px'}}>
           <div>
             <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>Your requests</p>

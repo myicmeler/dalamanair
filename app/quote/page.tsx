@@ -88,17 +88,6 @@ function QuoteContent() {
       <Nav lang={lang} onLangChange={setLang} />
       <div className="quote-wrap" style={{maxWidth:'580px', margin:'0 auto', padding:'32px 16px 48px'}}>
 
-        {/* Service notice */}
-        <div style={{backgroundColor:'rgba(244,185,66,0.08)', border:'1px solid rgba(244,185,66,0.25)', borderLeft:'4px solid #f4b942', borderRadius:'6px', padding:'16px', marginBottom:'24px'}}>
-          <div style={{display:'flex', alignItems:'flex-start', gap:'10px'}}>
-            <span style={{fontSize:'16px', flexShrink:0}}>⚠️</span>
-            <div>
-              <p style={{fontSize:'12px', fontWeight:'600', color:'#f4b942', margin:'0 0 4px', letterSpacing:'0.05em', textTransform:'uppercase'}}>Service notice</p>
-              <p style={{fontSize:'12px', color:'rgba(255,255,255,0.7)', lineHeight:'1.7', margin:0}}>We are currently experiencing issues with our third-party email provider. Please hold off on submitting quote requests until further notice. If you have already submitted a request, we will contact you personally.</p>
-            </div>
-          </div>
-        </div>
-
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'8px'}}>Free · No obligation</p>
         <h1 style={{fontSize:'clamp(22px,5vw,28px)', fontWeight:'500', color:'#ffffff', marginBottom:'6px'}}>Request a quote</h1>
         <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', marginBottom:'24px', lineHeight:'1.6'}}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
