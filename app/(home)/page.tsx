@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 const labels = {
   en: {
     tag:'Içmeler · Marmaris · Dalaman',
@@ -53,8 +55,6 @@ export default function Home() {
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
-  const airports     = locations.filter(l => l.type === 'airport')
-  const destinations = locations.filter(l => l.type !== 'airport')
   const allSorted    = [...locations].sort((a, b) => a.name.localeCompare(b.name))
   const canSearch    = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime && form.returnPickup))

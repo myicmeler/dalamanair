@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
