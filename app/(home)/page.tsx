@@ -1,10 +1,9 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
-
-export const dynamic = 'force-dynamic'
 
 const labels = {
   en: {

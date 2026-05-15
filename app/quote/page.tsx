@@ -1,8 +1,7 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-export const dynamic = 'force-dynamic'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
@@ -28,8 +27,6 @@ function QuoteContent() {
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
-  const airports = locations.filter(l => l.type==='airport')
-  const destinations = locations.filter(l => l.type!=='airport')
   const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
   const canSubmit = form.pickup && form.dropoff && form.date && form.time
     && (tripType==='oneway' || (form.returnDate && form.returnTime))
