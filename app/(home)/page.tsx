@@ -51,7 +51,7 @@ export default function Home() {
   const [form, setForm] = useState({ pickup:'', dropoff:'', date:'', time:'14:00', passengers:'2', returnDate:'', returnTime:'10:00', returnPickup:'' })
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true).order('name')
+    supabase.from('locations').select('*').eq('is_active', true)
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 

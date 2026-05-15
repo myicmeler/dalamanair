@@ -24,7 +24,7 @@ function QuoteContent() {
   })
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true).order('name')
+    supabase.from('locations').select('*').eq('is_active', true)
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
