@@ -55,7 +55,7 @@ export default function Home() {
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
-  const allSorted    = [...locations].sort((a, b) => a.name.localeCompare(b.name))
+  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' }))
   const canSearch    = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime && form.returnPickup))
 

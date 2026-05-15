@@ -30,7 +30,7 @@ function QuoteContent() {
 
   const airports = locations.filter(l => l.type==='airport')
   const destinations = locations.filter(l => l.type!=='airport')
-  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name))
+  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' }))
   const canSubmit = form.pickup && form.dropoff && form.date && form.time
     && (tripType==='oneway' || (form.returnDate && form.returnTime))
 
