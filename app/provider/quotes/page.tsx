@@ -10,6 +10,9 @@ export default function ProviderQuotes() {
   const [error, setError] = useState('')
   const [providerId, setProviderId] = useState('')
   const [submitting, setSubmitting] = useState<string|null>(null)
+  const [declining, setDeclining] = useState<string|null>(null)
+  const [declineModal, setDeclineModal] = useState<string|null>(null)
+  const [declineComment, setDeclineComment] = useState('')
   const [offers, setOffers] = useState<Record<string, { price:string, vehicleId:string, notes:string }>>({})
 
   useEffect(() => {
@@ -19,7 +22,7 @@ export default function ProviderQuotes() {
         if (!user) { setError('Not signed in'); setLoading(false); return }
 
         const { data: provider, error: provErr } = await supabase
-          .from('providers').select('id').eq('user_id', user.id).single()
+          .from('providers').select('id, company_name').eq('user_id', user.id).single()
 
         if (provErr || !provider) {
           setError('Provider account not found. Make sure your account is approved.')
@@ -28,6 +31,11 @@ export default function ProviderQuotes() {
         }
 
         setProviderId(provider.id)
+
+        // Get declined request IDs for this provider — filter these out
+        const { data: declined } = await supabase
+          .from('quote_declines').select('request_id').eq('provider_id', provider.id)
+        const declinedIds = new Set((declined ?? []).map((d: any) => d.request_id))
 
         const { data: reqs, error: reqErr } = await supabase
           .from('quote_requests')
@@ -50,7 +58,13 @@ export default function ProviderQuotes() {
             .in('request_id', reqs.map((r: any) => r.id))
 
           const offeredSet = new Set((myOffers ?? []).map((o: any) => o.request_id))
-          setRequests(reqs.map((r: any) => ({ ...r, already_offered: offeredSet.has(r.id) })))
+
+          // Filter out declined requests
+          const visible = reqs
+            .filter((r: any) => !declinedIds.has(r.id))
+            .map((r: any) => ({ ...r, already_offered: offeredSet.has(r.id) }))
+
+          setRequests(visible)
         } else {
           setRequests([])
         }
@@ -92,6 +106,25 @@ export default function ProviderQuotes() {
       console.error(err)
     }
     setSubmitting(null)
+  }
+
+  async function confirmDecline(reqId: string) {
+    setDeclining(reqId)
+    try {
+      const { error } = await supabase.from('quote_declines').insert({
+        request_id:  reqId,
+        provider_id: providerId,
+        comment:     declineComment.trim() || null,
+      })
+      if (!error) {
+        setRequests(prev => prev.filter(r => r.id !== reqId))
+      }
+    } catch (err) {
+      console.error(err)
+    }
+    setDeclining(null)
+    setDeclineModal(null)
+    setDeclineComment('')
   }
 
   const card: React.CSSProperties = { backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'16px', marginBottom:'10px' }
@@ -139,8 +172,17 @@ export default function ProviderQuotes() {
                 </div>
                 {req.notes && <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'4px', fontStyle:'italic'}}>"{req.notes}"</div>}
               </div>
-              <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
-                Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
+              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
+                  Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
+                </div>
+                {!req.already_offered && (
+                  <button
+                    onClick={() => { setDeclineModal(req.id); setDeclineComment('') }}
+                    style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', letterSpacing:'0.05em'}}>
+                    Decline
+                  </button>
+                )}
               </div>
             </div>
 
@@ -181,6 +223,37 @@ export default function ProviderQuotes() {
           </div>
         )
       })}
+
+      {/* Decline modal */}
+      {declineModal && (
+        <div style={{position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:'20px'}}>
+          <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'10px', padding:'24px', maxWidth:'420px', width:'100%'}}>
+            <h2 style={{fontSize:'16px', fontWeight:'500', marginBottom:'6px'}}>Decline this request?</h2>
+            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', marginBottom:'16px'}}>This request will be removed from your list. The customer will not be notified.</p>
+            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px'}}>Reason (optional — internal only)</label>
+            <textarea
+              value={declineComment}
+              onChange={e => setDeclineComment(e.target.value)}
+              placeholder="e.g. date not available, route too far..."
+              rows={3}
+              style={{...inp, width:'100%', boxSizing:'border-box', resize:'none', marginBottom:'16px'}}
+            />
+            <div style={{display:'flex', gap:'10px'}}>
+              <button
+                onClick={() => { setDeclineModal(null); setDeclineComment('') }}
+                style={{flex:1, padding:'11px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'13px', cursor:'pointer'}}>
+                Cancel
+              </button>
+              <button
+                onClick={() => confirmDecline(declineModal)}
+                disabled={declining === declineModal}
+                style={{flex:1, padding:'11px', backgroundColor:'rgba(162,45,45,0.8)', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
+                {declining === declineModal ? 'Declining...' : 'Yes, decline'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
