@@ -24,13 +24,13 @@ function QuoteContent() {
   })
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true)
+    supabase.from('locations').select('*').eq('is_active', true).order('name')
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
   const airports = locations.filter(l => l.type==='airport')
   const destinations = locations.filter(l => l.type!=='airport')
-  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' }))
+  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
   const canSubmit = form.pickup && form.dropoff && form.date && form.time
     && (tripType==='oneway' || (form.returnDate && form.returnTime))
 

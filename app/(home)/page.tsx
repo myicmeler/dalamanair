@@ -51,11 +51,11 @@ export default function Home() {
   const [form, setForm] = useState({ pickup:'', dropoff:'', date:'', time:'14:00', passengers:'2', returnDate:'', returnTime:'10:00', returnPickup:'' })
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true)
+    supabase.from('locations').select('*').eq('is_active', true).order('name')
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
-  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' }))
+  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
   const canSearch    = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime && form.returnPickup))
 
