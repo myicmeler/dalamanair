@@ -22,12 +22,13 @@ function QuoteContent() {
   })
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true).order('sort_order').order('name')
+    supabase.from('locations').select('*').eq('is_active', true).order('name')
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
   const airports = locations.filter(l => l.type==='airport')
   const destinations = locations.filter(l => l.type!=='airport')
+  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name))
   const canSubmit = form.pickup && form.dropoff && form.date && form.time
     && (tripType==='oneway' || (form.returnDate && form.returnTime))
 
@@ -105,15 +106,13 @@ function QuoteContent() {
             <div><label style={lbl}>Pick-up</label>
               <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={inp}>
                 <option value="">—</option>
-                {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                {destinations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
             <div><label style={lbl}>Drop-off</label>
               <select value={form.dropoff} onChange={e => setForm(p=>({...p,dropoff:e.target.value}))} style={inp}>
                 <option value="">—</option>
-                {destinations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
           </div>
