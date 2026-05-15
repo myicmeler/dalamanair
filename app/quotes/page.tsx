@@ -46,20 +46,14 @@ export default function MyQuotes() {
     try {
       const req = requests.find(r => r.id === requestId)
       const { data: { user } } = await supabase.auth.getUser()
-      
-      // Update quote offer statuses
       await supabase.from('quote_offers').update({ status: 'accepted' }).eq('id', offerId)
       await supabase.from('quote_offers').update({ status: 'rejected' }).eq('request_id', requestId).neq('id', offerId)
       await supabase.from('quote_requests').update({ status: 'accepted' }).eq('id', requestId)
-      
-      // Status history
       await supabase.from('quote_status_history').insert({
         quote_request_id: requestId, status: 'accepted',
         changed_by: user?.id, changed_by_role: 'customer',
         note: `Offer accepted from ${offer.provider?.company_name}`
       })
-      
-      // Create booking with pending_provider_confirmation status
       const { data: booking } = await supabase.from('bookings').insert({
         customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
         pickup_location_id: req.pickup_location_id, dropoff_location_id: req.dropoff_location_id,
@@ -68,44 +62,31 @@ export default function MyQuotes() {
         discount_pct: 0, final_price: offer.price,
         flight_number: req.flight_number, customer_notes: req.notes,
       }).select().single()
-
-      // Booking history
       if (booking) {
         await supabase.from('booking_status_history').insert({
           booking_id: booking.id, status: 'pending_provider_confirmation',
           changed_by: user?.id, changed_by_role: 'customer',
           note: 'Customer accepted offer — awaiting provider confirmation'
         })
-
-        // Notify provider — get provider user_id
         if (offer.provider?.user_id) {
           await supabase.from('user_notifications').insert({
-            user_id: offer.provider.user_id,
-            type: 'booking_pending_confirmation',
+            user_id: offer.provider.user_id, type: 'booking_pending_confirmation',
             title: 'Offer accepted — please confirm',
             body: `Customer accepted your offer for ${req.pickup?.name} → ${req.dropoff?.name}. Confirm to proceed.`,
             link: '/provider/bookings/'
           })
         }
-
-        // Notify customer
         await supabase.from('user_notifications').insert({
-          user_id: user?.id,
-          type: 'booking_awaiting_provider',
+          user_id: user?.id, type: 'booking_awaiting_provider',
           title: 'Offer accepted — waiting for provider',
           body: `${offer.provider?.company_name} will confirm shortly. You'll be notified.`,
           link: '/bookings/'
         })
-
-        // Send emails
         try {
-          // Email to provider
           await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
             method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
             body: JSON.stringify({
-              type: 'offer_accepted_provider',
-              to: '', // will be looked up via user_id in send-email
-              providerUserId: offer.provider.user_id,
+              type: 'offer_accepted_provider', to: '', providerUserId: offer.provider.user_id,
               data: {
                 pickup: req.pickup?.name, dropoff: req.dropoff?.name,
                 date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
@@ -117,7 +98,6 @@ export default function MyQuotes() {
           })
         } catch (e) { console.error(e) }
       }
-
       router.push('/bookings/')
     } catch (err) { console.error(err) }
     setAccepting(null)
@@ -129,20 +109,16 @@ export default function MyQuotes() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const req = requests.find(r => r.id === requestId)
-      
       if (hasOffers) {
         await supabase.from('quote_requests').update({ status: 'cancelled' }).eq('id', requestId)
         await supabase.from('quote_status_history').insert({
           quote_request_id: requestId, status: 'cancelled',
-          changed_by: user?.id, changed_by_role: 'customer',
-          note: 'Cancelled by customer'
+          changed_by: user?.id, changed_by_role: 'customer', note: 'Cancelled by customer'
         })
-        // Notify providers who submitted offers
         for (const offer of req.quote_offers || []) {
           if (offer.provider?.user_id) {
             await supabase.from('user_notifications').insert({
-              user_id: offer.provider.user_id,
-              type: 'request_cancelled',
+              user_id: offer.provider.user_id, type: 'request_cancelled',
               title: 'Quote request cancelled',
               body: `Customer cancelled the request for ${req.pickup?.name} → ${req.dropoff?.name}.`,
               link: '/provider/quotes/'
@@ -164,6 +140,14 @@ export default function MyQuotes() {
     accepted:  { bg:'rgba(29,158,117,0.12)',  color:'#1D9E75', label:'Accepted' },
     expired:   { bg:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)', label:'Expired' },
     cancelled: { bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled' },
+  }
+
+  function getExpiredMessage(requestId: string): string {
+    const history = historyMap[requestId] ?? []
+    const entry = history.find((h:any) => h.status === 'expired')
+    if (entry?.note?.includes('less than 5 days')) return 'No offers received in time — transfer date was too close'
+    if (entry?.note?.includes('passed')) return 'Transfer date has passed'
+    return 'Request expired — no offers received'
   }
 
   return (
@@ -214,6 +198,13 @@ export default function MyQuotes() {
                 {req.status === 'open' && !hasOffers && (
                   <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
                     <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', margin:0}}>⏳ Waiting for providers — prices appear when offers arrive</p>
+                  </div>
+                )}
+
+                {req.status === 'expired' && (
+                  <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>⌛ {getExpiredMessage(req.id)}</p>
+                    <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
                   </div>
                 )}
 
