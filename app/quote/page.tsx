@@ -28,7 +28,18 @@ function QuoteContent() {
   }, [])
 
   const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
-  const canSubmit = form.pickup && form.dropoff && form.date && form.time
+
+  function dateTooClose(dateStr: string): boolean {
+    if (!dateStr) return false
+    const pickup = new Date(dateStr)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const diffDays = (pickup.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    return diffDays < 5
+  }
+
+  const tooClose = dateTooClose(form.date)
+  const canSubmit = form.pickup && form.dropoff && form.date && form.time && !tooClose
     && (tripType==='oneway' || (form.returnDate && form.returnTime))
 
   async function handleSubmit() {
@@ -116,7 +127,15 @@ function QuoteContent() {
             </div>
           </div>
           <div className="quote-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
-            <div><label style={lbl}>Date</label><input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={inp} /></div>
+            <div>
+              <label style={lbl}>Date</label>
+              <input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={{...inp, borderColor: tooClose ? '#e53e3e' : 'rgba(255,255,255,0.12)'}} />
+              {tooClose && (
+                <p style={{fontSize:'11px', color:'#e53e3e', marginTop:'6px', lineHeight:'1.5'}}>
+                  ⚠️ Transfer date is less than 5 days away. Providers may not have enough time to respond. Please choose a later date.
+                </p>
+              )}
+            </div>
             <div><label style={lbl}>Time</label><input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} style={inp} /></div>
           </div>
           <div className="quote-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
