@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase'
 
 const labels = {
   en: {
-    tag:'Içmeler · Marmaris · Dalaman Airport',
+    tag:'Içmeler · Marmaris · Dalaman',
     h1a:'The smarter way to get from',
     h1b:'Dalaman airport to Marmaris and Içmeler.',
     sub:'Compare trusted local transfer companies, book in minutes, and arrive at your hotel without the stress.',
@@ -53,7 +53,7 @@ export default function Home() {
   }, [])
 
   const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
-  const canSearch    = form.pickup && form.dropoff && form.date && form.time
+  const canSearch = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime && form.returnPickup))
 
   function handleSearch() {

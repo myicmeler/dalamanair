@@ -175,6 +175,7 @@ function QuoteContent() {
     </div>
   )
 }
+
 export default function QuotePage() {
   return <Suspense fallback={<div style={{minHeight:'100vh', backgroundColor:'#0f1419'}} />}><QuoteContent /></Suspense>
 }
