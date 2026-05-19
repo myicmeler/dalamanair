@@ -20,7 +20,6 @@ const labels = {
     w1t:'Book before you fly', w1d:'Arrange your transfer from home. When you land, everything is already sorted — no queues, no touts, no hassle.',
     w2t:'Fixed prices', w2d:'The price you see is what you pay. No hidden fees, no meter running, no negotiating at the airport.',
     w3t:'Vetted local providers', w3d:'Every transfer company on dalaman.me is reviewed and approved by us. Only trusted, insured operators make the list.',
-    disclaimer:'dalaman.me is an independent booking platform connecting travellers with local transfer providers. Transfers are operated by approved third-party companies.',
   },
   tr: {
     tag:'İçmeler · Marmaris · Dalaman',
@@ -36,7 +35,6 @@ const labels = {
     w1t:'Uçmadan önce rezervasyon', w1d:'Transferinizi evden ayarlayın. İndiğinizde her şey hazır.',
     w2t:'Sabit fiyatlar', w2d:'Gördüğünüz fiyat ödediğiniz fiyattır. Gizli ücret yok.',
     w3t:'Onaylı yerel sağlayıcılar', w3d:'Tüm sağlayıcılar incelenir ve onaylanır.',
-    disclaimer:'dalaman.me, yolcuları yerel transfer sağlayıcılarıyla buluşturan bağımsız bir rezervasyon platformudur.',
   }
 }
 
