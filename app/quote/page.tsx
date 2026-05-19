@@ -151,7 +151,7 @@ function QuoteContent() {
           {submitting?'Sending...':'Request quotes →'}
         </button>
         <p style={{textAlign:'center', fontSize:'12px', color:'rgba(255,255,255,0.3)', marginTop:'10px'}}>Free · No obligation · Pay your driver directly on transfer day</p>
-        <p style={{textAlign:'center', fontSize:'11px', color:'rgba(255,255,255,0.2)', marginTop:'24px', lineHeight:'1.6', paddingTop:'16px', borderTop:'1px solid rgba(255,255,255,0.06)'}}>dalaman.me is an independent platform that connects travellers with local transfer providers. All bookings, agreements, and payments are made directly between the customer and the transfer company. dalaman.me accepts no financial liability and cannot guarantee the fulfilment of any transfer.</p>
+        <p style={{textAlign:'center', fontSize:'11px', color:'rgba(244,185,66,0.5)', marginTop:'24px', lineHeight:'1.6', paddingTop:'16px', borderTop:'1px solid rgba(255,255,255,0.06)'}}>dalaman.me is an independent platform that connects travellers with local transfer providers. All bookings, agreements, and payments are made directly between the customer and the transfer company. dalaman.me accepts no financial liability and cannot guarantee the fulfilment of any transfer.</p>
       </div>
     </div>
   )

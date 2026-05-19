@@ -159,7 +159,7 @@ export default function Home() {
 
       {/* DISCLAIMER */}
       <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', padding:'16px 20px'}}>
-        <p style={{maxWidth:'1100px', margin:'0 auto', fontSize:'11px', color:'rgba(255,255,255,0.25)', lineHeight:'1.6', textAlign:'center'}}>{t.disclaimer}</p>
+        <p style={{maxWidth:'1100px', margin:'0 auto', fontSize:'11px', color:'rgba(244,185,66,0.5)', lineHeight:'1.6', textAlign:'center'}}>dalaman.me is an independent platform that connects travellers with local transfer providers. All bookings, agreements, and payments are made directly between the customer and the transfer company. dalaman.me accepts no financial liability and cannot guarantee the fulfilment of any transfer. In the event of a dispute, customers should contact their transfer provider directly.</p>
       </div>
 
       {/* FOOTER */}
