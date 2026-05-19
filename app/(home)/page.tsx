@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase'
 
 const labels = {
   en: {
-    tag:'Içmeler · Marmaris · Dalaman',
+    tag:'Içmeler · Marmaris · Dalaman Airport',
     h1a:'The smarter way to get from',
     h1b:'Dalaman airport to Marmaris and Içmeler.',
     sub:'Compare trusted local transfer companies, book in minutes, and arrive at your hotel without the stress.',
