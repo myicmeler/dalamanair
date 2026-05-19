@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
@@ -19,7 +20,6 @@ const labels = {
     w1t:'Book before you fly', w1d:'Arrange your transfer from home. When you land, everything is already sorted — no queues, no touts, no hassle.',
     w2t:'Fixed prices', w2d:'The price you see is what you pay. No hidden fees, no meter running, no negotiating at the airport.',
     w3t:'Vetted local providers', w3d:'Every transfer company on dalaman.me is reviewed and approved by us. Only trusted, insured operators make the list.',
-    disclaimer:'dalaman.me is an independent booking platform connecting travellers with local transfer providers. Transfers are operated by approved third-party companies.',
   },
   tr: {
     tag:'İçmeler · Marmaris · Dalaman',
@@ -35,7 +35,6 @@ const labels = {
     w1t:'Uçmadan önce rezervasyon', w1d:'Transferinizi evden ayarlayın. İndiğinizde her şey hazır.',
     w2t:'Sabit fiyatlar', w2d:'Gördüğünüz fiyat ödediğiniz fiyattır. Gizli ücret yok.',
     w3t:'Onaylı yerel sağlayıcılar', w3d:'Tüm sağlayıcılar incelenir ve onaylanır.',
-    disclaimer:'dalaman.me, yolcuları yerel transfer sağlayıcılarıyla buluşturan bağımsız bir rezervasyon platformudur.',
   }
 }
 
@@ -49,12 +48,11 @@ export default function Home() {
   const [form, setForm] = useState({ pickup:'', dropoff:'', date:'', time:'14:00', passengers:'2', returnDate:'', returnTime:'10:00', returnPickup:'' })
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true).order('sort_order').order('name')
+    supabase.from('locations').select('*').eq('is_active', true).order('name')
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
 
-  const airports     = locations.filter(l => l.type === 'airport')
-  const destinations = locations.filter(l => l.type !== 'airport')
+  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
   const canSearch    = form.pickup && form.dropoff && form.date && form.time
     && (tripType === 'oneway' || (form.returnDate && form.returnTime && form.returnPickup))
 
@@ -98,15 +96,13 @@ export default function Home() {
               <div><label style={lbl}>{t.pickup}</label>
                 <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={inp}>
                   <option value="">—</option>
-                  {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  {destinations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
               <div><label style={lbl}>{t.dropoff}</label>
                 <select value={form.dropoff} onChange={e => setForm(p=>({...p,dropoff:e.target.value}))} style={inp}>
                   <option value="">—</option>
-                  {destinations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  {airports.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
             </div>
@@ -128,7 +124,7 @@ export default function Home() {
                 <div><label style={lbl}>{t.returnFrom}</label>
                   <select value={form.returnPickup} onChange={e => setForm(p=>({...p,returnPickup:e.target.value}))} style={inp}>
                     <option value="">—</option>
-                    {destinations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -161,7 +157,7 @@ export default function Home() {
 
       {/* DISCLAIMER */}
       <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', padding:'16px 20px'}}>
-        <p style={{maxWidth:'1100px', margin:'0 auto', fontSize:'11px', color:'rgba(255,255,255,0.25)', lineHeight:'1.6', textAlign:'center'}}>{t.disclaimer}</p>
+        <p style={{maxWidth:'1100px', margin:'0 auto', fontSize:'11px', color:'rgba(244,185,66,0.5)', lineHeight:'1.6', textAlign:'center'}}>dalaman.me is an independent platform that connects travellers with local transfer providers. All bookings, agreements, and payments are made directly between the customer and the transfer company. dalaman.me accepts no financial liability and cannot guarantee the fulfilment of any transfer. In the event of a dispute, customers should contact their transfer provider directly.</p>
       </div>
 
       {/* FOOTER */}
