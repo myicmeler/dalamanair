@@ -1,185 +1,294 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
-const labels = {
-  en: {
-    tag:'Içmeler · Marmaris · Dalaman',
-    h1a:'The smarter way to get from',
-    h1b:'Dalaman airport to Marmaris and Içmeler.',
-    sub:'Compare trusted local transfer companies, book in minutes, and arrive at your hotel without the stress.',
-    oneway:'One way', return:'Return',
-    pickup:'Pick-up', dropoff:'Drop-off',
-    date:'Date', time:'Time', passengers:'Passengers',
-    returnDate:'Return date', returnTime:'Return time', returnFrom:'Return pick-up',
-    search:'Search transfers',
-    why:'Why book with us',
-    w1t:'Book before you fly', w1d:'Arrange your transfer from home. When you land, everything is already sorted — no queues, no touts, no hassle.',
-    w2t:'Fixed prices', w2d:'The price you see is what you pay. No hidden fees, no meter running, no negotiating at the airport.',
-    w3t:'Vetted local providers', w3d:'Every transfer company on dalaman.me is reviewed and approved by us. Only trusted, insured operators make the list.',
-    disclaimer:'dalaman.me is an independent booking platform connecting travellers with local transfer providers. Transfers are operated by approved third-party companies.',
-  },
-  tr: {
-    tag:'İçmeler · Marmaris · Dalaman',
-    h1a:'Dalaman havalimanından',
-    h1b:'Marmaris ve İçmeler\'e akıllı transfer.',
-    sub:'Güvenilir yerel transfer şirketlerini karşılaştırın, dakikalar içinde rezervasyon yapın ve stressiz otelinize ulaşın.',
-    oneway:'Tek yön', return:'Gidiş-dönüş',
-    pickup:'Alış', dropoff:'Varış',
-    date:'Tarih', time:'Saat', passengers:'Yolcular',
-    returnDate:'Dönüş tarihi', returnTime:'Dönüş saati', returnFrom:'Dönüş alış',
-    search:'Transfer ara',
-    why:'Neden biz',
-    w1t:'Uçmadan önce rezervasyon', w1d:'Transferinizi evden ayarlayın. İndiğinizde her şey hazır.',
-    w2t:'Sabit fiyatlar', w2d:'Gördüğünüz fiyat ödediğiniz fiyattır. Gizli ücret yok.',
-    w3t:'Onaylı yerel sağlayıcılar', w3d:'Tüm sağlayıcılar incelenir ve onaylanır.',
-    disclaimer:'dalaman.me, yolcuları yerel transfer sağlayıcılarıyla buluşturan bağımsız bir rezervasyon platformudur.',
-  }
-}
-
-export default function Home() {
+export default function MyQuotes() {
   const router = useRouter()
   const supabase = createClient() as any
   const [lang, setLang] = useState<'en'|'tr'>('en')
-  const t = labels[lang]
-  const [locations, setLocations] = useState<any[]>([])
-  const [tripType, setTripType] = useState<'oneway'|'return'>('oneway')
-  const [form, setForm] = useState({ pickup:'', dropoff:'', date:'', time:'14:00', passengers:'2', returnDate:'', returnTime:'10:00', returnPickup:'' })
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [accepting, setAccepting] = useState<string|null>(null)
+  const [cancelling, setCancelling] = useState<string|null>(null)
+  const [expanded, setExpanded] = useState<string|null>(null)
+  const [historyMap, setHistoryMap] = useState<Record<string,any[]>>({})
 
   useEffect(() => {
-    supabase.from('locations').select('*').eq('is_active', true).order('name')
-      .then(({ data }: any) => { if (data) setLocations(data) })
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/auth/signin/?redirect=/quotes/'); return }
+      const { data: reqs } = await supabase.from('quote_requests')
+        .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name),
+          quote_offers(*, provider:providers(id,company_name,phone,user_id,tursab_number,description,user:users!user_id(email)), vehicle:vehicles(make,model,type,seats))`)
+        .eq('customer_id', user.id).order('created_at', { ascending: false })
+      if (reqs) setRequests(reqs)
+      setLoading(false)
+    }
+    load()
   }, [])
 
-  const allSorted = [...locations].sort((a, b) => a.name.localeCompare(b.name, 'en'))
-  const canSearch    = form.pickup && form.dropoff && form.date && form.time
-    && (tripType === 'oneway' || (form.returnDate && form.returnTime && form.returnPickup))
-
-  function handleSearch() {
-    const p = new URLSearchParams({ tripType, pickup:form.pickup, dropoff:form.dropoff, date:form.date, time:form.time, passengers:form.passengers })
-    if (tripType === 'return') { p.set('returnDate', form.returnDate); p.set('returnTime', form.returnTime); p.set('returnPickup', form.returnPickup) }
-    router.push(`/search/?${p.toString()}`)
+  async function loadHistory(requestId: string) {
+    if (historyMap[requestId]) return
+    const { data } = await supabase.from('quote_status_history')
+      .select('*').eq('quote_request_id', requestId).order('created_at', { ascending: true })
+    if (data) setHistoryMap(p => ({ ...p, [requestId]: data }))
   }
 
-  const inp = { width:'100%', fontSize:'14px', padding:'11px 10px', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#ffffff', outline:'none', boxSizing:'border-box' as const, colorScheme:'dark' as any }
-  const lbl = { fontSize:'9px', letterSpacing:'0.12em', textTransform:'uppercase' as const, color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'4px' }
+  async function handleExpand(requestId: string) {
+    if (expanded === requestId) { setExpanded(null); return }
+    setExpanded(requestId); await loadHistory(requestId)
+  }
+
+  async function acceptOffer(offerId: string, requestId: string, offer: any) {
+    setAccepting(offerId)
+    try {
+      const req = requests.find(r => r.id === requestId)
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('quote_offers').update({ status: 'accepted' }).eq('id', offerId)
+      await supabase.from('quote_offers').update({ status: 'rejected' }).eq('request_id', requestId).neq('id', offerId)
+      await supabase.from('quote_requests').update({ status: 'accepted' }).eq('id', requestId)
+      await supabase.from('quote_status_history').insert({
+        quote_request_id: requestId, status: 'accepted',
+        changed_by: user?.id, changed_by_role: 'customer',
+        note: `Offer accepted from ${offer.provider?.company_name}`
+      })
+      const { data: booking } = await supabase.from('bookings').insert({
+        customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
+        pickup_location_id: req.pickup_location_id, dropoff_location_id: req.dropoff_location_id,
+        direction: 'outbound', pickup_time: req.pickup_time, passengers: req.passengers,
+        luggage: req.luggage, status: 'pending_provider_confirmation', price: offer.price,
+        discount_pct: 0, final_price: offer.price,
+        flight_number: req.flight_number, customer_notes: req.notes,
+      }).select().single()
+      if (booking) {
+        await supabase.from('booking_status_history').insert({
+          booking_id: booking.id, status: 'pending_provider_confirmation',
+          changed_by: user?.id, changed_by_role: 'customer',
+          note: 'Customer accepted offer — awaiting provider confirmation'
+        })
+        if (offer.provider?.user_id) {
+          await supabase.from('user_notifications').insert({
+            user_id: offer.provider.user_id, type: 'booking_pending_confirmation',
+            title: 'Offer accepted — please confirm',
+            body: `Customer accepted your offer for ${req.pickup?.name} → ${req.dropoff?.name}. Confirm to proceed.`,
+            link: '/provider/bookings/'
+          })
+        }
+        await supabase.from('user_notifications').insert({
+          user_id: user?.id, type: 'booking_awaiting_provider',
+          title: 'Offer accepted — waiting for provider',
+          body: `${offer.provider?.company_name} will confirm shortly. You'll be notified.`,
+          link: '/bookings/'
+        })
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
+            body: JSON.stringify({
+              type: 'offer_accepted_provider', to: '', providerUserId: offer.provider.user_id,
+              data: {
+                pickup: req.pickup?.name, dropoff: req.dropoff?.name,
+                date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
+                time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+                price: offer.price.toFixed(2), passengers: req.passengers,
+                flightNumber: req.flight_number, notes: req.notes,
+              }
+            })
+          })
+        } catch (e) { console.error(e) }
+      }
+      router.push('/bookings/')
+    } catch (err) { console.error(err) }
+    setAccepting(null)
+  }
+
+  async function cancelRequest(requestId: string, hasOffers: boolean) {
+    if (!confirm(hasOffers ? 'Cancel this quote request? Providers who submitted offers will be notified.' : 'Delete this quote request?')) return
+    setCancelling(requestId)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const req = requests.find(r => r.id === requestId)
+      if (hasOffers) {
+        await supabase.from('quote_requests').update({ status: 'cancelled' }).eq('id', requestId)
+        await supabase.from('quote_status_history').insert({
+          quote_request_id: requestId, status: 'cancelled',
+          changed_by: user?.id, changed_by_role: 'customer', note: 'Cancelled by customer'
+        })
+        for (const offer of req.quote_offers || []) {
+          if (offer.provider?.user_id) {
+            await supabase.from('user_notifications').insert({
+              user_id: offer.provider.user_id, type: 'request_cancelled',
+              title: 'Quote request cancelled',
+              body: `Customer cancelled the request for ${req.pickup?.name} → ${req.dropoff?.name}.`,
+              link: '/provider/quotes/'
+            })
+          }
+        }
+        setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'cancelled' } : r))
+      } else {
+        await supabase.from('quote_requests').delete().eq('id', requestId)
+        setRequests(prev => prev.filter(r => r.id !== requestId))
+      }
+    } catch (err) { console.error(err) }
+    setCancelling(null)
+  }
+
+  const card: React.CSSProperties = { backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', overflow:'hidden', marginBottom:'14px' }
+  const statusColors: Record<string,{bg:string,color:string,label:string}> = {
+    open:      { bg:'rgba(244,185,66,0.12)',  color:'#f4b942', label:'Open' },
+    accepted:  { bg:'rgba(29,158,117,0.12)',  color:'#1D9E75', label:'Accepted' },
+    expired:   { bg:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)', label:'Expired' },
+    cancelled: { bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled' },
+  }
+
+  function getExpiredMessage(requestId: string): string {
+    const history = historyMap[requestId] ?? []
+    const entry = history.find((h:any) => h.status === 'expired')
+    if (entry?.note?.includes('less than 5 days')) return 'No offers received in time — transfer date was too close'
+    if (entry?.note?.includes('passed')) return 'Transfer date has passed'
+    return 'Request expired — no offers received'
+  }
 
   return (
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}}>
+      <style>{`* { box-sizing: border-box; }`}</style>
       <Nav lang={lang} onLangChange={setLang} />
-
-      {/* HERO */}
-      <div style={{padding:'48px 20px 56px', maxWidth:'1280px', margin:'0 auto'}}>
-        <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'14px'}}>{t.tag}</p>
-        <h1 style={{fontSize:'clamp(28px, 6vw, 58px)', lineHeight:'1.1', fontWeight:'400', color:'#ffffff', marginBottom:'14px', maxWidth:'780px'}}>
-          {t.h1a}<br/><span style={{color:'#f4b942', fontWeight:'500'}}>{t.h1b}</span>
-        </h1>
-        <p style={{fontSize:'15px', color:'rgba(255,255,255,0.6)', lineHeight:'1.7', marginBottom:'36px', maxWidth:'520px'}}>{t.sub}</p>
-
-        {/* Search panel */}
-        <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', padding:'20px', maxWidth:'560px'}}>
-          <div style={{display:'flex', borderBottom:'1px solid rgba(255,255,255,0.08)', marginBottom:'16px', marginLeft:'-20px', marginRight:'-20px', paddingLeft:'20px', paddingRight:'20px'}}>
-            {(['oneway','return'] as const).map(tt => (
-              <button key={tt} onClick={() => setTripType(tt)} style={{
-                flex:1, paddingBottom:'12px', fontSize:'12px', letterSpacing:'0.08em', textTransform:'uppercase',
-                border:'none', background:'none', cursor:'pointer',
-                borderBottom: tripType===tt ? '2px solid #f4b942' : '2px solid transparent',
-                color: tripType===tt ? '#f4b942' : 'rgba(255,255,255,0.4)',
-                fontWeight: tripType===tt ? '600' : '400', marginBottom:'-1px',
-              }}>{tt==='oneway'?t.oneway:t.return}</button>
-            ))}
+      <div style={{maxWidth:'680px', margin:'0 auto', padding:'24px 16px 48px'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px', gap:'10px'}}>
+          <div>
+            <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>Your requests</p>
+            <h1 style={{fontSize:'clamp(22px,5vw,26px)', fontWeight:'500', color:'#ffffff'}}>My quote requests</h1>
           </div>
+          <a href="/quote/" style={{padding:'10px 16px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'12px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase', whiteSpace:'nowrap'}}>+ New</a>
+        </div>
 
-          <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
-              <div><label style={lbl}>{t.pickup}</label>
-                <select value={form.pickup} onChange={e => setForm(p=>({...p,pickup:e.target.value}))} style={inp}>
-                  <option value="">—</option>
-                  {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>{t.dropoff}</label>
-                <select value={form.dropoff} onChange={e => setForm(p=>({...p,dropoff:e.target.value}))} style={inp}>
-                  <option value="">—</option>
-                  {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
-            </div>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
-              <div><label style={lbl}>{t.date}</label><input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} style={inp} /></div>
-              <div><label style={lbl}>{t.time}</label><input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} style={inp} /></div>
-            </div>
-            <div><label style={lbl}>{t.passengers}</label>
-              <select value={form.passengers} onChange={e => setForm(p=>({...p,passengers:e.target.value}))} style={inp}>
-                {Array.from({length:14},(_,i)=>i+1).map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            {tripType === 'return' && (
-              <div style={{borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:'12px', display:'flex', flexDirection:'column', gap:'12px'}}>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
-                  <div><label style={lbl}>{t.returnDate}</label><input type="date" value={form.returnDate} onChange={e => setForm(p=>({...p,returnDate:e.target.value}))} style={inp} /></div>
-                  <div><label style={lbl}>{t.returnTime}</label><input type="time" value={form.returnTime} onChange={e => setForm(p=>({...p,returnTime:e.target.value}))} style={inp} /></div>
+        {loading ? (
+          <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+        ) : requests.length === 0 ? (
+          <div style={{...card, padding:'48px 24px', textAlign:'center'}}>
+            <p style={{fontSize:'15px', color:'rgba(255,255,255,0.4)', marginBottom:'16px'}}>No quote requests yet</p>
+            <a href="/quote/" style={{padding:'12px 24px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'13px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Request a quote →</a>
+          </div>
+        ) : requests.map((req:any) => {
+          const s = statusColors[req.status] ?? statusColors.expired
+          const hasOffers = (req.quote_offers?.length ?? 0) > 0
+          const pendingOffers = req.quote_offers?.filter((o:any) => o.status === 'pending') ?? []
+          const acceptedOffer = req.quote_offers?.find((o:any) => o.status === 'accepted')
+          const isExpanded = expanded === req.id
+          const history = historyMap[req.id] ?? []
+          const canCancel = req.status === 'open'
+
+          return (
+            <div key={req.id} style={card}>
+              <div style={{padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer'}} onClick={() => handleExpand(req.id)}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'10px', marginBottom:'4px'}}>
+                  <div style={{fontSize:'15px', fontWeight:'500', color:'#ffffff', lineHeight:'1.3'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
+                  <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0}}>
+                    <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:s.bg, color:s.color, fontWeight:'500'}}>{s.label}</span>
+                    <span style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>{isExpanded?'▲':'▼'}</span>
+                  </div>
                 </div>
-                <div><label style={lbl}>{t.returnFrom}</label>
-                  <select value={form.returnPickup} onChange={e => setForm(p=>({...p,returnPickup:e.target.value}))} style={inp}>
-                    <option value="">—</option>
-                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
+                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
+                  {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax{req.trip_type==='return'&&' · Return'}
                 </div>
               </div>
-            )}
-            <button onClick={handleSearch} disabled={!canSearch} style={{
-              width:'100%', backgroundColor:canSearch?'#f4b942':'rgba(244,185,66,0.3)',
-              color:canSearch?'#0f1419':'rgba(255,255,255,0.3)', fontWeight:'600', fontSize:'13px',
-              letterSpacing:'0.06em', textTransform:'uppercase', padding:'14px', borderRadius:'6px',
-              border:'none', cursor:canSearch?'pointer':'not-allowed',
-            }}>{t.search} →</button>
-          </div>
-        </div>
-      </div>
 
-      {/* WHY */}
-      <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', padding:'56px 20px 48px'}}>
-        <div style={{maxWidth:'1100px', margin:'0 auto'}}>
-          <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', textAlign:'center', marginBottom:'32px'}}>{t.why}</p>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'32px'}}>
-            {[{title:t.w1t,desc:t.w1d},{title:t.w2t,desc:t.w2d},{title:t.w3t,desc:t.w3d}].map(w => (
-              <div key={w.title}>
-                <div style={{width:'36px', height:'2px', backgroundColor:'#f4b942', marginBottom:'14px'}} />
-                <h3 style={{fontSize:'17px', fontWeight:'500', color:'#ffffff', marginBottom:'8px'}}>{w.title}</h3>
-                <p style={{fontSize:'13px', color:'rgba(255,255,255,0.5)', lineHeight:'1.7', margin:0}}>{w.desc}</p>
+              <div style={{padding:'12px 16px'}}>
+                {req.status === 'open' && !hasOffers && (
+                  <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', margin:0}}>⏳ Waiting for providers — prices appear when offers arrive</p>
+                  </div>
+                )}
+
+                {req.status === 'open' && hasOffers && pendingOffers.length === 0 && !acceptedOffer && (
+                  <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>⌛ No active offers — submit a new request if you still need a transfer.</p>
+                    <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
+                  </div>
+                )}
+
+                {req.status === 'expired' && (
+                  <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>⌛ {getExpiredMessage(req.id)}</p>
+                    <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
+                  </div>
+                )}
+
+                {req.status === 'open' && pendingOffers.length > 0 && (
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', margin:'0 0 4px'}}>{pendingOffers.length} offer{pendingOffers.length>1?'s':''} received:</p>
+                    {pendingOffers.map((offer:any) => (
+                      <div key={offer.id} style={{border:'1px solid rgba(255,255,255,0.1)', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'8px', padding:'12px'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'10px', marginBottom:'10px'}}>
+                          <div style={{flex:1, minWidth:0}}>
+                            <div style={{fontSize:'14px', fontWeight:'600', color:'#ffffff', marginBottom:'4px'}}>{offer.provider?.company_name??'—'}</div>
+                            {offer.vehicle&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'6px'}}>{offer.vehicle.make} {offer.vehicle.model} · {offer.vehicle.seats} seats</div>}
+                            <div style={{display:'flex', flexDirection:'column', gap:'3px', marginTop:'6px'}}>
+                              {offer.provider?.phone&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.6)'}}>📞 <a href={`tel:${offer.provider.phone}`} style={{color:'rgba(255,255,255,0.8)', textDecoration:'none'}}>{offer.provider.phone}</a> · <a href={`https://wa.me/${offer.provider.phone.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener" style={{color:'#25D366', textDecoration:'none', fontSize:'11px'}}>WhatsApp</a></div>}
+                              {offer.provider?.user?.email&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.6)'}}>✉️ <a href={`mailto:${offer.provider.user.email}`} style={{color:'rgba(255,255,255,0.8)', textDecoration:'none'}}>{offer.provider.user.email}</a></div>}
+                              <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>TURSAB: {offer.provider?.tursab_number || 'Not registered yet'}</div>
+                            </div>
+                          </div>
+                          <div style={{fontSize:'20px', fontWeight:'600', color:'#f4b942', flexShrink:0}}>€ {offer.price?.toFixed(2)}</div>
+                        </div>
+                        {offer.notes&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', padding:'8px 10px', backgroundColor:'rgba(255,255,255,0.03)', borderRadius:'5px', marginBottom:'10px', fontStyle:'italic'}}>"{offer.notes}"</div>}
+                        <button onClick={() => acceptOffer(offer.id, req.id, offer)} disabled={accepting===offer.id}
+                          style={{width:'100%', padding:'10px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:'pointer', letterSpacing:'0.05em', textTransform:'uppercase'}}>
+                          {accepting===offer.id?'Accepting...':'Accept this offer →'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {acceptedOffer && (
+                  <div style={{border:'1px solid rgba(244,185,66,0.3)', backgroundColor:'rgba(244,185,66,0.05)', borderRadius:'8px', padding:'12px', marginBottom:'10px'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', gap:'10px'}}>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{fontSize:'14px', fontWeight:'600', color:'#ffffff', marginBottom:'4px'}}>{acceptedOffer.provider?.company_name}</div>
+                        {acceptedOffer.vehicle&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'6px'}}>{acceptedOffer.vehicle.make} {acceptedOffer.vehicle.model}</div>}
+                        <div style={{display:'flex', flexDirection:'column', gap:'3px'}}>
+                          {acceptedOffer.provider?.phone&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.6)'}}>📞 <a href={`tel:${acceptedOffer.provider.phone}`} style={{color:'rgba(255,255,255,0.8)', textDecoration:'none'}}>{acceptedOffer.provider.phone}</a> · <a href={`https://wa.me/${acceptedOffer.provider.phone.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener" style={{color:'#25D366', textDecoration:'none', fontSize:'11px'}}>WhatsApp</a></div>}
+                          {acceptedOffer.provider?.user?.email&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.6)'}}>✉️ <a href={`mailto:${acceptedOffer.provider.user.email}`} style={{color:'rgba(255,255,255,0.8)', textDecoration:'none'}}>{acceptedOffer.provider.user.email}</a></div>}
+                          <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>TURSAB: {acceptedOffer.provider?.tursab_number || 'Not registered yet'}</div>
+                        </div>
+                      </div>
+                      <div style={{fontSize:'18px', fontWeight:'600', color:'#f4b942', flexShrink:0}}>€ {acceptedOffer.price?.toFixed(2)}</div>
+                    </div>
+                    <div style={{fontSize:'12px', color:'#1D9E75', padding:'8px 12px', backgroundColor:'rgba(29,158,117,0.08)', borderRadius:'5px'}}>
+                      ✓ Booking created · See <a href="/bookings/" style={{color:'#1D9E75', textDecoration:'underline'}}>My bookings</a> for confirmation status
+                    </div>
+                  </div>
+                )}
+
+                {isExpanded && history.length > 0 && (
+                  <div style={{marginBottom:'10px', borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'10px'}}>
+                    <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:'8px'}}>Status history</p>
+                    {history.map((h:any) => (
+                      <div key={h.id} style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'12px', marginBottom:'4px', flexWrap:'wrap'}}>
+                        <div style={{width:'6px', height:'6px', borderRadius:'50%', backgroundColor:'#f4b942', flexShrink:0}} />
+                        <span style={{color:'rgba(255,255,255,0.6)', textTransform:'capitalize', fontWeight:'500'}}>{h.status}</span>
+                        <span style={{color:'rgba(255,255,255,0.3)'}}>by {h.changed_by_role}</span>
+                        {h.note && <span style={{color:'rgba(255,255,255,0.25)', fontStyle:'italic', fontSize:'11px'}}>— {h.note}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {canCancel && (
+                  <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'10px', display:'flex', justifyContent:'flex-end'}}>
+                    <button onClick={() => cancelRequest(req.id, hasOffers)} disabled={cancelling===req.id}
+                      style={{padding:'7px 14px', background:'none', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'5px', color:'#f09595', fontSize:'12px', cursor:'pointer', fontFamily:'inherit'}}>
+                      {cancelling===req.id ? 'Processing...' : hasOffers ? 'Cancel request' : 'Delete request'}
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* DISCLAIMER */}
-      <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', padding:'16px 20px'}}>
-        <p style={{maxWidth:'1100px', margin:'0 auto', fontSize:'11px', color:'rgba(255,255,255,0.25)', lineHeight:'1.6', textAlign:'center'}}>{t.disclaimer}</p>
-      </div>
-
-      {/* FOOTER */}
-      <footer style={{borderTop:'1px solid rgba(255,255,255,0.06)', padding:'36px 20px'}}>
-        <div style={{maxWidth:'1280px', margin:'0 auto'}}>
-          <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'20px', paddingBottom:'20px', borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-            <img src="/logo.jpg" alt="dalaman.me" style={{width:'48px', height:'48px', borderRadius:'50%', objectFit:'cover'}} />
-            <div>
-              <div style={{fontSize:'14px', fontWeight:'700', color:'#ffffff', letterSpacing:'0.1em', marginBottom:'2px'}}>dalaman.me</div>
-              <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)'}}>Airport transfers · Marmaris region</div>
             </div>
-          </div>
-          <div style={{display:'flex', gap:'20px', flexWrap:'wrap', marginBottom:'16px'}}>
-            {[['Help','/help/'],['How it works','/how-it-works/'],['Request a quote','/quote/'],['For providers','/provider/']].map(([label,href]) => (
-              <a key={href} href={href} style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', textDecoration:'none'}}>{label}</a>
-            ))}
-          </div>
-          <div style={{fontSize:'11px', color:'rgba(255,255,255,0.2)'}}>© 2026 · dalaman.me · An independent transfer booking platform</div>
-        </div>
-      </footer>
+          )
+        })}
+      </div>
     </div>
   )
 }
