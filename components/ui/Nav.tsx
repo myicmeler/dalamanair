@@ -248,4 +248,3 @@ export default function Nav({ lang = 'en', onLangChange }: {
     </nav>
   )
 }
-```
