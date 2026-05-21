@@ -156,6 +156,3 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     </div>
   )
 }
-```
-
-Paste this into `app/provider/layout.tsx` in GitHub. Two changes from the original: declined requests are now filtered out of the badge count, and refresh interval is 30 seconds instead of 2 minutes.
