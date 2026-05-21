@@ -1,3 +1,4 @@
+```tsx
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -75,7 +76,6 @@ export default function Nav({ lang = 'en', onLangChange }: {
     }
     document.addEventListener('mousedown', handleClick)
 
-    // Poll for new notifications every 30 seconds
     const interval = setInterval(() => {
       supabase.auth.getUser().then(({ data: { user: u } }: any) => {
         if (u) fetchNotifications(u.id)
@@ -117,7 +117,6 @@ export default function Nav({ lang = 'en', onLangChange }: {
             </div>
           )}
 
-          {/* Notification bell */}
           {user && (
             <div ref={bellRef} style={{position:'relative'}}>
               <button onClick={() => setNotifOpen(!notifOpen)} style={{position:'relative', width:'36px', height:'36px', display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', cursor:'pointer', borderRadius:'50%'}}>
@@ -234,8 +233,10 @@ export default function Nav({ lang = 'en', onLangChange }: {
           </>}
           <div style={{marginTop:'20px', paddingTop:'20px', borderTop:'1px solid rgba(255,255,255,0.1)'}}>
             {user ? (
-              <Link href="/profile/#deactivate" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(162,45,45,0.7)', fontSize:'15px', textDecoration:'none', marginBottom:'12px'}}>{t.deactivate}</Link>
-              <button onClick={handleSignOut} style={{background:'none', border:'none', cursor:'pointer', padding:0, color:'rgba(255,255,255,0.4)', fontSize:'15px', fontFamily:'inherit'}}>{t.signout}</button>
+              <>
+                <Link href="/profile/#deactivate" onClick={() => setMenuOpen(false)} style={{display:'block', color:'rgba(162,45,45,0.7)', fontSize:'15px', textDecoration:'none', marginBottom:'12px'}}>{t.deactivate}</Link>
+                <button onClick={handleSignOut} style={{background:'none', border:'none', cursor:'pointer', padding:0, color:'rgba(255,255,255,0.4)', fontSize:'15px', fontFamily:'inherit'}}>{t.signout}</button>
+              </>
             ) : (
               <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
                 <Link href="/auth/signin/" onClick={() => setMenuOpen(false)} style={{color:'rgba(255,255,255,0.8)', fontSize:'16px', textDecoration:'none', fontWeight:500}}>{t.signin}</Link>
@@ -248,3 +249,4 @@ export default function Nav({ lang = 'en', onLangChange }: {
     </nav>
   )
 }
+```
