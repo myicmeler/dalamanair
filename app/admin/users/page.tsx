@@ -10,13 +10,14 @@ export default function AdminUsers() {
   const [newPassword, setNewPassword] = useState<Record<string,string>>({})
   const [showReset, setShowReset] = useState<string|null>(null)
   const [message, setMessage] = useState<Record<string,{text:string,ok:boolean}>>({})
+  const [toggling, setToggling] = useState<string|null>(null)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     const { data } = await supabase
       .from('users')
-      .select('id, email, full_name, role, created_at')
+      .select('id, email, full_name, role, is_active, created_at')
       .order('created_at', { ascending: false })
     if (data) setUsers(data)
     setLoading(false)
@@ -32,10 +33,7 @@ export default function AdminUsers() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ action: 'reset_password', userId, password: pwd }),
       })
       const result = await res.json()
@@ -47,6 +45,16 @@ export default function AdminUsers() {
       setMessage(p => ({...p, [userId]: {text:err.message, ok:false}}))
     }
     setResetting(null)
+  }
+
+  async function toggleActive(userId: string, currentlyActive: boolean) {
+    setToggling(userId)
+    const { error } = await supabase.from('users').update({ is_active: !currentlyActive }).eq('id', userId)
+    if (!error) {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: !currentlyActive } : u))
+      setMessage(p => ({...p, [userId]: {text: !currentlyActive ? 'Account reactivated ✓' : 'Account deactivated', ok: !currentlyActive}}))
+    }
+    setToggling(null)
   }
 
   const roleColors: Record<string,{bg:string,color:string}> = {
@@ -61,7 +69,7 @@ export default function AdminUsers() {
   return (
     <div style={{padding:'20px'}}>
       <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'4px'}}>Users</h1>
-      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Manage users and reset passwords directly</p>
+      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Manage users, reset passwords and deactivate accounts</p>
 
       {loading ? (
         <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
@@ -71,20 +79,31 @@ export default function AdminUsers() {
             const rc = roleColors[u.role] ?? roleColors.customer
             const isResetting = showReset === u.id
             const msg = message[u.id]
+            const isActive = u.is_active !== false
             return (
-              <div key={u.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'14px 16px'}}>
+              <div key={u.id} style={{backgroundColor: isActive ? 'rgba(255,255,255,0.04)' : 'rgba(162,45,45,0.06)', border:`1px solid ${isActive ? 'rgba(255,255,255,0.08)' : 'rgba(162,45,45,0.2)'}`, borderRadius:'8px', padding:'14px 16px'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
                   <div style={{flex:1, minWidth:0}}>
-                    <div style={{fontSize:'14px', fontWeight:'500', marginBottom:'2px'}}>{u.full_name || '—'}</div>
+                    <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'2px'}}>
+                      <div style={{fontSize:'14px', fontWeight:'500'}}>{u.full_name || '—'}</div>
+                      {!isActive && <span style={{fontSize:'10px', padding:'2px 6px', borderRadius:'6px', backgroundColor:'rgba(162,45,45,0.2)', color:'#f09595'}}>Deactivated</span>}
+                    </div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{u.email}</div>
                   </div>
-                  <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0, flexWrap:'wrap'}}>
                     <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:rc.bg, color:rc.color, fontWeight:'500', textTransform:'capitalize'}}>{u.role}</span>
                     <button
                       onClick={() => setShowReset(isResetting ? null : u.id)}
                       style={{padding:'5px 12px', background:'none', border:'1px solid rgba(244,185,66,0.4)', borderRadius:'4px', color:'#f4b942', fontSize:'11px', cursor:'pointer', fontFamily:'inherit'}}
                     >
                       {isResetting ? 'Cancel' : '🔑 Set password'}
+                    </button>
+                    <button
+                      onClick={() => toggleActive(u.id, isActive)}
+                      disabled={toggling === u.id}
+                      style={{padding:'5px 12px', background:'none', border:`1px solid ${isActive ? 'rgba(162,45,45,0.4)' : 'rgba(29,158,117,0.4)'}`, borderRadius:'4px', color: isActive ? '#f09595' : '#1D9E75', fontSize:'11px', cursor:'pointer', fontFamily:'inherit'}}
+                    >
+                      {toggling === u.id ? '...' : isActive ? 'Deactivate' : 'Reactivate'}
                     </button>
                   </div>
                 </div>
@@ -112,6 +131,10 @@ export default function AdminUsers() {
                       <p style={{fontSize:'12px', color:msg.ok?'#1D9E75':'#f09595', marginTop:'6px', margin:'6px 0 0'}}>{msg.text}</p>
                     )}
                   </div>
+                )}
+
+                {msg && !isResetting && (
+                  <p style={{fontSize:'12px', color:msg.ok?'#1D9E75':'#f09595', marginTop:'8px', margin:'8px 0 0'}}>{msg.text}</p>
                 )}
               </div>
             )

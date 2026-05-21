@@ -33,7 +33,7 @@ function SignInContent() {
     if (!emailVal || !passwordVal || loading) return
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email: emailVal,
       password: passwordVal,
     })
@@ -42,7 +42,14 @@ function SignInContent() {
       setLoading(false)
       return
     }
-    // Force full page reload so Nav re-reads the session
+    // Check if account is active
+    const { data: userData } = await supabase.from('users').select('is_active').eq('id', data.user.id).single()
+    if (userData?.is_active === false) {
+      await supabase.auth.signOut()
+      setError('This account has been deactivated. Please contact support at post@dalaman.me if you believe this is an error.')
+      setLoading(false)
+      return
+    }
     window.location.href = decodeURIComponent(redirect)
   }
 

@@ -13,6 +13,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [deactivateModal, setDeactivateModal] = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -34,6 +36,14 @@ export default function ProfilePage() {
     await supabase.auth.updateUser({ data: { full_name: fullName } })
     await supabase.from('users').update({ full_name: fullName, phone }).eq('id', user.id)
     setSaved(true); setTimeout(() => setSaved(false), 3000); setSaving(false)
+  }
+
+  async function handleDeactivate() {
+    if (!user) return
+    setDeactivating(true)
+    await supabase.from('users').update({ is_active: false }).eq('id', user.id)
+    await supabase.auth.signOut()
+    router.replace('/?deactivated=1')
   }
 
   const inp = { display:'block' as const, width:'100%', fontSize:'16px', padding:'14px 12px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#ffffff', outline:'none', fontFamily:'inherit' }
@@ -65,7 +75,33 @@ export default function ProfilePage() {
             {saving?'Saving...':'Save changes'}
           </button>
         </div>
+
+        {/* Deactivate account */}
+        <div style={{marginTop:'32px', paddingTop:'24px', borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+          <p style={{fontSize:'12px', color:'rgba(255,255,255,0.3)', marginBottom:'12px'}}>Account actions</p>
+          <button onClick={() => setDeactivateModal(true)} style={{padding:'11px 20px', background:'none', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'6px', color:'#f09595', fontSize:'13px', cursor:'pointer', fontFamily:'inherit'}}>
+            Deactivate my account
+          </button>
+        </div>
       </div>
+
+      {/* Deactivate modal */}
+      {deactivateModal && (
+        <div style={{position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:'20px'}}>
+          <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'10px', padding:'28px', maxWidth:'420px', width:'100%'}}>
+            <h2 style={{fontSize:'17px', fontWeight:'600', color:'#ffffff', marginBottom:'8px'}}>Deactivate your account?</h2>
+            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.5)', lineHeight:'1.6', marginBottom:'20px'}}>Your account will be deactivated and you will be signed out immediately. You will not be able to log in until an administrator reactivates your account. Your bookings and quote history will be preserved.</p>
+            <div style={{display:'flex', gap:'10px'}}>
+              <button onClick={() => setDeactivateModal(false)} style={{flex:1, padding:'12px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'13px', cursor:'pointer', fontFamily:'inherit'}}>
+                Cancel
+              </button>
+              <button onClick={handleDeactivate} disabled={deactivating} style={{flex:1, padding:'12px', backgroundColor:'rgba(162,45,45,0.8)', color:'#ffffff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit'}}>
+                {deactivating ? 'Deactivating...' : 'Yes, deactivate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
