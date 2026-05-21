@@ -31,7 +31,6 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   }, [])
 
   async function loadBadge(pId: string) {
-    // Count open quote requests this provider hasn't submitted an offer on yet
     const { data: openRequests } = await supabase
       .from('quote_requests')
       .select('id')
@@ -46,15 +45,24 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
       .eq('provider_id', pId)
       .in('request_id', openRequests.map((r: any) => r.id))
 
-    const offeredIds = new Set((myOffers ?? []).map((o: any) => o.request_id))
-    const unanswered = openRequests.filter((r: any) => !offeredIds.has(r.id)).length
+    const { data: myDeclines } = await supabase
+      .from('quote_declines')
+      .select('request_id')
+      .eq('provider_id', pId)
+      .in('request_id', openRequests.map((r: any) => r.id))
+
+    const handledIds = new Set([
+      ...(myOffers ?? []).map((o: any) => o.request_id),
+      ...(myDeclines ?? []).map((d: any) => d.request_id),
+    ])
+    const unanswered = openRequests.filter((r: any) => !handledIds.has(r.id)).length
     setQuoteBadge(unanswered)
   }
 
-  // Refresh badge every 2 minutes
+  // Refresh badge every 30 seconds
   useEffect(() => {
     if (!providerId) return
-    const interval = setInterval(() => loadBadge(providerId), 120000)
+    const interval = setInterval(() => loadBadge(providerId), 30000)
     return () => clearInterval(interval)
   }, [providerId])
 
@@ -148,3 +156,6 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     </div>
   )
 }
+```
+
+Paste this into `app/provider/layout.tsx` in GitHub. Two changes from the original: declined requests are now filtered out of the badge count, and refresh interval is 30 seconds instead of 2 minutes.
