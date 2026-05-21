@@ -11,6 +11,7 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [acknowledging, setAcknowledging] = useState<string|null>(null)
+  const [cancelling, setCancelling] = useState<string|null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -25,6 +26,13 @@ export default function MyBookings() {
     setLoading(false)
   }
 
+  function isUrgent(pickupTime: string): boolean {
+    const pickup = new Date(pickupTime)
+    const now = new Date()
+    const diffDays = (pickup.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    return diffDays < 14 && diffDays > 0
+  }
+
   async function acknowledgeBooking(booking: any) {
     setAcknowledging(booking.id)
     try {
@@ -35,7 +43,6 @@ export default function MyBookings() {
         changed_by: user?.id, changed_by_role: 'customer',
         note: 'Customer acknowledged provider confirmation — booking fully confirmed'
       })
-      // Notify provider
       if (booking.provider?.user_id) {
         await supabase.from('user_notifications').insert({
           user_id: booking.provider.user_id,
@@ -44,7 +51,6 @@ export default function MyBookings() {
           body: `Customer acknowledged the booking for ${booking.pickup?.name} → ${booking.dropoff?.name}.`,
           link: '/provider/bookings/'
         })
-        // Email provider
         try {
           await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
             method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
@@ -66,6 +72,69 @@ export default function MyBookings() {
     setAcknowledging(null)
   }
 
+  async function cancelBooking(booking: any) {
+    if (!confirm('Are you sure you want to cancel this booking?')) return
+    setCancelling(booking.id)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id)
+      await supabase.from('booking_status_history').insert({
+        booking_id: booking.id, status: 'cancelled',
+        changed_by: user?.id, changed_by_role: 'customer',
+        note: 'Cancelled by customer'
+      })
+      const urgent = isUrgent(booking.pickup_time)
+      const date = new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
+      const time = new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})
+      // Notify provider
+      if (booking.provider?.user_id) {
+        await supabase.from('user_notifications').insert({
+          user_id: booking.provider.user_id,
+          type: 'booking_cancelled',
+          title: 'Booking cancelled',
+          body: `Customer cancelled the booking for ${booking.pickup?.name} → ${booking.dropoff?.name} on ${date}.`,
+          link: '/provider/bookings/'
+        })
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
+            body: JSON.stringify({
+              type: 'booking_cancelled_provider',
+              providerUserId: booking.provider.user_id,
+              data: {
+                pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+                date, time, price: booking.final_price?.toFixed(2),
+                urgent,
+                customerPhone: null,
+                customerEmail: user?.email,
+              }
+            })
+          })
+        } catch (e) { console.error(e) }
+      }
+      // Email customer
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
+          body: JSON.stringify({
+            type: 'booking_cancelled_customer',
+            customerId: user?.id,
+            data: {
+              pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+              date, time, price: booking.final_price?.toFixed(2),
+              providerName: booking.provider?.company_name,
+              urgent,
+              providerPhone: booking.provider?.phone,
+              providerEmail: booking.provider?.user?.email,
+            }
+          })
+        })
+      } catch (e) { console.error(e) }
+      await load()
+    } catch (err) { console.error(err) }
+    setCancelling(null)
+  }
+
   const statusMap: Record<string,{bg:string,color:string,label:string,desc:string}> = {
     pending_provider_confirmation:    {bg:'rgba(244,185,66,0.12)', color:'#f4b942', label:'Awaiting provider', desc:'Provider is reviewing your booking. You will be notified when they confirm.'},
     pending_customer_acknowledgement: {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:'Action needed', desc:'Provider has confirmed. Please acknowledge to fully confirm the booking.'},
@@ -75,6 +144,8 @@ export default function MyBookings() {
     cancelled:                        {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled', desc:''},
     rejected_by_provider:             {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Provider declined', desc:'The provider was unable to fulfil this booking.'},
   }
+
+  const cancellableStatuses = ['pending_provider_confirmation', 'pending_customer_acknowledgement', 'confirmed']
 
   return (
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}}>
@@ -97,6 +168,8 @@ export default function MyBookings() {
           const dt = new Date(b.pickup_time)
           const isPast = dt < new Date()
           const needsAck = b.status === 'pending_customer_acknowledgement'
+          const canCancel = cancellableStatuses.includes(b.status) && !isPast
+          const urgent = isUrgent(b.pickup_time)
           return (
             <div key={b.id} style={{backgroundColor:'#1a1f26', border:needsAck?'1px solid #f4b942':'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', overflow:'hidden', marginBottom:'14px'}}>
               <div style={{padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
@@ -119,6 +192,16 @@ export default function MyBookings() {
                   </div>
                 )}
 
+                {/* Urgent alert for cancelled bookings within 14 days */}
+                {b.status === 'cancelled' && urgent && (
+                  <div style={{padding:'12px 16px', backgroundColor:'rgba(127,29,29,0.5)', border:'2px solid #ef4444', borderRadius:'6px', fontSize:'13px', color:'#fca5a5', marginBottom:'10px', lineHeight:'1.6'}}>
+                    <strong>⚠️ URGENT — Your transfer date is less than 14 days away.</strong><br/>
+                    Please contact the provider directly by phone or WhatsApp as soon as possible.
+                    {b.provider?.phone && <><br/>📞 <a href={`tel:${b.provider.phone}`} style={{color:'#fca5a5'}}>{b.provider.phone}</a> · <a href={`https://wa.me/${b.provider.phone.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener" style={{color:'#86efac'}}>WhatsApp</a></>}
+                    {b.provider?.user?.email && <><br/>✉️ <a href={`mailto:${b.provider.user.email}`} style={{color:'#fca5a5'}}>{b.provider.user.email}</a></>}
+                  </div>
+                )}
+
                 {needsAck && (
                   <button onClick={() => acknowledgeBooking(b)} disabled={acknowledging===b.id}
                     style={{width:'100%', padding:'12px', backgroundColor:'#1D9E75', color:'#ffffff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer', marginBottom:'10px', letterSpacing:'0.05em', textTransform:'uppercase'}}>
@@ -133,6 +216,15 @@ export default function MyBookings() {
                 {!isPast && b.status==='confirmed' && (
                   <div style={{marginTop:'8px', padding:'10px 14px', backgroundColor:'rgba(29,158,117,0.08)', border:'1px solid rgba(29,158,117,0.15)', borderRadius:'6px', fontSize:'12px', color:'#1D9E75'}}>
                     💵 Pay your driver directly on the day — cash or card
+                  </div>
+                )}
+
+                {canCancel && (
+                  <div style={{marginTop:'12px', paddingTop:'10px', borderTop:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'flex-end'}}>
+                    <button onClick={() => cancelBooking(b)} disabled={cancelling===b.id}
+                      style={{padding:'7px 14px', background:'none', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'5px', color:'#f09595', fontSize:'12px', cursor:'pointer', fontFamily:'inherit'}}>
+                      {cancelling===b.id ? 'Cancelling...' : 'Cancel booking'}
+                    </button>
                   </div>
                 )}
               </div>
