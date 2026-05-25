@@ -51,21 +51,20 @@ export default function ProviderQuotes() {
           return
         }
 
-        // Fetch cancelled requests where this provider submitted an offer
-        const { data: myOfferRequests } = await supabase
-          .from('quote_offers')
+        // Fetch cancelled requests via provider_cancelled_requests table (no RLS recursion)
+        const { data: cancelledRefs } = await supabase
+          .from('provider_cancelled_requests')
           .select('request_id')
           .eq('provider_id', provider.id)
 
-        const offeredRequestIds = (myOfferRequests ?? []).map((o: any) => o.request_id)
+        const cancelledRequestIds = (cancelledRefs ?? []).map((r: any) => r.request_id)
 
         let cancelledReqs: any[] = []
-        if (offeredRequestIds.length > 0) {
+        if (cancelledRequestIds.length > 0) {
           const { data: cancelled } = await supabase
             .from('quote_requests')
             .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
-            .eq('status', 'cancelled')
-            .in('id', offeredRequestIds)
+            .in('id', cancelledRequestIds)
             .order('created_at', { ascending: false })
           cancelledReqs = cancelled ?? []
         }
