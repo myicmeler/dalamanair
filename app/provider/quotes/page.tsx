@@ -36,7 +36,8 @@ export default function ProviderQuotes() {
           .from('quote_declines').select('request_id').eq('provider_id', provider.id)
         const declinedIds = new Set((declined ?? []).map((d: any) => d.request_id))
 
-        const { data: reqs, error: reqErr } = await supabase
+        // Fetch open requests
+        const { data: openReqs, error: reqErr } = await supabase
           .from('quote_requests')
           .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
           .eq('status', 'open')
@@ -50,18 +51,39 @@ export default function ProviderQuotes() {
           return
         }
 
-        if (reqs && reqs.length > 0) {
+        // Fetch cancelled requests where this provider submitted an offer
+        const { data: myOfferRequests } = await supabase
+          .from('quote_offers')
+          .select('request_id')
+          .eq('provider_id', provider.id)
+
+        const offeredRequestIds = (myOfferRequests ?? []).map((o: any) => o.request_id)
+
+        let cancelledReqs: any[] = []
+        if (offeredRequestIds.length > 0) {
+          const { data: cancelled } = await supabase
+            .from('quote_requests')
+            .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
+            .eq('status', 'cancelled')
+            .in('id', offeredRequestIds)
+            .order('created_at', { ascending: false })
+          cancelledReqs = cancelled ?? []
+        }
+
+        // Process open requests
+        let visibleOpen: any[] = []
+        if (openReqs && openReqs.length > 0) {
           const { data: myOffers } = await supabase
             .from('quote_offers').select('request_id, status, expiry_reason')
             .eq('provider_id', provider.id)
-            .in('request_id', reqs.map((r: any) => r.id))
+            .in('request_id', openReqs.map((r: any) => r.id))
 
           const offeredMap: Record<string, any> = {}
           for (const o of (myOffers ?? [])) {
             offeredMap[o.request_id] = o
           }
 
-          const visible = reqs
+          visibleOpen = openReqs
             .filter((r: any) => !declinedIds.has(r.id))
             .map((r: any) => ({
               ...r,
@@ -69,11 +91,17 @@ export default function ProviderQuotes() {
               offer_status: offeredMap[r.id]?.status ?? null,
               offer_expiry_reason: offeredMap[r.id]?.expiry_reason ?? null,
             }))
-
-          setRequests(visible)
-        } else {
-          setRequests([])
         }
+
+        // Tag cancelled requests
+        const visibleCancelled = cancelledReqs.map((r: any) => ({
+          ...r,
+          already_offered: true,
+          offer_status: 'cancelled_by_customer',
+          offer_expiry_reason: null,
+        }))
+
+        setRequests([...visibleOpen, ...visibleCancelled])
 
         const { data: vh } = await supabase
           .from('vehicles').select('*').eq('provider_id', provider.id)
@@ -164,9 +192,14 @@ export default function ProviderQuotes() {
         const dt = new Date(req.pickup_time)
         const canSubmit = offer.price && !req.already_offered && submitting !== req.id
         const offerExpired = req.offer_status === 'expired'
+        const isCancelledByCustomer = req.offer_status === 'cancelled_by_customer'
 
         return (
-          <div key={req.id} style={card}>
+          <div key={req.id} style={{
+            ...card,
+            border: isCancelledByCustomer ? '1px solid rgba(162,45,45,0.2)' : '1px solid rgba(255,255,255,0.08)',
+            opacity: isCancelledByCustomer ? 0.7 : 1,
+          }}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px', flexWrap:'wrap', gap:'8px'}}>
               <div>
                 <div style={{fontSize:'16px', fontWeight:'500', marginBottom:'4px'}}>
@@ -180,20 +213,32 @@ export default function ProviderQuotes() {
                 {req.notes && <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'4px', fontStyle:'italic'}}>"{req.notes}"</div>}
               </div>
               <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
-                  Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
-                </div>
-                {!req.already_offered && (
-                  <button
-                    onClick={() => { setDeclineModal(req.id); setDeclineComment('') }}
-                    style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', letterSpacing:'0.05em'}}>
-                    Decline
-                  </button>
+                {isCancelledByCustomer ? (
+                  <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:'rgba(162,45,45,0.12)', color:'#f09595', fontWeight:'500'}}>
+                    Cancelled by customer
+                  </span>
+                ) : (
+                  <>
+                    <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
+                      Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
+                    </div>
+                    {!req.already_offered && (
+                      <button
+                        onClick={() => { setDeclineModal(req.id); setDeclineComment('') }}
+                        style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', letterSpacing:'0.05em'}}>
+                        Decline
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
 
-            {offerExpired ? (
+            {isCancelledByCustomer ? (
+              <div style={{backgroundColor:'rgba(162,45,45,0.08)', border:'1px solid rgba(162,45,45,0.15)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.35)'}}>
+                🚫 This request was cancelled by the customer — no further action needed
+              </div>
+            ) : offerExpired ? (
               <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.4)'}}>
                 ⌛ {req.offer_expiry_reason ?? 'Offer expired'}
               </div>
