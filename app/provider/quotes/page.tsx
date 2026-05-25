@@ -31,7 +31,7 @@ export default function ProviderQuotes() {
         }
 
         setProviderId(provider.id)
-
+        console.log('VERSION: provider_cancelled_requests build')
         const { data: declined } = await supabase
           .from('quote_declines').select('request_id').eq('provider_id', provider.id)
         const declinedIds = new Set((declined ?? []).map((d: any) => d.request_id))
