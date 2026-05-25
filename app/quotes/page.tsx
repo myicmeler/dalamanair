@@ -124,6 +124,11 @@ export default function MyQuotes() {
               link: '/provider/quotes/'
             })
           }
+          // Insert into provider_cancelled_requests so provider can see it
+          await supabase.from('provider_cancelled_requests').insert({
+            provider_id: offer.provider_id,
+            request_id: requestId,
+          })
         }
         setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'cancelled' } : r))
       } else {
