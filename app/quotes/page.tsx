@@ -139,7 +139,7 @@ export default function MyQuotes() {
     open:      { bg:'rgba(244,185,66,0.12)',  color:'#f4b942', label:'Open' },
     accepted:  { bg:'rgba(29,158,117,0.12)',  color:'#1D9E75', label:'Accepted' },
     expired:   { bg:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)', label:'Expired' },
-    cancelled: { bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled' },
+    cancelled: { bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled by customer' },
   }
 
   function getExpiredMessage(requestId: string): string {
@@ -211,6 +211,13 @@ export default function MyQuotes() {
                 {req.status === 'expired' && (
                   <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
                     <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>⌛ {getExpiredMessage(req.id)}</p>
+                    <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
+                  </div>
+                )}
+
+                {req.status === 'cancelled' && (
+                  <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(162,45,45,0.06)', borderRadius:'6px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>🚫 This request was cancelled by you.</p>
                     <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
                   </div>
                 )}
