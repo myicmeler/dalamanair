@@ -18,12 +18,11 @@ function QuoteContent() {
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
     passengers: urlParams.get('passengers') ?? '2', luggage: '2',
-    returnDate: urlParams.get('returnDate') ?? '', returnTime: urlParams.get('returnTime') ?? '10:00',
-    returnPickup: urlParams.get('returnPickup') ?? '',
-    returnDropoff: urlParams.get('returnDropoff') ?? '',
-    returnPassengers: urlParams.get('returnPassengers') ?? '2',
-    returnLuggage: urlParams.get('returnLuggage') ?? '2',
     flightNumber: '', notes: '',
+    returnDate: urlParams.get('returnDate') ?? '', returnTime: urlParams.get('returnTime') ?? '10:00',
+    returnPickup: urlParams.get('returnPickup') ?? '', returnDropoff: urlParams.get('returnDropoff') ?? '',
+    returnPassengers: urlParams.get('returnPassengers') ?? '2', returnLuggage: urlParams.get('returnLuggage') ?? '2',
+    returnFlightNumber: '', returnNotes: '',
   })
 
   useEffect(() => {
@@ -44,7 +43,7 @@ function QuoteContent() {
 
   const tooClose = dateTooClose(form.date)
   const canSubmit = form.pickup && form.dropoff && form.date && form.time && !tooClose
-    && (!isReturn || (form.returnDate && form.returnTime && form.returnPickup))
+    && (!isReturn || (form.returnDate && form.returnTime && form.returnPickup && form.returnDropoff))
 
   async function handleSubmit() {
     setSubmitting(true)
@@ -56,13 +55,15 @@ function QuoteContent() {
         customer_id: user.id, pickup_location_id: form.pickup, dropoff_location_id: form.dropoff,
         pickup_time: pickupDateTime, passengers: parseInt(form.passengers),
         luggage: parseInt(form.luggage), trip_type: isReturn ? 'return' : 'oneway',
+        flight_number: form.flightNumber || null, notes: form.notes || null, status: 'open',
+        expires_at: pickupDateTime,
         return_time: isReturn ? `${form.returnDate}T${form.returnTime}:00` : null,
         return_pickup_location_id: isReturn ? form.returnPickup || null : null,
         return_dropoff_location_id: isReturn ? form.returnDropoff || null : null,
         return_passengers: isReturn ? parseInt(form.returnPassengers) : null,
         return_luggage: isReturn ? parseInt(form.returnLuggage) : null,
-        flight_number: form.flightNumber || null, notes: form.notes || null, status: 'open',
-        expires_at: pickupDateTime,
+        return_flight_number: isReturn ? form.returnFlightNumber || null : null,
+        return_notes: isReturn ? form.returnNotes || null : null,
       }).select().single()
       if (error || !request) throw error
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
@@ -111,9 +112,10 @@ function QuoteContent() {
         <h1 style={{ fontSize: 'clamp(22px,5vw,28px)', fontWeight: '500', color: '#ffffff', marginBottom: '6px' }}>Request a quote</h1>
         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: '1.6' }}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
 
+        {/* OUTBOUND */}
         <div style={card}>
+          <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Outbound journey</p>
 
-          {/* Pick-up / Drop-off */}
           <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div><label style={lbl}>Pick-up</label>
               <select value={form.pickup} onChange={e => setForm(p => ({ ...p, pickup: e.target.value }))} style={inp}>
@@ -129,22 +131,16 @@ function QuoteContent() {
             </div>
           </div>
 
-          {/* Date / Time */}
           <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
               <label style={lbl}>Date</label>
               <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={{ ...inp, borderColor: tooClose ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} />
-              {tooClose && (
-                <p style={{ fontSize: '11px', color: '#e53e3e', marginTop: '6px', lineHeight: '1.5' }}>
-                  ⚠️ Transfer date is less than 5 days away. Providers may not have enough time to respond. Please choose a later date.
-                </p>
-              )}
+              {tooClose && <p style={{ fontSize: '11px', color: '#e53e3e', marginTop: '6px', lineHeight: '1.5' }}>⚠️ Transfer date is less than 5 days away. Please choose a later date.</p>}
             </div>
             <div><label style={lbl}>Time</label><input type="time" value={form.time} onChange={e => setForm(p => ({ ...p, time: e.target.value }))} style={inp} /></div>
           </div>
 
-          {/* Passengers / Suitcases */}
-          <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+          <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div><label style={lbl}>Passengers</label>
               <select value={form.passengers} onChange={e => setForm(p => ({ ...p, passengers: e.target.value }))} style={inp}>
                 {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
@@ -157,63 +153,66 @@ function QuoteContent() {
             </div>
           </div>
 
-          {/* Return checkbox */}
-          <div
-            onClick={() => setIsReturn(p => !p)}
-            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '14px', backgroundColor: isReturn ? 'rgba(244,185,66,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isReturn ? 'rgba(244,185,66,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '6px', userSelect: 'none' }}
-          >
-            <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: `2px solid ${isReturn ? '#f4b942' : 'rgba(255,255,255,0.3)'}`, backgroundColor: isReturn ? '#f4b942' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
-              {isReturn && <span style={{ color: '#0f1419', fontSize: '13px', fontWeight: '700', lineHeight: 1 }}>✓</span>}
-            </div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>Add return journey</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>I need a transfer back on a different date</div>
-            </div>
+          <div style={{ marginBottom: '12px' }}><label style={lbl}>Flight number (optional)</label><input type="text" value={form.flightNumber} onChange={e => setForm(p => ({ ...p, flightNumber: e.target.value }))} placeholder="TK 1234" style={inp} /></div>
+          <div><label style={lbl}>Special requirements (optional)</label><textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
+        </div>
+
+        {/* RETURN CHECKBOX */}
+        <div
+          onClick={() => setIsReturn(p => !p)}
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '14px', marginBottom: '12px', backgroundColor: isReturn ? 'rgba(244,185,66,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isReturn ? 'rgba(244,185,66,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '6px', userSelect: 'none' }}
+        >
+          <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: `2px solid ${isReturn ? '#f4b942' : 'rgba(255,255,255,0.3)'}`, backgroundColor: isReturn ? '#f4b942' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+            {isReturn && <span style={{ color: '#0f1419', fontSize: '13px', fontWeight: '700', lineHeight: 1 }}>✓</span>}
           </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>Add return journey</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>I need a transfer back on a different date</div>
+          </div>
+        </div>
 
-          {/* Return section */}
-          {isReturn && (
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', marginTop: '16px' }}>
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={inp} /></div>
-                <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={inp} /></div>
+        {/* RETURN FIELDS */}
+        {isReturn && (
+          <div style={card}>
+            <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Return journey</p>
+
+            <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div><label style={lbl}>Return pick-up</label>
+                <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
+                  <option value="">—</option>
+                  {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
               </div>
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div><label style={lbl}>Return pick-up</label>
-                  <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
-                    <option value="">—</option>
-                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-                <div><label style={lbl}>Return drop-off</label>
-                  <select value={form.returnDropoff} onChange={e => setForm(p => ({ ...p, returnDropoff: e.target.value }))} style={inp}>
-                    <option value="">—</option>
-                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
-                <div><label style={lbl}>Return passengers</label>
-                  <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
-                    {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div><label style={lbl}>Return suitcases</label>
-                  <select value={form.returnLuggage} onChange={e => setForm(p => ({ ...p, returnLuggage: e.target.value }))} style={inp}>
-                    {Array.from({ length: 15 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
+              <div><label style={lbl}>Return drop-off</label>
+                <select value={form.returnDropoff} onChange={e => setForm(p => ({ ...p, returnDropoff: e.target.value }))} style={inp}>
+                  <option value="">—</option>
+                  {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Additional details */}
-        <div style={card}>
-          <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Additional details (optional)</p>
-          <div style={{ marginBottom: '12px' }}><label style={lbl}>Flight number</label><input type="text" value={form.flightNumber} onChange={e => setForm(p => ({ ...p, flightNumber: e.target.value }))} placeholder="TK 1234" style={inp} /></div>
-          <div><label style={lbl}>Special requirements</label><textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={3} style={{ ...inp, resize: 'none' }} /></div>
-        </div>
+            <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={inp} /></div>
+              <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={inp} /></div>
+            </div>
+
+            <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div><label style={lbl}>Return passengers</label>
+                <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
+                  {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>Return suitcases</label>
+                <select value={form.returnLuggage} onChange={e => setForm(p => ({ ...p, returnLuggage: e.target.value }))} style={inp}>
+                  {Array.from({ length: 15 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number (optional)</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
+            <div><label style={lbl}>Return special requirements (optional)</label><textarea value={form.returnNotes} onChange={e => setForm(p => ({ ...p, returnNotes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
+          </div>
+        )}
 
         <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{ width: '100%', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', padding: '16px', borderRadius: '6px', border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
           {submitting ? 'Sending...' : 'Request quotes →'}
