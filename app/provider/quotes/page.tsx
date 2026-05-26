@@ -38,7 +38,11 @@ export default function ProviderQuotes() {
 
         const { data: reqs, error: reqErr } = await supabase
           .from('quote_requests')
-          .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
+          .select(`*,
+            pickup:locations!pickup_location_id(name),
+            dropoff:locations!dropoff_location_id(name),
+            return_pickup:locations!return_pickup_location_id(name),
+            return_dropoff:locations!return_dropoff_location_id(name)`)
           .eq('status', 'open')
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
@@ -141,9 +145,7 @@ export default function ProviderQuotes() {
       <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'4px'}}>Quote requests</h1>
       <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Open requests from customers — submit your best price</p>
 
-      {loading && (
-        <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
-      )}
+      {loading && <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>}
 
       {!loading && error && (
         <div style={{backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.3)', borderRadius:'8px', padding:'20px', color:'#f09595', fontSize:'14px'}}>
@@ -164,22 +166,39 @@ export default function ProviderQuotes() {
         const dt = new Date(req.pickup_time)
         const canSubmit = offer.price && !req.already_offered && submitting !== req.id
         const offerExpired = req.offer_status === 'expired'
+        const isReturn = req.trip_type === 'return'
 
         return (
           <div key={req.id} style={card}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px', flexWrap:'wrap', gap:'8px'}}>
-              <div>
-                <div style={{fontSize:'16px', fontWeight:'500', marginBottom:'4px'}}>
-                  {req.pickup?.name} → {req.dropoff?.name}
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px'}}>
+              <div style={{flex:1}}>
+                {/* Outbound */}
+                <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px'}}>
+                  {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
+                  <div style={{fontSize:'16px', fontWeight:'500'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
                 </div>
-                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>
-                  {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} passengers
-                  {req.trip_type === 'return' && ' · Return'}
+                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
+                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
                   {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
-                {req.notes && <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'4px', fontStyle:'italic'}}>"{req.notes}"</div>}
+                {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
+
+                {/* Return leg */}
+                {isReturn && req.return_time && (
+                  <>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'6px', marginBottom:'2px'}}>
+                      ↩ {req.return_pickup?.name ?? '—'} → {req.return_dropoff?.name ?? '—'}
+                    </div>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>
+                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
+                      {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
+                    </div>
+                    {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
+                  </>
+                )}
               </div>
-              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+
+              <div style={{display:'flex', alignItems:'center', gap:'10px', flexShrink:0}}>
                 <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
                   Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
                 </div>
@@ -249,14 +268,11 @@ export default function ProviderQuotes() {
               style={{...inp, width:'100%', boxSizing:'border-box', resize:'none', marginBottom:'16px'}}
             />
             <div style={{display:'flex', gap:'10px'}}>
-              <button
-                onClick={() => { setDeclineModal(null); setDeclineComment('') }}
+              <button onClick={() => { setDeclineModal(null); setDeclineComment('') }}
                 style={{flex:1, padding:'11px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'13px', cursor:'pointer'}}>
                 Cancel
               </button>
-              <button
-                onClick={() => confirmDecline(declineModal)}
-                disabled={declining === declineModal}
+              <button onClick={() => confirmDecline(declineModal)} disabled={declining === declineModal}
                 style={{flex:1, padding:'11px', backgroundColor:'rgba(162,45,45,0.8)', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
                 {declining === declineModal ? 'Declining...' : 'Yes, decline'}
               </button>
