@@ -16,6 +16,7 @@ const navItems = [
   { href:'/admin/users/',     label:'Users' },
   { href:'/admin/import/',    label:'↑ Import' },
   { href:'/admin/outreach/',  label:'Outreach' },
+  { href:'/admin/emails/',    label:'📧 Emails' },
   { href:'/admin/cleanup/',   label:'🗑 Cleanup' },
 ]
 
