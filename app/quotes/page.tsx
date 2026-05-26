@@ -20,7 +20,11 @@ export default function MyQuotes() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/signin/?redirect=/quotes/'); return }
       const { data: reqs } = await supabase.from('quote_requests')
-        .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name),
+        .select(`*,
+          pickup:locations!pickup_location_id(name),
+          dropoff:locations!dropoff_location_id(name),
+          return_pickup:locations!return_pickup_location_id(name),
+          return_dropoff:locations!return_dropoff_location_id(name),
           quote_offers(*, provider:providers(id,company_name,phone,user_id,tursab_number,description,user:users!user_id(email)), vehicle:vehicles(make,model,type,seats))`)
         .eq('customer_id', user.id).order('created_at', { ascending: false })
       if (reqs) setRequests(reqs)
@@ -139,7 +143,7 @@ export default function MyQuotes() {
     open:      { bg:'rgba(244,185,66,0.12)',  color:'#f4b942', label:'Open' },
     accepted:  { bg:'rgba(29,158,117,0.12)',  color:'#1D9E75', label:'Accepted' },
     expired:   { bg:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)', label:'Expired' },
-    cancelled: { bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled' },
+    cancelled: { bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled by customer' },
   }
 
   function getExpiredMessage(requestId: string): string {
@@ -178,20 +182,40 @@ export default function MyQuotes() {
           const isExpanded = expanded === req.id
           const history = historyMap[req.id] ?? []
           const canCancel = req.status === 'open'
+          const isReturn = req.trip_type === 'return'
 
           return (
             <div key={req.id} style={card}>
               <div style={{padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer'}} onClick={() => handleExpand(req.id)}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'10px', marginBottom:'4px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'10px', marginBottom:'6px'}}>
                   <div style={{fontSize:'15px', fontWeight:'500', color:'#ffffff', lineHeight:'1.3'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
                   <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0}}>
+                    {isReturn && <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500'}}>↩ Return</span>}
                     <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:s.bg, color:s.color, fontWeight:'500'}}>{s.label}</span>
                     <span style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>{isExpanded?'▲':'▼'}</span>
                   </div>
                 </div>
-                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
-                  {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax{req.trip_type==='return'&&' · Return'}
+
+                {/* Outbound details */}
+                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.45)', marginBottom:'2px'}}>
+                  🛫 {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
+                  {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
+                {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
+
+                {/* Return details */}
+                {isReturn && req.return_time && (
+                  <>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'6px', marginBottom:'2px'}}>
+                      ↩ {req.return_pickup?.name ?? '—'} → {req.return_dropoff?.name ?? '—'}
+                    </div>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>
+                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.return_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
+                      {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
+                    </div>
+                    {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.25)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
+                  </>
+                )}
               </div>
 
               <div style={{padding:'12px 16px'}}>
@@ -200,21 +224,24 @@ export default function MyQuotes() {
                     <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', margin:0}}>⏳ Waiting for providers — prices appear when offers arrive</p>
                   </div>
                 )}
-
                 {req.status === 'open' && hasOffers && pendingOffers.length === 0 && !acceptedOffer && (
                   <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
                     <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>⌛ No active offers — submit a new request if you still need a transfer.</p>
                     <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
                   </div>
                 )}
-
                 {req.status === 'expired' && (
                   <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', marginBottom:'10px'}}>
                     <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>⌛ {getExpiredMessage(req.id)}</p>
                     <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
                   </div>
                 )}
-
+                {req.status === 'cancelled' && (
+                  <div style={{textAlign:'center', padding:'12px', backgroundColor:'rgba(162,45,45,0.06)', borderRadius:'6px', marginBottom:'10px'}}>
+                    <p style={{fontSize:'13px', color:'rgba(255,255,255,0.35)', margin:'0 0 8px'}}>🚫 This request was cancelled by you.</p>
+                    <a href="/quote/" style={{fontSize:'12px', color:'#f4b942', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase'}}>Submit a new request →</a>
+                  </div>
+                )}
                 {req.status === 'open' && pendingOffers.length > 0 && (
                   <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'10px'}}>
                     <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', margin:'0 0 4px'}}>{pendingOffers.length} offer{pendingOffers.length>1?'s':''} received:</p>
@@ -241,7 +268,6 @@ export default function MyQuotes() {
                     ))}
                   </div>
                 )}
-
                 {acceptedOffer && (
                   <div style={{border:'1px solid rgba(244,185,66,0.3)', backgroundColor:'rgba(244,185,66,0.05)', borderRadius:'8px', padding:'12px', marginBottom:'10px'}}>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', gap:'10px'}}>
@@ -261,7 +287,6 @@ export default function MyQuotes() {
                     </div>
                   </div>
                 )}
-
                 {isExpanded && history.length > 0 && (
                   <div style={{marginBottom:'10px', borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'10px'}}>
                     <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:'8px'}}>Status history</p>
@@ -275,7 +300,6 @@ export default function MyQuotes() {
                     ))}
                   </div>
                 )}
-
                 {canCancel && (
                   <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'10px', display:'flex', justifyContent:'flex-end'}}>
                     <button onClick={() => cancelRequest(req.id, hasOffers)} disabled={cancelling===req.id}
