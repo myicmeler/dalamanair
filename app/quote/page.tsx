@@ -20,6 +20,7 @@ function QuoteContent() {
     passengers: urlParams.get('passengers') ?? '2', luggage: '2',
     returnDate: urlParams.get('returnDate') ?? '', returnTime: urlParams.get('returnTime') ?? '10:00',
     returnPickup: urlParams.get('returnPickup') ?? '',
+    returnDropoff: urlParams.get('returnDropoff') ?? '',
     returnPassengers: urlParams.get('returnPassengers') ?? '2',
     returnLuggage: urlParams.get('returnLuggage') ?? '2',
     flightNumber: '', notes: '',
@@ -57,6 +58,7 @@ function QuoteContent() {
         luggage: parseInt(form.luggage), trip_type: isReturn ? 'return' : 'oneway',
         return_time: isReturn ? `${form.returnDate}T${form.returnTime}:00` : null,
         return_pickup_location_id: isReturn ? form.returnPickup || null : null,
+        return_dropoff_location_id: isReturn ? form.returnDropoff || null : null,
         return_passengers: isReturn ? parseInt(form.returnPassengers) : null,
         return_luggage: isReturn ? parseInt(form.returnLuggage) : null,
         flight_number: form.flightNumber || null, notes: form.notes || null, status: 'open',
@@ -184,12 +186,12 @@ function QuoteContent() {
                   </select>
                 </div>
                 <div><label style={lbl}>Return drop-off</label>
-                  <select value={form.dropoff} disabled style={{ ...inp, opacity: 0.5, cursor: 'not-allowed' }}>
-                    <option value={form.dropoff}>{allSorted.find(l => l.id === form.pickup)?.name ?? '—'}</option>
+                  <select value={form.returnDropoff} onChange={e => setForm(p => ({ ...p, returnDropoff: e.target.value }))} style={inp}>
+                    <option value="">—</option>
+                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
               </div>
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '8px' }}>Return drop-off is your outbound pick-up location</p>
               <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
                 <div><label style={lbl}>Return passengers</label>
                   <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
