@@ -47,7 +47,7 @@ export default function Home() {
   const t = labels[lang]
   const [locations, setLocations] = useState<any[]>([])
   const [isReturn, setIsReturn] = useState(false)
-  const [form, setForm] = useState({ pickup: '', dropoff: '', date: '', time: '14:00', passengers: '2', returnDate: '', returnTime: '10:00', returnPickup: '', returnPassengers: '2', returnLuggage: '2' })
+  const [form, setForm] = useState({ pickup: '', dropoff: '', date: '', time: '14:00', passengers: '2', returnDate: '', returnTime: '10:00', returnPickup: '', returnDropoff: '', returnPassengers: '2', returnLuggage: '2' })
 
   useEffect(() => {
     supabase.from('locations').select('*').eq('is_active', true).order('name')
@@ -68,6 +68,7 @@ export default function Home() {
       p.set('returnDate', form.returnDate)
       p.set('returnTime', form.returnTime)
       p.set('returnPickup', form.returnPickup)
+      p.set('returnDropoff', form.returnDropoff)
       p.set('returnPassengers', form.returnPassengers)
       p.set('returnLuggage', form.returnLuggage)
     }
@@ -143,11 +144,19 @@ export default function Home() {
                   <div><label style={lbl}>{t.returnDate}</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={inp} /></div>
                   <div><label style={lbl}>{t.returnTime}</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={inp} /></div>
                 </div>
-                <div><label style={lbl}>{t.returnFrom}</label>
-                  <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
-                    <option value="">—</option>
-                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div><label style={lbl}>{t.returnFrom}</label>
+                    <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
+                      <option value="">—</option>
+                      {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
+                  <div><label style={lbl}>Return drop-off</label>
+                    <select value={form.returnDropoff} onChange={e => setForm(p => ({ ...p, returnDropoff: e.target.value }))} style={inp}>
+                      <option value="">—</option>
+                      {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
