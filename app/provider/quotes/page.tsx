@@ -41,8 +41,8 @@ export default function ProviderQuotes() {
           .select(`*,
             pickup:locations!pickup_location_id(name),
             dropoff:locations!dropoff_location_id(name),
-            return_pickup:locations!return_pickup_location_id(name),
-            return_dropoff:locations!return_dropoff_location_id(name)`)
+            return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
+            return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name)`)
           .eq('status', 'open')
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
