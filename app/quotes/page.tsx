@@ -23,8 +23,8 @@ export default function MyQuotes() {
         .select(`*,
           pickup:locations!pickup_location_id(name),
           dropoff:locations!dropoff_location_id(name),
-          return_pickup:locations!return_pickup_location_id(name),
-          return_dropoff:locations!return_dropoff_location_id(name),
+          return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
+          return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name),
           quote_offers(*, provider:providers(id,company_name,phone,user_id,tursab_number,description,user:users!user_id(email)), vehicle:vehicles(make,model,type,seats))`)
         .eq('customer_id', user.id).order('created_at', { ascending: false })
       if (reqs) setRequests(reqs)
