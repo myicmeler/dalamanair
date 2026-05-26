@@ -19,6 +19,9 @@ function QuoteContent() {
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
     passengers: urlParams.get('passengers') ?? '2', luggage: '2',
     returnDate: urlParams.get('returnDate') ?? '', returnTime: urlParams.get('returnTime') ?? '10:00',
+    returnPickup: urlParams.get('returnPickup') ?? '',
+    returnPassengers: urlParams.get('returnPassengers') ?? '2',
+    returnLuggage: urlParams.get('returnLuggage') ?? '2',
     flightNumber: '', notes: '',
   })
 
@@ -40,11 +43,7 @@ function QuoteContent() {
 
   const tooClose = dateTooClose(form.date)
   const canSubmit = form.pickup && form.dropoff && form.date && form.time && !tooClose
-    && (!isReturn || (form.returnDate && form.returnTime))
-
-  // Get location names for return route display
-  const pickupName = locations.find(l => l.id === form.pickup)?.name
-  const dropoffName = locations.find(l => l.id === form.dropoff)?.name
+    && (!isReturn || (form.returnDate && form.returnTime && form.returnPickup))
 
   async function handleSubmit() {
     setSubmitting(true)
@@ -57,6 +56,9 @@ function QuoteContent() {
         pickup_time: pickupDateTime, passengers: parseInt(form.passengers),
         luggage: parseInt(form.luggage), trip_type: isReturn ? 'return' : 'oneway',
         return_time: isReturn ? `${form.returnDate}T${form.returnTime}:00` : null,
+        return_pickup_location_id: isReturn ? form.returnPickup || null : null,
+        return_passengers: isReturn ? parseInt(form.returnPassengers) : null,
+        return_luggage: isReturn ? parseInt(form.returnLuggage) : null,
         flight_number: form.flightNumber || null, notes: form.notes || null, status: 'open',
         expires_at: pickupDateTime,
       }).select().single()
@@ -170,16 +172,35 @@ function QuoteContent() {
           {/* Return section */}
           {isReturn && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', marginTop: '16px' }}>
-              {pickupName && dropoffName && (
-                <div style={{ backgroundColor: 'rgba(244,185,66,0.06)', border: '1px solid rgba(244,185,66,0.15)', borderRadius: '6px', padding: '10px 14px', marginBottom: '14px' }}>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
-                    🔄 Return route: <span style={{ color: '#f4b942', fontWeight: '500' }}>{dropoffName} → {pickupName}</span>
-                  </p>
-                </div>
-              )}
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                 <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={inp} /></div>
                 <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={inp} /></div>
+              </div>
+              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={lbl}>Return pick-up</label>
+                  <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
+                    <option value="">—</option>
+                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Return drop-off</label>
+                  <select value={form.dropoff} disabled style={{ ...inp, opacity: 0.5, cursor: 'not-allowed' }}>
+                    <option value={form.dropoff}>{allSorted.find(l => l.id === form.pickup)?.name ?? '—'}</option>
+                  </select>
+                </div>
+              </div>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '8px' }}>Return drop-off is your outbound pick-up location</p>
+              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                <div><label style={lbl}>Return passengers</label>
+                  <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
+                    {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Return suitcases</label>
+                  <select value={form.returnLuggage} onChange={e => setForm(p => ({ ...p, returnLuggage: e.target.value }))} style={inp}>
+                    {Array.from({ length: 15 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           )}
