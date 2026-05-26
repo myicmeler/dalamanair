@@ -34,14 +34,17 @@ export default function ProviderQuotes() {
         setProviderId(provider.id)
         setProviderName(provider.company_name)
 
-        // Get declined request IDs for this provider — these are filtered out
         const { data: declined } = await supabase.from('quote_declines')
           .select('request_id').eq('provider_id', provider.id)
         const declinedIds = new Set((declined ?? []).map((d:any) => d.request_id))
 
         const { data: reqs, error: reqErr } = await supabase
           .from('quote_requests')
-          .select(`*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)`)
+          .select(`*,
+            pickup:locations!pickup_location_id(name),
+            dropoff:locations!dropoff_location_id(name),
+            return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
+            return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name)`)
           .eq('status', 'open')
           .gt('pickup_time', new Date().toISOString())
           .order('created_at', { ascending: false })
@@ -53,7 +56,6 @@ export default function ProviderQuotes() {
           return
         }
 
-        // Filter out requests this provider has declined
         const visibleReqs = (reqs ?? []).filter((r:any) => !declinedIds.has(r.id))
 
         if (visibleReqs.length > 0) {
@@ -118,27 +120,24 @@ export default function ProviderQuotes() {
     setDeclining(reqId)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      // Record the decline
       await supabase.from('quote_declines').insert({
         request_id: reqId,
         provider_id: providerId,
         comment: declineComment.trim() || null,
       })
 
-      // Log in quote_status_history (visible to customer)
       await supabase.from('quote_status_history').insert({
         quote_request_id: reqId,
-        status: 'open', // status doesn't change for the request itself
+        status: 'open',
         changed_by: user?.id,
         changed_by_role: 'provider',
         note: `${providerName} declined this request${declineComment.trim()?`: ${declineComment.trim()}`:''}`,
       })
 
-      // Get customer_id for notification
       const { data: req } = await supabase.from('quote_requests')
         .select('customer_id, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)')
         .eq('id', reqId).single()
-      
+
       if (req?.customer_id) {
         await supabase.from('user_notifications').insert({
           user_id: req.customer_id,
@@ -149,7 +148,6 @@ export default function ProviderQuotes() {
         })
       }
 
-      // Remove from this provider's view
       setRequests(prev => prev.filter(r => r.id !== reqId))
       setDeclineModal(null)
       setDeclineComment('')
@@ -189,20 +187,36 @@ export default function ProviderQuotes() {
         const offer = offers[req.id] ?? { price:'', vehicleId:'', notes:'' }
         const dt = new Date(req.pickup_time)
         const canSubmit = offer.price && !req.already_offered && submitting !== req.id
+        const isReturn = req.trip_type === 'return'
 
         return (
           <div key={req.id} style={card}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px', flexWrap:'wrap', gap:'8px'}}>
-              <div>
-                <div style={{fontSize:'16px', fontWeight:'500', marginBottom:'4px'}}>
-                  {req.pickup?.name} → {req.dropoff?.name}
+              <div style={{flex:1}}>
+                {/* Outbound */}
+                <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px'}}>
+                  {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
+                  <div style={{fontSize:'16px', fontWeight:'500'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
                 </div>
-                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>
-                  {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} passengers
-                  {req.trip_type === 'return' && ' · Return'}
+                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
+                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
                   {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
-                {req.notes && <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'4px', fontStyle:'italic'}}>"{req.notes}"</div>}
+                {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
+
+                {/* Return leg */}
+                {isReturn && req.return_time && (
+                  <>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'6px', marginBottom:'2px'}}>
+                      ↩ {req.return_pickup?.name ?? '—'} → {req.return_dropoff?.name ?? '—'}
+                    </div>
+                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>
+                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
+                      {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
+                    </div>
+                    {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
+                  </>
+                )}
               </div>
             </div>
 
@@ -252,7 +266,6 @@ export default function ProviderQuotes() {
         )
       })}
 
-      {/* Decline modal */}
       {declineModal && (
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', zIndex:100}}>
           <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'10px', padding:'24px', maxWidth:'420px', width:'100%'}}>
