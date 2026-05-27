@@ -14,6 +14,7 @@ function QuoteContent() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [isReturn, setIsReturn] = useState((urlParams.get('tripType') ?? 'oneway') === 'return')
+  const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
   const [form, setForm] = useState({
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
@@ -56,7 +57,7 @@ function QuoteContent() {
         pickup_time: pickupDateTime, passengers: parseInt(form.passengers),
         luggage: parseInt(form.luggage), trip_type: isReturn ? 'return' : 'oneway',
         flight_number: form.flightNumber || null, notes: form.notes || null, status: 'open',
-        expires_at: pickupDateTime,
+        expires_at: pickupDateTime, currency,
         return_time: isReturn ? `${form.returnDate}T${form.returnTime}:00` : null,
         return_pickup_location_id: isReturn ? form.returnPickup || null : null,
         return_dropoff_location_id: isReturn ? form.returnDropoff || null : null,
@@ -111,6 +112,25 @@ function QuoteContent() {
         <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '8px' }}>Free · No obligation</p>
         <h1 style={{ fontSize: 'clamp(22px,5vw,28px)', fontWeight: '500', color: '#ffffff', marginBottom: '6px' }}>Request a quote</h1>
         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: '1.6' }}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
+
+        {/* CURRENCY SELECTOR */}
+        <div style={{ marginBottom: '12px' }}>
+          <p style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>Preferred currency</p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {(['EUR', 'GBP'] as const).map(c => (
+              <button key={c} onClick={() => setCurrency(c)} style={{
+                flex: 1, padding: '14px', borderRadius: '6px', border: `2px solid ${currency === c ? '#f4b942' : 'rgba(255,255,255,0.1)'}`,
+                backgroundColor: currency === c ? 'rgba(244,185,66,0.1)' : 'rgba(255,255,255,0.03)',
+                color: currency === c ? '#f4b942' : 'rgba(255,255,255,0.5)',
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px'
+              }}>
+                <span style={{ fontSize: '22px', fontWeight: '700' }}>{c === 'EUR' ? '€' : '£'}</span>
+                <span style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{c === 'EUR' ? 'Euro' : 'British Pound'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* OUTBOUND */}
         <div style={card}>

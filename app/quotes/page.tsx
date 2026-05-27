@@ -45,6 +45,10 @@ export default function MyQuotes() {
     setExpanded(requestId); await loadHistory(requestId)
   }
 
+  function currencySymbol(currency: string) {
+    return currency === 'GBP' ? '£' : '€'
+  }
+
   async function acceptOffer(offerId: string, requestId: string, offer: any) {
     setAccepting(offerId)
     try {
@@ -95,8 +99,8 @@ export default function MyQuotes() {
                 pickup: req.pickup?.name, dropoff: req.dropoff?.name,
                 date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
                 time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-                price: offer.price.toFixed(2), passengers: req.passengers,
-                flightNumber: req.flight_number, notes: req.notes,
+                price: offer.price.toFixed(2), currency: req.currency ?? 'EUR',
+                passengers: req.passengers, flightNumber: req.flight_number, notes: req.notes,
               }
             })
           })
@@ -183,14 +187,16 @@ export default function MyQuotes() {
           const history = historyMap[req.id] ?? []
           const canCancel = req.status === 'open'
           const isReturn = req.trip_type === 'return'
+          const sym = currencySymbol(req.currency ?? 'EUR')
 
           return (
             <div key={req.id} style={card}>
               <div style={{padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer'}} onClick={() => handleExpand(req.id)}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'10px', marginBottom:'6px'}}>
                   <div style={{fontSize:'15px', fontWeight:'500', color:'#ffffff', lineHeight:'1.3'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
-                  <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end'}}>
                     {isReturn && <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500'}}>↩ Return</span>}
+                    <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)', fontWeight:'600'}}>{sym} {req.currency ?? 'EUR'}</span>
                     <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:s.bg, color:s.color, fontWeight:'500'}}>{s.label}</span>
                     <span style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>{isExpanded?'▲':'▼'}</span>
                   </div>
@@ -257,7 +263,7 @@ export default function MyQuotes() {
                               <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>TURSAB: {offer.provider?.tursab_number || 'Not registered yet'}</div>
                             </div>
                           </div>
-                          <div style={{fontSize:'20px', fontWeight:'600', color:'#f4b942', flexShrink:0}}>€ {offer.price?.toFixed(2)}</div>
+                          <div style={{fontSize:'20px', fontWeight:'600', color:'#f4b942', flexShrink:0}}>{sym} {offer.price?.toFixed(2)}</div>
                         </div>
                         {offer.notes&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', padding:'8px 10px', backgroundColor:'rgba(255,255,255,0.03)', borderRadius:'5px', marginBottom:'10px', fontStyle:'italic'}}>"{offer.notes}"</div>}
                         <button onClick={() => acceptOffer(offer.id, req.id, offer)} disabled={accepting===offer.id}
@@ -280,7 +286,7 @@ export default function MyQuotes() {
                           <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>TURSAB: {acceptedOffer.provider?.tursab_number || 'Not registered yet'}</div>
                         </div>
                       </div>
-                      <div style={{fontSize:'18px', fontWeight:'600', color:'#f4b942', flexShrink:0}}>€ {acceptedOffer.price?.toFixed(2)}</div>
+                      <div style={{fontSize:'18px', fontWeight:'600', color:'#f4b942', flexShrink:0}}>{sym} {acceptedOffer.price?.toFixed(2)}</div>
                     </div>
                     <div style={{fontSize:'12px', color:'#1D9E75', padding:'8px 12px', backgroundColor:'rgba(29,158,117,0.08)', borderRadius:'5px'}}>
                       ✓ Booking created · See <a href="/bookings/" style={{color:'#1D9E75', textDecoration:'underline'}}>My bookings</a> for confirmation status

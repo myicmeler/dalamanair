@@ -137,6 +137,10 @@ export default function ProviderQuotes() {
     setDeclineComment('')
   }
 
+  function currencySymbol(currency: string) {
+    return currency === 'GBP' ? '£' : '€'
+  }
+
   const card: React.CSSProperties = { backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'16px', marginBottom:'10px' }
   const inp: React.CSSProperties = { fontSize:'14px', padding:'10px', backgroundColor:'#1e2530', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#f0ede6', outline:'none', colorScheme:'dark' as any }
 
@@ -167,14 +171,18 @@ export default function ProviderQuotes() {
         const canSubmit = offer.price && !req.already_offered && submitting !== req.id
         const offerExpired = req.offer_status === 'expired'
         const isReturn = req.trip_type === 'return'
+        const sym = currencySymbol(req.currency ?? 'EUR')
 
         return (
           <div key={req.id} style={card}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px'}}>
               <div style={{flex:1}}>
                 {/* Outbound */}
-                <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
                   {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
+                  <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)', fontWeight:'600', flexShrink:0}}>
+                    {sym} {req.currency ?? 'EUR'}
+                  </span>
                   <div style={{fontSize:'16px', fontWeight:'500'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
@@ -223,7 +231,7 @@ export default function ProviderQuotes() {
             ) : (
               <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'12px', display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
                 <div style={{flex:'1', minWidth:'120px'}}>
-                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Your price (€) *</label>
+                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Your price ({sym}) *</label>
                   <input type="number" placeholder="0.00" value={offer.price}
                     onChange={e => updateOffer(req.id, 'price', e.target.value)}
                     style={{...inp, width:'100%', boxSizing:'border-box'}} />
