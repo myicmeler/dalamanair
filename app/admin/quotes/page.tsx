@@ -15,6 +15,9 @@ export default function AdminQuotes() {
   const [editForm, setEditForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
   const [historyMap, setHistoryMap] = useState<Record<string,any[]>>({})
+  const [editingOffer, setEditingOffer] = useState<string|null>(null)
+  const [editOfferPrice, setEditOfferPrice] = useState<string>('')
+  const [savingOffer, setSavingOffer] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -25,7 +28,7 @@ export default function AdminQuotes() {
         pickup:locations!pickup_location_id(name),
         dropoff:locations!dropoff_location_id(name),
         customer:users!customer_id(email, full_name),
-        quote_offers(*, provider:providers(company_name), vehicle:vehicles(make,model,seats))
+        quote_offers(*, provider:providers(company_name, user_id, user:users!user_id(email)), vehicle:vehicles(make,model,seats))
       `).order('created_at', { ascending: false }),
       supabase.from('locations').select('id,name').eq('is_active', true).order('name')
     ])
@@ -73,7 +76,6 @@ export default function AdminQuotes() {
       flight_number:       editForm.flight_number || null,
       notes:               editForm.notes || null,
     }).eq('id', req.id)
-    // Log the edit
     await supabase.from('quote_status_history').insert({
       quote_request_id: req.id, status: req.status,
       changed_by: user?.id, changed_by_role: 'admin',
@@ -82,6 +84,57 @@ export default function AdminQuotes() {
     await load()
     setEditing(null)
     setSaving(false)
+  }
+
+  async function saveOfferPrice(req: any, offer: any) {
+    if (!editOfferPrice || isNaN(parseFloat(editOfferPrice))) return
+    setSavingOffer(true)
+    try {
+      const newPrice = parseFloat(editOfferPrice)
+      const oldPrice = offer.price
+
+      // Update the offer price
+      await supabase.from('quote_offers')
+        .update({ price: newPrice })
+        .eq('id', offer.id)
+
+      // Log in status history
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('quote_status_history').insert({
+        quote_request_id: req.id, status: req.status,
+        changed_by: user?.id, changed_by_role: 'admin',
+        note: `Offer price updated by admin: ${oldPrice?.toFixed(2)} → ${newPrice.toFixed(2)} (${offer.provider?.company_name})`
+      })
+
+      // Send email to customer
+      const sym = req.currency === 'GBP' ? '£' : '€'
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({
+            type: 'offer_price_updated',
+            to: req.customer?.email,
+            data: {
+              customerName: req.customer?.full_name || 'Customer',
+              pickup: req.pickup?.name,
+              dropoff: req.dropoff?.name,
+              date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
+              time: new Date(req.pickup_time).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }),
+              providerName: offer.provider?.company_name,
+              oldPrice: `${sym}${oldPrice?.toFixed(2)}`,
+              newPrice: `${sym}${newPrice.toFixed(2)}`,
+              quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
+            }
+          })
+        })
+      } catch (e) { console.error('Email error:', e) }
+
+      setEditingOffer(null)
+      setEditOfferPrice('')
+      await load()
+    } catch (err) { console.error(err) }
+    setSavingOffer(false)
   }
 
   async function updateStatus(req: any, newStatus: string) {
@@ -184,6 +237,7 @@ export default function AdminQuotes() {
         const log = pushLog[req.id]
         const history = historyMap[req.id] ?? []
         const canEdit = req.status === 'open'
+        const sym = req.currency === 'GBP' ? '£' : '€'
 
         return (
           <div key={req.id} style={card}>
@@ -192,6 +246,7 @@ export default function AdminQuotes() {
                 <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
                   <span style={{fontSize:'15px', fontWeight:'500'}}>{req.pickup?.name} → {req.dropoff?.name}</span>
                   <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:s.bg, color:s.color, fontWeight:'500', textTransform:'capitalize'}}>{req.status}</span>
+                  {req.currency && <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.5)', fontWeight:'600'}}>{sym} {req.currency}</span>}
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
                   {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax
@@ -201,7 +256,7 @@ export default function AdminQuotes() {
               </div>
               <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'4px', flexShrink:0}}>
                 <span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{offers.length} offer{offers.length!==1?'s':''}</span>
-                {acceptedOffer && <span style={{fontSize:'13px', fontWeight:'500', color:'#1D9E75'}}>€ {acceptedOffer.price?.toFixed(2)}</span>}
+                {acceptedOffer && <span style={{fontSize:'13px', fontWeight:'500', color:'#1D9E75'}}>{sym} {acceptedOffer.price?.toFixed(2)}</span>}
                 <span style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>{isExpanded?'▲':'▼'}</span>
               </div>
             </div>
@@ -265,16 +320,59 @@ export default function AdminQuotes() {
                     {offers.map((offer:any) => {
                       const os: Record<string,{bg:string,color:string}> = { pending:{bg:'rgba(244,185,66,0.1)',color:'#f4b942'}, accepted:{bg:'rgba(29,158,117,0.1)',color:'#1D9E75'}, rejected:{bg:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.3)'} }
                       const o = os[offer.status] ?? os.pending
+                      const isEditingThisOffer = editingOffer === offer.id
+
                       return (
-                        <div key={offer.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', backgroundColor:'rgba(255,255,255,0.03)', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.06)', marginBottom:'6px'}}>
-                          <div>
-                            <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'2px'}}>{offer.provider?.company_name??'—'}</div>
-                            {offer.vehicle&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{offer.vehicle.make} {offer.vehicle.model} · {offer.vehicle.seats} seats</div>}
+                        <div key={offer.id} style={{padding:'10px 12px', backgroundColor:'rgba(255,255,255,0.03)', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.06)', marginBottom:'6px'}}>
+                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'2px'}}>{offer.provider?.company_name??'—'}</div>
+                              {offer.vehicle&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{offer.vehicle.make} {offer.vehicle.model} · {offer.vehicle.seats} seats</div>}
+                            </div>
+                            <div style={{display:'flex', alignItems:'center', gap:'10px', flexShrink:0}}>
+                              <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>{sym} {offer.price?.toFixed(2)}</span>
+                              <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:o.bg, color:o.color, fontWeight:'500', textTransform:'capitalize'}}>{offer.status}</span>
+                              {offer.status !== 'rejected' && (
+                                <button
+                                  onClick={() => { setEditingOffer(offer.id); setEditOfferPrice(offer.price?.toFixed(2) ?? '') }}
+                                  style={{fontSize:'11px', padding:'3px 8px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'4px', color:'rgba(255,255,255,0.5)', cursor:'pointer', fontFamily:'inherit'}}>
+                                  ✏️ Edit price
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div style={{display:'flex', alignItems:'center', gap:'10px', flexShrink:0}}>
-                            <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>€ {offer.price?.toFixed(2)}</span>
-                            <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:o.bg, color:o.color, fontWeight:'500', textTransform:'capitalize'}}>{offer.status}</span>
-                          </div>
+
+                          {/* Inline price editor */}
+                          {isEditingThisOffer && (
+                            <div style={{marginTop:'10px', padding:'10px', backgroundColor:'rgba(244,185,66,0.05)', border:'1px solid rgba(244,185,66,0.15)', borderRadius:'5px'}}>
+                              <p style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', marginBottom:'8px'}}>
+                                Update price — customer will be notified by email
+                              </p>
+                              <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                                <span style={{color:'#f4b942', fontSize:'16px', fontWeight:'600'}}>{sym}</span>
+                                <input
+                                  type="number"
+                                  value={editOfferPrice}
+                                  onChange={e => setEditOfferPrice(e.target.value)}
+                                  step="0.01"
+                                  min="0"
+                                  style={{...inp, width:'120px', fontSize:'16px', fontWeight:'500'}}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => saveOfferPrice(req, offer)}
+                                  disabled={savingOffer}
+                                  style={{padding:'8px 14px', backgroundColor:'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit'}}>
+                                  {savingOffer ? 'Saving...' : 'Save & notify'}
+                                </button>
+                                <button
+                                  onClick={() => { setEditingOffer(null); setEditOfferPrice('') }}
+                                  style={{padding:'8px 12px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'5px', color:'rgba(255,255,255,0.5)', fontSize:'12px', cursor:'pointer', fontFamily:'inherit'}}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
