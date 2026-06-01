@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 
 export default function ProviderQuotes() {
@@ -14,83 +14,102 @@ export default function ProviderQuotes() {
   const [declineModal, setDeclineModal] = useState<string|null>(null)
   const [declineComment, setDeclineComment] = useState('')
   const [offers, setOffers] = useState<Record<string, { price:string, vehicleId:string, notes:string }>>({})
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { setError('Not signed in'); setLoading(false); return }
+  const load = useCallback(async (provId?: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setError('Not signed in'); setLoading(false); return }
 
+      let pid = provId ?? providerId
+      if (!pid) {
         const { data: provider, error: provErr } = await supabase
           .from('providers').select('id, company_name').eq('user_id', user.id).single()
-
         if (provErr || !provider) {
           setError('Provider account not found. Make sure your account is approved.')
           setLoading(false)
           return
         }
-
-        setProviderId(provider.id)
-
-        const { data: declined } = await supabase
-          .from('quote_declines').select('request_id').eq('provider_id', provider.id)
-        const declinedIds = new Set((declined ?? []).map((d: any) => d.request_id))
-
-        const { data: reqs, error: reqErr } = await supabase
-          .from('quote_requests')
-          .select(`*,
-            pickup:locations!pickup_location_id(name),
-            dropoff:locations!dropoff_location_id(name),
-            return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
-            return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name)`)
-          .eq('status', 'open')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-
-        if (reqErr) {
-          console.error('Quote requests error:', reqErr)
-          setError(`Could not load quote requests: ${reqErr.message}`)
-          setLoading(false)
-          return
-        }
-
-        if (reqs && reqs.length > 0) {
-          const { data: myOffers } = await supabase
-            .from('quote_offers').select('request_id, status, expiry_reason')
-            .eq('provider_id', provider.id)
-            .in('request_id', reqs.map((r: any) => r.id))
-
-          const offeredMap: Record<string, any> = {}
-          for (const o of (myOffers ?? [])) {
-            offeredMap[o.request_id] = o
-          }
-
-          const visible = reqs
-            .filter((r: any) => !declinedIds.has(r.id))
-            .map((r: any) => ({
-              ...r,
-              already_offered: !!offeredMap[r.id],
-              offer_status: offeredMap[r.id]?.status ?? null,
-              offer_expiry_reason: offeredMap[r.id]?.expiry_reason ?? null,
-            }))
-
-          setRequests(visible)
-        } else {
-          setRequests([])
-        }
-
-        const { data: vh } = await supabase
-          .from('vehicles').select('*').eq('provider_id', provider.id)
-        if (vh) setVehicles(vh)
-
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+        pid = provider.id
+        setProviderId(pid)
       }
+
+      const { data: declined } = await supabase
+        .from('quote_declines').select('request_id').eq('provider_id', pid)
+      const declinedIds = new Set((declined ?? []).map((d: any) => d.request_id))
+
+      const { data: reqs, error: reqErr } = await supabase
+        .from('quote_requests')
+        .select(`*,
+          pickup:locations!pickup_location_id(name),
+          dropoff:locations!dropoff_location_id(name),
+          return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
+          return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name)`)
+        .eq('status', 'open')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+
+      if (reqErr) {
+        setError(`Could not load quote requests: ${reqErr.message}`)
+        setLoading(false)
+        return
+      }
+
+      if (reqs && reqs.length > 0) {
+        const { data: myOffers } = await supabase
+          .from('quote_offers').select('request_id, status, expiry_reason, price')
+          .eq('provider_id', pid)
+          .in('request_id', reqs.map((r: any) => r.id))
+
+        const offeredMap: Record<string, any> = {}
+        for (const o of (myOffers ?? [])) {
+          offeredMap[o.request_id] = o
+        }
+
+        const visible = reqs
+          .filter((r: any) => !declinedIds.has(r.id))
+          .map((r: any) => ({
+            ...r,
+            already_offered: !!offeredMap[r.id],
+            offer_status: offeredMap[r.id]?.status ?? null,
+            offer_expiry_reason: offeredMap[r.id]?.expiry_reason ?? null,
+            offered_price: offeredMap[r.id]?.price ?? null,
+          }))
+
+        setRequests(visible)
+      } else {
+        setRequests([])
+      }
+
+      const { data: vh } = await supabase
+        .from('vehicles').select('*').eq('provider_id', pid)
+      if (vh) setVehicles(vh)
+
+      setLastRefresh(new Date())
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [])
+  }, [providerId])
+
+  // Initial load
+  useEffect(() => { load() }, [])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (providerId) load(providerId)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [providerId, load])
+
+  // Re-fetch on window focus
+  useEffect(() => {
+    const onFocus = () => { if (providerId) load(providerId) }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [providerId, load])
 
   function updateOffer(reqId: string, field: string, value: string) {
     setOffers(prev => ({ ...prev, [reqId]: { price:'', vehicleId:'', notes:'', ...prev[reqId], [field]: value } }))
@@ -110,7 +129,12 @@ export default function ProviderQuotes() {
         status:      'pending',
       })
       if (!error) {
-        setRequests(prev => prev.map(r => r.id === reqId ? { ...r, already_offered: true, offer_status: 'pending' } : r))
+        setRequests(prev => prev.map(r => r.id === reqId ? {
+          ...r,
+          already_offered: true,
+          offer_status: 'pending',
+          offered_price: parseFloat(offer.price),
+        } : r))
       }
     } catch (err) {
       console.error(err)
@@ -146,8 +170,16 @@ export default function ProviderQuotes() {
 
   return (
     <div style={{padding:'20px'}}>
-      <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'4px'}}>Quote requests</h1>
-      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Open requests from customers — submit your best price</p>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
+        <h1 style={{fontSize:'20px', fontWeight:'500'}}>Quote requests</h1>
+        <button onClick={() => load(providerId)} style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', fontFamily:'inherit'}}>
+          ↻ Refresh
+        </button>
+      </div>
+      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'4px'}}>Open requests from customers — submit your best price</p>
+      <p style={{fontSize:'10px', color:'rgba(255,255,255,0.2)', marginBottom:'20px'}}>
+        Last updated: {lastRefresh.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} · auto-refreshes every 30s
+      </p>
 
       {loading && <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>}
 
@@ -177,7 +209,6 @@ export default function ProviderQuotes() {
           <div key={req.id} style={card}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px'}}>
               <div style={{flex:1}}>
-                {/* Outbound */}
                 <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
                   {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
                   <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)', fontWeight:'600', flexShrink:0}}>
@@ -191,7 +222,6 @@ export default function ProviderQuotes() {
                 </div>
                 {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
 
-                {/* Return leg */}
                 {isReturn && req.return_time && (
                   <>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'6px', marginBottom:'2px'}}>
@@ -207,9 +237,6 @@ export default function ProviderQuotes() {
               </div>
 
               <div style={{display:'flex', alignItems:'center', gap:'10px', flexShrink:0}}>
-                <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
-                  Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
-                </div>
                 {!req.already_offered && (
                   <button
                     onClick={() => { setDeclineModal(req.id); setDeclineComment('') }}
@@ -226,7 +253,7 @@ export default function ProviderQuotes() {
               </div>
             ) : req.already_offered ? (
               <div style={{backgroundColor:'rgba(29,158,117,0.1)', border:'1px solid rgba(29,158,117,0.2)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'#1D9E75'}}>
-                ✓ Offer submitted — waiting for customer response
+                ✓ Offer submitted · <strong>{sym} {req.offered_price != null ? req.offered_price.toFixed(2) : '—'}</strong> · waiting for customer response
               </div>
             ) : (
               <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'12px', display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
