@@ -47,24 +47,29 @@ export default function SignUpPage() {
       if (!userId) { setError('Could not create account. Please try again.'); setLoading(false); return }
 
       if (isProvider) {
-        // 2. Update public.users role to provider
-        await supabase.from('users').upsert({
-          id: userId,
-          email: form.email,
-          full_name: providerForm.companyName,
-          phone: providerForm.providerPhone || form.phone || null,
-          role: 'provider',
+        // 2. Call edge function to create provider record server-side
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/register-provider`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            userId,
+            email: form.email,
+            fullName: form.fullName,
+            companyName: providerForm.companyName,
+            tursabNumber: providerForm.tursabNumber,
+            phone: providerForm.providerPhone || form.phone || null,
+          })
         })
 
-        // 3. Create provider record — approved immediately (TURSAB required)
-        await supabase.from('providers').insert({
-          user_id: userId,
-          company_name: providerForm.companyName,
-          contact_name: form.fullName,
-          phone: providerForm.providerPhone || form.phone || null,
-          tursab_number: providerForm.tursabNumber,
-          is_approved: true,
-        })
+        const result = await res.json()
+        if (!res.ok || result.error) {
+          setError(result.error ?? 'Provider registration failed. Please try again.')
+          setLoading(false)
+          return
+        }
       }
 
       if (data.session) {
