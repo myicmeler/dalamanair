@@ -10,6 +10,8 @@ export default function AdminQuotes() {
   const [filter, setFilter] = useState<'all'|'open'|'accepted'|'expired'|'cancelled'>('all')
   const [pushing, setPushing] = useState<string|null>(null)
   const [pushLog, setPushLog] = useState<Record<string,{sent:number,time:string}>>({})
+  const [reminding, setReminding] = useState<string|null>(null)
+  const [reminderLog, setReminderLog] = useState<Record<string,string>>({})
   const [expanded, setExpanded] = useState<string|null>(null)
   const [editing, setEditing] = useState<string|null>(null)
   const [editForm, setEditForm] = useState<any>({})
@@ -93,12 +95,10 @@ export default function AdminQuotes() {
       const newPrice = parseFloat(editOfferPrice)
       const oldPrice = offer.price
 
-      // Update the offer price
       await supabase.from('quote_offers')
         .update({ price: newPrice })
         .eq('id', offer.id)
 
-      // Log in status history
       const { data: { user } } = await supabase.auth.getUser()
       await supabase.from('quote_status_history').insert({
         quote_request_id: req.id, status: req.status,
@@ -106,7 +106,6 @@ export default function AdminQuotes() {
         note: `Offer price updated by admin: ${oldPrice?.toFixed(2)} → ${newPrice.toFixed(2)} (${offer.provider?.company_name})`
       })
 
-      // Send email to customer
       const sym = req.currency === 'GBP' ? '£' : '€'
       try {
         await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
@@ -135,6 +134,41 @@ export default function AdminQuotes() {
       await load()
     } catch (err) { console.error(err) }
     setSavingOffer(false)
+  }
+
+  async function remindCustomer(req: any) {
+    setReminding(req.id)
+    try {
+      const pendingCount = (req.quote_offers ?? []).filter((o:any) => o.status === 'pending').length
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({
+          type: 'offers_waiting_reminder',
+          to: req.customer?.email,
+          data: {
+            customerName: req.customer?.full_name || 'Customer',
+            pickup: req.pickup?.name,
+            dropoff: req.dropoff?.name,
+            date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
+            offerCount: pendingCount,
+            quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
+          }
+        })
+      })
+      const result = await res.json()
+      if (res.ok && result.sent) {
+        setReminderLog(prev => ({ ...prev, [req.id]: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}) }))
+        // Log in history
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from('quote_status_history').insert({
+          quote_request_id: req.id, status: req.status,
+          changed_by: user?.id, changed_by_role: 'admin',
+          note: 'Reminder email sent to customer — offers waiting'
+        })
+      }
+    } catch (err) { console.error(err) }
+    setReminding(null)
   }
 
   async function updateStatus(req: any, newStatus: string) {
@@ -232,11 +266,14 @@ export default function AdminQuotes() {
         const s = statusColors[req.status] ?? statusColors.expired
         const offers = req.quote_offers ?? []
         const acceptedOffer = offers.find((o:any) => o.status==='accepted')
+        const pendingCount = offers.filter((o:any) => o.status === 'pending').length
         const isExpanded = expanded === req.id
         const isEditing = editing === req.id
         const log = pushLog[req.id]
+        const reminderTime = reminderLog[req.id]
         const history = historyMap[req.id] ?? []
         const canEdit = req.status === 'open'
+        const canRemind = req.status === 'open' && pendingCount > 0
         const sym = req.currency === 'GBP' ? '£' : '€'
 
         return (
@@ -342,7 +379,6 @@ export default function AdminQuotes() {
                             </div>
                           </div>
 
-                          {/* Inline price editor */}
                           {isEditingThisOffer && (
                             <div style={{marginTop:'10px', padding:'10px', backgroundColor:'rgba(244,185,66,0.05)', border:'1px solid rgba(244,185,66,0.15)', borderRadius:'5px'}}>
                               <p style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', marginBottom:'8px'}}>
@@ -406,10 +442,16 @@ export default function AdminQuotes() {
                   {req.status === 'cancelled' && (
                     <button onClick={() => updateStatus(req,'open')} style={{padding:'7px 14px', background:'none', border:'1px solid rgba(29,158,117,0.4)', borderRadius:'5px', color:'#1D9E75', fontSize:'12px', cursor:'pointer', fontFamily:'inherit'}}>Re-open</button>
                   )}
+                  {canRemind && (
+                    <button onClick={() => remindCustomer(req)} disabled={reminding===req.id} style={{padding:'7px 14px', background:'none', border:'1px solid rgba(100,149,237,0.4)', borderRadius:'5px', color:'#6495ED', fontSize:'12px', cursor:reminding===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
+                      {reminding===req.id ? 'Sending...' : '📧 Remind customer'}
+                    </button>
+                  )}
                   <button onClick={() => pushToProviders(req.id)} disabled={pushing===req.id} style={{padding:'7px 14px', backgroundColor:pushing===req.id?'rgba(244,185,66,0.3)':'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:pushing===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
                     {pushing===req.id?'Sending...':'📨 Push to providers'}
                   </button>
                   {log&&<span style={{fontSize:'12px', color:'#1D9E75'}}>✓ Sent to {log.sent} at {log.time}</span>}
+                  {reminderTime&&<span style={{fontSize:'12px', color:'#6495ED'}}>✓ Reminder sent at {reminderTime}</span>}
                 </div>
               </div>
             )}
