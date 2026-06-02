@@ -15,6 +15,8 @@ function QuoteContent() {
   const [submitted, setSubmitted] = useState(false)
   const [isReturn, setIsReturn] = useState((urlParams.get('tripType') ?? 'oneway') === 'return')
   const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
+  const [enterComp, setEnterComp] = useState(false)
+  const [compAnswer, setCompAnswer] = useState('')
   const [form, setForm] = useState({
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
@@ -67,6 +69,19 @@ function QuoteContent() {
         return_notes: isReturn ? form.returnNotes || null : null,
       }).select().single()
       if (error || !request) throw error
+
+      // Competition entry (voluntary, free)
+      if (enterComp) {
+        try {
+          await supabase.from('competition_entries').insert({
+            quote_request_id: request.id,
+            customer_id: user.id,
+            email: user.email,
+            preferences_answer: compAnswer.trim() || null,
+          })
+        } catch (e) { console.error('Competition entry error:', e) }
+      }
+
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
         body: JSON.stringify({ requestId: request.id }),
@@ -88,6 +103,7 @@ function QuoteContent() {
         <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '10px' }}>Request sent</p>
         <h1 style={{ fontSize: '26px', fontWeight: '500', color: '#ffffff', marginBottom: '10px' }}>Quote request submitted</h1>
         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>All approved providers have been notified. You will receive an email each time a provider submits an offer.</p>
+        {enterComp && <p style={{ fontSize: '13px', color: '#f4b942', marginBottom: '8px' }}>🎉 You're entered into this month's prize draw — good luck!</p>}
         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '32px' }}>Prices are hidden until a provider responds.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
           <a href="/quotes/" style={{ width: '100%', maxWidth: '300px', padding: '14px 24px', backgroundColor: '#f4b942', color: '#0f1419', borderRadius: '6px', fontSize: '13px', fontWeight: '500', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'center', display: 'block' }}>View my quotes →</a>
@@ -231,6 +247,33 @@ function QuoteContent() {
 
             <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number (optional)</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
             <div><label style={lbl}>Return special requirements (optional)</label><textarea value={form.returnNotes} onChange={e => setForm(p => ({ ...p, returnNotes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
+          </div>
+        )}
+
+        {/* COMPETITION SECTION */}
+        <div
+          onClick={() => setEnterComp(p => !p)}
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '14px', marginBottom: enterComp ? '12px' : '20px', backgroundColor: enterComp ? 'rgba(244,185,66,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${enterComp ? 'rgba(244,185,66,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '6px', userSelect: 'none' }}
+        >
+          <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: `2px solid ${enterComp ? '#f4b942' : 'rgba(255,255,255,0.3)'}`, backgroundColor: enterComp ? '#f4b942' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+            {enterComp && <span style={{ color: '#0f1419', fontSize: '13px', fontWeight: '700', lineHeight: 1 }}>✓</span>}
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>🎉 Enter our prize draw — it's completely FREE</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Win your transfer reimbursed up to £90 + restaurant vouchers</div>
+          </div>
+        </div>
+
+        {/* COMPETITION DETAILS */}
+        {enterComp && (
+          <div style={{ ...card, border: '1px solid rgba(244,185,66,0.2)', backgroundColor: 'rgba(244,185,66,0.04)' }}>
+            <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '10px' }}>Prize draw entry</p>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.6', marginBottom: '14px' }}>
+              Requesting a quote is <strong style={{ color: '#f4b942' }}>always free</strong> and costs you nothing. You only pay your driver directly on the day — and that has no effect on your chances of winning. Everyone who enters has an equal chance.
+            </p>
+            <label style={lbl}>One quick question (optional)</label>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>What matters most to you when booking an airport transfer?</p>
+            <textarea value={compAnswer} onChange={e => setCompAnswer(e.target.value)} placeholder="e.g. reliability, price, comfort, friendly drivers..." rows={3} maxLength={500} style={{ ...inp, resize: 'none' }} />
           </div>
         )}
 
