@@ -39,7 +39,10 @@ export default function SignUpPage() {
       // 1. Create auth user
       const { data, error: authErr } = await supabase.auth.signUp({
         email: form.email, password: form.password,
-        options: { data:{ full_name: form.fullName }, emailRedirectTo:`${window.location.origin}/` }
+        options: {
+          data:{ full_name: form.fullName },
+          emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/welcome/' : '/'}`,
+        }
       })
       if (authErr) { setError(authErr.message); setLoading(false); return }
 
@@ -73,7 +76,7 @@ export default function SignUpPage() {
       }
 
       if (data.session) {
-        router.replace(isProvider ? '/provider/' : '/')
+        router.replace(isProvider ? '/provider/welcome/' : '/')
       } else {
         setSuccess(true)
       }
