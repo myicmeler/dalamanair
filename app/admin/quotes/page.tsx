@@ -20,6 +20,8 @@ export default function AdminQuotes() {
   const [editingOffer, setEditingOffer] = useState<string|null>(null)
   const [editOfferPrice, setEditOfferPrice] = useState<string>('')
   const [savingOffer, setSavingOffer] = useState(false)
+  const [deleting, setDeleting] = useState<string|null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -159,7 +161,6 @@ export default function AdminQuotes() {
       const result = await res.json()
       if (res.ok && result.sent) {
         setReminderLog(prev => ({ ...prev, [req.id]: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}) }))
-        // Log in history
         const { data: { user } } = await supabase.auth.getUser()
         await supabase.from('quote_status_history').insert({
           quote_request_id: req.id, status: req.status,
@@ -183,6 +184,50 @@ export default function AdminQuotes() {
     setRequests(prev => prev.map(r => r.id === req.id ? {...r, status: newStatus} : r))
   }
 
+  async function deleteRequest(req: any) {
+    const label = `${req.pickup?.name} → ${req.dropoff?.name}`
+    if (!confirm(`Permanently delete this ${req.status} request?\n\n${label}\n\nThis removes the request, its offers, history and any competition entry. This cannot be undone.`)) return
+    setDeleting(req.id)
+    try {
+      // Delete dependent rows first (in case cascade isn't set on every table)
+      await supabase.from('quote_offers').delete().eq('request_id', req.id)
+      await supabase.from('quote_declines').delete().eq('request_id', req.id)
+      await supabase.from('quote_status_history').delete().eq('quote_request_id', req.id)
+      await supabase.from('competition_entries').delete().eq('quote_request_id', req.id)
+      // Finally the request itself
+      const { error } = await supabase.from('quote_requests').delete().eq('id', req.id)
+      if (error) throw error
+      setRequests(prev => prev.filter(r => r.id !== req.id))
+      if (expanded === req.id) setExpanded(null)
+    } catch (err) {
+      console.error(err)
+      alert('Could not delete the request. Please try again.')
+    }
+    setDeleting(null)
+  }
+
+  async function bulkDelete(status: 'expired' | 'cancelled') {
+    const targets = requests.filter(r => r.status === status)
+    if (targets.length === 0) return
+    if (!confirm(`Permanently delete ALL ${targets.length} ${status} request${targets.length === 1 ? '' : 's'}?\n\nThis removes the requests, their offers, history and any competition entries. This cannot be undone.`)) return
+    setBulkDeleting(true)
+    try {
+      const ids = targets.map(r => r.id)
+      await supabase.from('quote_offers').delete().in('request_id', ids)
+      await supabase.from('quote_declines').delete().in('request_id', ids)
+      await supabase.from('quote_status_history').delete().in('quote_request_id', ids)
+      await supabase.from('competition_entries').delete().in('quote_request_id', ids)
+      const { error } = await supabase.from('quote_requests').delete().in('id', ids)
+      if (error) throw error
+      setRequests(prev => prev.filter(r => r.status !== status))
+      setExpanded(null)
+    } catch (err) {
+      console.error(err)
+      alert('Could not delete all requests. Some may remain — please refresh and try again.')
+    }
+    setBulkDeleting(false)
+  }
+
   async function pushToProviders(requestId: string) {
     setPushing(requestId)
     try {
@@ -198,7 +243,7 @@ export default function AdminQuotes() {
   }
 
   function exportCSV() {
-    const rows = [['Request ID','Customer','Email','From','To','Date','Time','Passengers','Trip Type','Flight','Status','Offers','Lowest (€)','Accepted (€)','Created']]
+    const rows = [['Request ID','Customer','Email','From','To','Date','Time','Passengers','Trip Type','Flight','Status','Offers','Lowest','Accepted','Created']]
     requests.forEach(req => {
       const offers = req.quote_offers ?? []
       const prices = offers.map((o:any) => o.price).filter(Boolean)
@@ -231,7 +276,19 @@ export default function AdminQuotes() {
           <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'2px'}}>Quote requests</h1>
           <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>View · edit · push to providers · export CSV</p>
         </div>
-        <button onClick={exportCSV} style={{padding:'9px 16px', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.7)', fontSize:'12px', cursor:'pointer', fontFamily:'inherit'}}>↓ Export CSV</button>
+        <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+          {requests.some(r => r.status === 'expired') && (
+            <button onClick={() => bulkDelete('expired')} disabled={bulkDeleting} style={{padding:'9px 14px', background:'none', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'6px', color:'#f09595', fontSize:'12px', cursor:bulkDeleting?'not-allowed':'pointer', fontFamily:'inherit'}}>
+              🗑 Delete all expired
+            </button>
+          )}
+          {requests.some(r => r.status === 'cancelled') && (
+            <button onClick={() => bulkDelete('cancelled')} disabled={bulkDeleting} style={{padding:'9px 14px', background:'none', border:'1px solid rgba(162,45,45,0.4)', borderRadius:'6px', color:'#f09595', fontSize:'12px', cursor:bulkDeleting?'not-allowed':'pointer', fontFamily:'inherit'}}>
+              🗑 Delete all cancelled
+            </button>
+          )}
+          <button onClick={exportCSV} style={{padding:'9px 16px', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.7)', fontSize:'12px', cursor:'pointer', fontFamily:'inherit'}}>↓ Export CSV</button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -274,6 +331,8 @@ export default function AdminQuotes() {
         const history = historyMap[req.id] ?? []
         const canEdit = req.status === 'open'
         const canRemind = req.status === 'open' && pendingCount > 0
+        const canDelete = req.status === 'expired' || req.status === 'cancelled'
+        const isRequestAccepted = req.status === 'accepted'
         const sym = req.currency === 'GBP' ? '£' : '€'
 
         return (
@@ -301,7 +360,6 @@ export default function AdminQuotes() {
             {isExpanded && (
               <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', padding:'14px 16px'}}>
 
-                {/* Edit form */}
                 {isEditing ? (
                   <div style={{marginBottom:'16px', padding:'14px', backgroundColor:'rgba(255,255,255,0.03)', borderRadius:'6px'}}>
                     <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'#f4b942', marginBottom:'12px'}}>Edit request</p>
@@ -355,21 +413,33 @@ export default function AdminQuotes() {
                   <div style={{marginBottom:'14px'}}>
                     <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', marginBottom:'8px'}}>Offers</p>
                     {offers.map((offer:any) => {
-                      const os: Record<string,{bg:string,color:string}> = { pending:{bg:'rgba(244,185,66,0.1)',color:'#f4b942'}, accepted:{bg:'rgba(29,158,117,0.1)',color:'#1D9E75'}, rejected:{bg:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.3)'} }
-                      const o = os[offer.status] ?? os.pending
+                      // When the request is accepted, show pending offers as "not selected" for clarity
+                      const displayStatus = (isRequestAccepted && offer.status === 'pending') ? 'not selected' : offer.status
+                      const os: Record<string,{bg:string,color:string}> = {
+                        pending:{bg:'rgba(244,185,66,0.1)',color:'#f4b942'},
+                        accepted:{bg:'rgba(29,158,117,0.1)',color:'#1D9E75'},
+                        rejected:{bg:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.3)'},
+                        'not selected':{bg:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.3)'},
+                      }
+                      const o = os[displayStatus] ?? os.pending
                       const isEditingThisOffer = editingOffer === offer.id
+                      const isAcceptedOffer = offer.status === 'accepted'
 
                       return (
-                        <div key={offer.id} style={{padding:'10px 12px', backgroundColor:'rgba(255,255,255,0.03)', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.06)', marginBottom:'6px'}}>
+                        <div key={offer.id} style={{padding:'10px 12px', backgroundColor: isAcceptedOffer ? 'rgba(29,158,117,0.06)' : 'rgba(255,255,255,0.03)', borderRadius:'6px', border: isAcceptedOffer ? '1px solid rgba(29,158,117,0.25)' : '1px solid rgba(255,255,255,0.06)', marginBottom:'6px'}}>
                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px'}}>
                             <div style={{flex:1}}>
-                              <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'2px'}}>{offer.provider?.company_name??'—'}</div>
+                              <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'2px'}}>
+                                {isAcceptedOffer && <span style={{color:'#1D9E75', marginRight:'6px'}}>✓</span>}
+                                {offer.provider?.company_name??'—'}
+                              </div>
                               {offer.vehicle&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{offer.vehicle.make} {offer.vehicle.model} · {offer.vehicle.seats} seats</div>}
                             </div>
                             <div style={{display:'flex', alignItems:'center', gap:'10px', flexShrink:0}}>
-                              <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>{sym} {offer.price?.toFixed(2)}</span>
-                              <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:o.bg, color:o.color, fontWeight:'500', textTransform:'capitalize'}}>{offer.status}</span>
-                              {offer.status !== 'rejected' && (
+                              <span style={{fontSize:'16px', fontWeight:'500', color: isAcceptedOffer ? '#1D9E75' : '#f4b942'}}>{sym} {offer.price?.toFixed(2)}</span>
+                              <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:o.bg, color:o.color, fontWeight:'500', textTransform:'capitalize'}}>{displayStatus}</span>
+                              {/* Only allow editing price on a still-open request */}
+                              {offer.status !== 'rejected' && !isRequestAccepted && req.status === 'open' && (
                                 <button
                                   onClick={() => { setEditingOffer(offer.id); setEditOfferPrice(offer.price?.toFixed(2) ?? '') }}
                                   style={{fontSize:'11px', padding:'3px 8px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'4px', color:'rgba(255,255,255,0.5)', cursor:'pointer', fontFamily:'inherit'}}>
@@ -447,9 +517,16 @@ export default function AdminQuotes() {
                       {reminding===req.id ? 'Sending...' : '📧 Remind customer'}
                     </button>
                   )}
-                  <button onClick={() => pushToProviders(req.id)} disabled={pushing===req.id} style={{padding:'7px 14px', backgroundColor:pushing===req.id?'rgba(244,185,66,0.3)':'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:pushing===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
-                    {pushing===req.id?'Sending...':'📨 Push to providers'}
-                  </button>
+                  {req.status === 'open' && (
+                    <button onClick={() => pushToProviders(req.id)} disabled={pushing===req.id} style={{padding:'7px 14px', backgroundColor:pushing===req.id?'rgba(244,185,66,0.3)':'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:pushing===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
+                      {pushing===req.id?'Sending...':'📨 Push to providers'}
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button onClick={() => deleteRequest(req)} disabled={deleting===req.id} style={{padding:'7px 14px', background:'none', border:'1px solid rgba(162,45,45,0.5)', borderRadius:'5px', color:'#f09595', fontSize:'12px', cursor:deleting===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
+                      {deleting===req.id ? 'Deleting...' : '🗑 Delete permanently'}
+                    </button>
+                  )}
                   {log&&<span style={{fontSize:'12px', color:'#1D9E75'}}>✓ Sent to {log.sent} at {log.time}</span>}
                   {reminderTime&&<span style={{fontSize:'12px', color:'#6495ED'}}>✓ Reminder sent at {reminderTime}</span>}
                 </div>
