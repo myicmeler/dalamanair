@@ -15,6 +15,8 @@ export default function ProviderQuotes() {
   const [declineComment, setDeclineComment] = useState('')
   const [offers, setOffers] = useState<Record<string, { price:string, vehicleId:string, notes:string }>>({})
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [expanded, setExpanded] = useState<string|null>(null)
+  const [historyMap, setHistoryMap] = useState<Record<string,any[]>>({})
 
   const load = useCallback(async (provId?: string) => {
     try {
@@ -93,10 +95,8 @@ export default function ProviderQuotes() {
     }
   }, [providerId])
 
-  // Initial load
   useEffect(() => { load() }, [])
 
-  // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (providerId) load(providerId)
@@ -104,12 +104,24 @@ export default function ProviderQuotes() {
     return () => clearInterval(interval)
   }, [providerId, load])
 
-  // Re-fetch on window focus
   useEffect(() => {
     const onFocus = () => { if (providerId) load(providerId) }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [providerId, load])
+
+  async function loadHistory(requestId: string) {
+    if (historyMap[requestId]) return
+    const { data } = await supabase.from('quote_status_history')
+      .select('*').eq('quote_request_id', requestId).order('created_at', { ascending: true })
+    if (data) setHistoryMap(p => ({ ...p, [requestId]: data }))
+  }
+
+  async function handleExpand(requestId: string) {
+    if (expanded === requestId) { setExpanded(null); return }
+    setExpanded(requestId)
+    await loadHistory(requestId)
+  }
 
   function updateOffer(reqId: string, field: string, value: string) {
     setOffers(prev => ({ ...prev, [reqId]: { price:'', vehicleId:'', notes:'', ...prev[reqId], [field]: value } }))
@@ -204,17 +216,21 @@ export default function ProviderQuotes() {
         const offerExpired = req.offer_status === 'expired'
         const isReturn = req.trip_type === 'return'
         const sym = currencySymbol(req.currency ?? 'EUR')
+        const isExpanded = expanded === req.id
+        const history = historyMap[req.id] ?? []
 
         return (
           <div key={req.id} style={card}>
+            {/* Header — clickable to expand history */}
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px'}}>
-              <div style={{flex:1}}>
+              <div style={{flex:1, cursor:'pointer'}} onClick={() => handleExpand(req.id)}>
                 <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
                   {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
                   <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)', fontWeight:'600', flexShrink:0}}>
                     {sym} {req.currency ?? 'EUR'}
                   </span>
                   <div style={{fontSize:'16px', fontWeight:'500'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
+                  <span style={{fontSize:'11px', color:'rgba(255,255,255,0.2)', marginLeft:'auto'}}>{isExpanded ? '▲' : '▼'}</span>
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
                   🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
@@ -247,6 +263,7 @@ export default function ProviderQuotes() {
               </div>
             </div>
 
+            {/* Offer section */}
             {offerExpired ? (
               <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.4)'}}>
                 ⌛ {req.offer_expiry_reason ?? 'Offer expired'}
@@ -283,6 +300,28 @@ export default function ProviderQuotes() {
                   style={{padding:'10px 20px', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:'600', cursor: canSubmit ? 'pointer' : 'not-allowed', letterSpacing:'0.05em', textTransform:'uppercase', whiteSpace:'nowrap'}}>
                   {submitting === req.id ? 'Submitting...' : 'Submit offer'}
                 </button>
+              </div>
+            )}
+
+            {/* Status history — shown when expanded */}
+            {isExpanded && (
+              <div style={{marginTop:'12px', borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'12px'}}>
+                <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:'8px'}}>Status history</p>
+                {history.length === 0 ? (
+                  <p style={{fontSize:'12px', color:'rgba(255,255,255,0.25)', fontStyle:'italic'}}>No history yet</p>
+                ) : history.map((h: any) => (
+                  <div key={h.id} style={{display:'flex', alignItems:'flex-start', gap:'8px', fontSize:'12px', marginBottom:'6px', flexWrap:'wrap'}}>
+                    <div style={{width:'6px', height:'6px', borderRadius:'50%', backgroundColor:'#f4b942', flexShrink:0, marginTop:'4px'}} />
+                    <div style={{flex:1}}>
+                      <span style={{color:'rgba(255,255,255,0.6)', textTransform:'capitalize', fontWeight:'500'}}>{h.status}</span>
+                      <span style={{color:'rgba(255,255,255,0.3)', marginLeft:'6px'}}>by {h.changed_by_role}</span>
+                      {h.note && <span style={{color:'rgba(255,255,255,0.25)', fontStyle:'italic', fontSize:'11px', marginLeft:'6px'}}>— {h.note}</span>}
+                      <div style={{fontSize:'10px', color:'rgba(255,255,255,0.2)', marginTop:'1px'}}>
+                        {new Date(h.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})} · {new Date(h.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
