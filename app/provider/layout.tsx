@@ -71,6 +71,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     router.push('/')
   }
 
+  // Bottom tab bar — most frequent actions (kept to 6)
   const navItems = [
     { href:'/provider', label:'Dashboard' },
     { href:'/provider/bookings', label:'Bookings' },
@@ -78,6 +79,12 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     { href:'/provider/vehicles', label:'Fleet' },
     { href:'/provider/reviews', label:'Reviews' },
     { href:'/provider/quotes', label:'Quotes', badge: quoteBadge },
+  ]
+
+  // Full menu — everything, including occasional actions
+  const menuItems = [
+    ...navItems,
+    { href:'/provider/log-transfers', label:'Log a transfer' },
   ]
 
   return (
@@ -107,7 +114,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
       {/* Full screen menu */}
       {menuOpen && (
         <div style={{position:'fixed', top:'52px', left:0, right:0, bottom:0, backgroundColor:'#1a1f26', zIndex:30, padding:'8px 0', overflowY:'auto'}}>
-          {navItems.map(item => (
+          {menuItems.map(item => (
             <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
               display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'16px 20px', fontSize:'16px',
@@ -116,9 +123,9 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
               fontWeight:pathname===item.href?'500':'400',
             }}>
               {item.label}
-              {item.badge && item.badge > 0 ? (
+              {(item as any).badge && (item as any).badge > 0 ? (
                 <span style={{backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'10px', padding:'2px 8px', fontSize:'11px', fontWeight:'600'}}>
-                  {item.badge}
+                  {(item as any).badge}
                 </span>
               ) : null}
             </Link>
