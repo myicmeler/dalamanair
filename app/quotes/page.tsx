@@ -62,6 +62,42 @@ export default function MyQuotes() {
         changed_by: user?.id, changed_by_role: 'customer',
         note: `Offer accepted from ${offer.provider?.company_name}`
       })
+
+      // --- NOTIFY REJECTED PROVIDERS ---
+      const rejectedOffers = (req.quote_offers ?? []).filter((o: any) => o.id !== offerId)
+      for (const rejected of rejectedOffers) {
+        if (rejected.provider?.user_id) {
+          // In-app notification
+          await supabase.from('user_notifications').insert({
+            user_id: rejected.provider.user_id,
+            type: 'offer_not_selected',
+            title: 'Your offer was not selected',
+            body: `The customer chose another provider for ${req.pickup?.name} → ${req.dropoff?.name}. Better luck next time!`,
+            link: '/provider/quotes/'
+          })
+          // Email notification
+          try {
+            await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
+              body: JSON.stringify({
+                type: 'offer_not_selected',
+                to: '',
+                providerUserId: rejected.provider.user_id,
+                data: {
+                  pickup: req.pickup?.name,
+                  dropoff: req.dropoff?.name,
+                  date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
+                  price: rejected.price?.toFixed(2),
+                  currency: req.currency ?? 'EUR',
+                }
+              })
+            })
+          } catch (e) { console.error('Rejected provider email error:', e) }
+        }
+      }
+      // --- END NOTIFY REJECTED PROVIDERS ---
+
       const { data: booking } = await supabase.from('bookings').insert({
         customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
         pickup_location_id: req.pickup_location_id, dropoff_location_id: req.dropoff_location_id,
@@ -201,15 +237,11 @@ export default function MyQuotes() {
                     <span style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>{isExpanded?'▲':'▼'}</span>
                   </div>
                 </div>
-
-                {/* Outbound details */}
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.45)', marginBottom:'2px'}}>
                   🛫 {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
                   {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
                 {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
-
-                {/* Return details */}
                 {isReturn && req.return_time && (
                   <>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'6px', marginBottom:'2px'}}>
