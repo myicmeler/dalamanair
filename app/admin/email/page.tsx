@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase'
 
 const STATUS_COLORS: Record<string, { bg: string, color: string }> = {
   delivered:  { bg: 'rgba(29,158,117,0.12)',  color: '#1D9E75' },
@@ -28,8 +29,14 @@ export default function AdminEmails() {
       if (filter) url += `&event=${filter}`
       if (page) url += `&page=${page}`
 
+      // Email logs contain customer PII — authenticate as the signed-in admin
+      // (token), never the public anon key. The function enforces admin-only.
+      const { data: { session } } = await createClient().auth.getSession()
       const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` }
+        headers: {
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        }
       })
       const data = await res.json()
       if (data.error) { setError(data.error); setLoading(false); return }

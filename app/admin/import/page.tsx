@@ -58,11 +58,15 @@ export default function AdminImport() {
   }
 
   async function callEdgeFunction(payload: any) {
+    // Authenticate as the signed-in admin (token), not the public anon key —
+    // the edge function verifies the caller is an admin before creating users.
+    const { data: { session } } = await supabase.auth.getSession()
     const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        'Authorization': `Bearer ${session?.access_token ?? ''}`,
       },
       body: JSON.stringify(payload),
     })

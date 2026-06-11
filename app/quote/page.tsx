@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
+import { callFunction } from '@/lib/functions'
 
 function QuoteContent() {
   const router = useRouter()
@@ -82,10 +83,7 @@ function QuoteContent() {
         } catch (e) { console.error('Competition entry error:', e) }
       }
 
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ requestId: request.id }),
-      })
+      await callFunction('notify-providers', { requestId: request.id })
       setSubmitted(true)
     } catch (err) { console.error(err) }
     setSubmitting(false)

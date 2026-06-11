@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
+import { callFunction } from '@/lib/functions'
 
 export default function MyBookings() {
   const router = useRouter()
@@ -52,18 +53,15 @@ export default function MyBookings() {
           link: '/provider/bookings/'
         })
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-            method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
-            body: JSON.stringify({
-              type: 'booking_fully_confirmed',
-              providerUserId: booking.provider.user_id,
-              data: {
-                pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
-                date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
-                time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-                price: booking.final_price?.toFixed(2),
-              }
-            })
+          await callFunction('send-email', {
+            type: 'booking_fully_confirmed',
+            providerUserId: booking.provider.user_id,
+            data: {
+              pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+              date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
+              time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+              price: booking.final_price?.toFixed(2),
+            }
           })
         } catch (e) { console.error(e) }
       }
@@ -96,38 +94,32 @@ export default function MyBookings() {
           link: '/provider/bookings/'
         })
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-            method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
-            body: JSON.stringify({
-              type: 'booking_cancelled_provider',
-              providerUserId: booking.provider.user_id,
-              data: {
-                pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
-                date, time, price: booking.final_price?.toFixed(2),
-                urgent,
-                customerPhone: null,
-                customerEmail: user?.email,
-              }
-            })
+          await callFunction('send-email', {
+            type: 'booking_cancelled_provider',
+            providerUserId: booking.provider.user_id,
+            data: {
+              pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+              date, time, price: booking.final_price?.toFixed(2),
+              urgent,
+              customerPhone: null,
+              customerEmail: user?.email,
+            }
           })
         } catch (e) { console.error(e) }
       }
       // Email customer
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-          method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
-          body: JSON.stringify({
-            type: 'booking_cancelled_customer',
-            customerId: user?.id,
-            data: {
-              pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
-              date, time, price: booking.final_price?.toFixed(2),
-              providerName: booking.provider?.company_name,
-              urgent,
-              providerPhone: booking.provider?.phone,
-              providerEmail: booking.provider?.user?.email,
-            }
-          })
+        await callFunction('send-email', {
+          type: 'booking_cancelled_customer',
+          customerId: user?.id,
+          data: {
+            pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+            date, time, price: booking.final_price?.toFixed(2),
+            providerName: booking.provider?.company_name,
+            urgent,
+            providerPhone: booking.provider?.phone,
+            providerEmail: booking.provider?.user?.email,
+          }
         })
       } catch (e) { console.error(e) }
       await load()

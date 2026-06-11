@@ -31,9 +31,16 @@ export default function AdminUsers() {
     }
     setResetting(userId)
     try {
+      // Send the signed-in admin's access token — the edge function verifies
+      // the caller is an admin. Never authenticate this call with the anon key.
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
         body: JSON.stringify({ action: 'reset_password', userId, password: pwd }),
       })
       const result = await res.json()

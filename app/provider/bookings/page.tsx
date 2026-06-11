@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { callFunction } from '@/lib/functions'
 
 export default function ProviderBookings() {
   const router = useRouter()
@@ -49,17 +50,14 @@ export default function ProviderBookings() {
         link: '/bookings/'
       })
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-          method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
-          body: JSON.stringify({
-            type: 'provider_confirmed_acknowledge', customerId: booking.customer_id,
-            data: {
-              pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
-              date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
-              time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-              providerName: provider.company_name, price: booking.final_price?.toFixed(2),
-            }
-          })
+        await callFunction('send-email', {
+          type: 'provider_confirmed_acknowledge', customerId: booking.customer_id,
+          data: {
+            pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+            date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
+            time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+            providerName: provider.company_name, price: booking.final_price?.toFixed(2),
+          }
         })
       } catch (e) { console.error(e) }
       await load()
