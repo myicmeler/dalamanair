@@ -134,21 +134,45 @@ AS $$
 $$;
 
 
+-- Pin search_path on the remaining trigger functions too. We can't
+-- CREATE OR REPLACE these without their bodies, but ALTER FUNCTION
+-- attaches the setting without touching the body.
+ALTER FUNCTION public.set_booking_group()       SET search_path = public, pg_temp;
+ALTER FUNCTION public.update_provider_rating()  SET search_path = public, pg_temp;
+ALTER FUNCTION public.log_quote_status_change() SET search_path = public, pg_temp;
+
+
 -- -------------------------------------------------------------
 -- 4. Stop internal trigger/maintenance functions from being
 --    callable as public RPC endpoints (/rest/v1/rpc/...).
 --    These are never meant to be invoked directly by clients.
+--    EXECUTE is granted to PUBLIC by default, so revoke that too.
+--
+--    NOTE: is_admin/current_role/my_provider_id/my_driver_id are
+--    intentionally left executable — they are referenced inside RLS
+--    policies (which require the querying role to have EXECUTE) and
+--    only ever reveal the *caller's own* role/ids, so exposing them
+--    is safe.
 -- -------------------------------------------------------------
 DO $$
 BEGIN
   IF to_regprocedure('public.handle_new_user()') IS NOT NULL THEN
-    REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon, authenticated;
+    REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
   END IF;
   IF to_regprocedure('public.rls_auto_enable()') IS NOT NULL THEN
-    REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon, authenticated;
+    REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
   END IF;
   IF to_regprocedure('public.prevent_user_privilege_escalation()') IS NOT NULL THEN
-    REVOKE EXECUTE ON FUNCTION public.prevent_user_privilege_escalation() FROM anon, authenticated;
+    REVOKE EXECUTE ON FUNCTION public.prevent_user_privilege_escalation() FROM PUBLIC, anon, authenticated;
+  END IF;
+  IF to_regprocedure('public.set_booking_group()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.set_booking_group() FROM PUBLIC, anon, authenticated;
+  END IF;
+  IF to_regprocedure('public.update_provider_rating()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.update_provider_rating() FROM PUBLIC, anon, authenticated;
+  END IF;
+  IF to_regprocedure('public.log_quote_status_change()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.log_quote_status_change() FROM PUBLIC, anon, authenticated;
   END IF;
 END $$;
 
