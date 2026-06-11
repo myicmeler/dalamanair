@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
+import { callFunction } from '@/lib/functions'
 
 export default function MyQuotes() {
   const router = useRouter()
@@ -77,21 +78,17 @@ export default function MyQuotes() {
           })
           // Email notification
           try {
-            await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
-              body: JSON.stringify({
-                type: 'offer_not_selected',
-                to: '',
-                providerUserId: rejected.provider.user_id,
-                data: {
-                  pickup: req.pickup?.name,
-                  dropoff: req.dropoff?.name,
-                  date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
-                  price: rejected.price?.toFixed(2),
-                  currency: req.currency ?? 'EUR',
-                }
-              })
+            await callFunction('send-email', {
+              type: 'offer_not_selected',
+              to: '',
+              providerUserId: rejected.provider.user_id,
+              data: {
+                pickup: req.pickup?.name,
+                dropoff: req.dropoff?.name,
+                date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
+                price: rejected.price?.toFixed(2),
+                currency: req.currency ?? 'EUR',
+              }
             })
           } catch (e) { console.error('Rejected provider email error:', e) }
         }
@@ -127,18 +124,15 @@ export default function MyQuotes() {
           link: '/bookings/'
         })
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-            method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`},
-            body: JSON.stringify({
-              type: 'offer_accepted_provider', to: '', providerUserId: offer.provider.user_id,
-              data: {
-                pickup: req.pickup?.name, dropoff: req.dropoff?.name,
-                date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
-                time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-                price: offer.price.toFixed(2), currency: req.currency ?? 'EUR',
-                passengers: req.passengers, flightNumber: req.flight_number, notes: req.notes,
-              }
-            })
+          await callFunction('send-email', {
+            type: 'offer_accepted_provider', to: '', providerUserId: offer.provider.user_id,
+            data: {
+              pickup: req.pickup?.name, dropoff: req.dropoff?.name,
+              date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
+              time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+              price: offer.price.toFixed(2), currency: req.currency ?? 'EUR',
+              passengers: req.passengers, flightNumber: req.flight_number, notes: req.notes,
+            }
           })
         } catch (e) { console.error(e) }
       }

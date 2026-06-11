@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { callFunction } from '@/lib/functions'
 
 export default function AdminQuotes() {
   const supabase = createClient() as any
@@ -110,24 +111,20 @@ export default function AdminQuotes() {
 
       const sym = req.currency === 'GBP' ? '£' : '€'
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({
-            type: 'offer_price_updated',
-            to: req.customer?.email,
-            data: {
-              customerName: req.customer?.full_name || 'Customer',
-              pickup: req.pickup?.name,
-              dropoff: req.dropoff?.name,
-              date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
-              time: new Date(req.pickup_time).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }),
-              providerName: offer.provider?.company_name,
-              oldPrice: `${sym}${oldPrice?.toFixed(2)}`,
-              newPrice: `${sym}${newPrice.toFixed(2)}`,
-              quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
-            }
-          })
+        await callFunction('send-email', {
+          type: 'offer_price_updated',
+          to: req.customer?.email,
+          data: {
+            customerName: req.customer?.full_name || 'Customer',
+            pickup: req.pickup?.name,
+            dropoff: req.dropoff?.name,
+            date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
+            time: new Date(req.pickup_time).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }),
+            providerName: offer.provider?.company_name,
+            oldPrice: `${sym}${oldPrice?.toFixed(2)}`,
+            newPrice: `${sym}${newPrice.toFixed(2)}`,
+            quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
+          }
         })
       } catch (e) { console.error('Email error:', e) }
 
@@ -142,21 +139,17 @@ export default function AdminQuotes() {
     setReminding(req.id)
     try {
       const pendingCount = (req.quote_offers ?? []).filter((o:any) => o.status === 'pending').length
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({
-          type: 'offers_waiting_reminder',
-          to: req.customer?.email,
-          data: {
-            customerName: req.customer?.full_name || 'Customer',
-            pickup: req.pickup?.name,
-            dropoff: req.dropoff?.name,
-            date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
-            offerCount: pendingCount,
-            quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
-          }
-        })
+      const res = await callFunction('send-email', {
+        type: 'offers_waiting_reminder',
+        to: req.customer?.email,
+        data: {
+          customerName: req.customer?.full_name || 'Customer',
+          pickup: req.pickup?.name,
+          dropoff: req.dropoff?.name,
+          date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
+          offerCount: pendingCount,
+          quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
+        }
       })
       const result = await res.json()
       if (res.ok && result.sent) {
@@ -231,11 +224,7 @@ export default function AdminQuotes() {
   async function pushToProviders(requestId: string) {
     setPushing(requestId)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-providers`, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ requestId }),
-      })
+      const res = await callFunction('notify-providers', { requestId })
       const result = await res.json()
       setPushLog(prev => ({ ...prev, [requestId]: { sent: result.sent ?? 0, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) } }))
     } catch (err) { console.error(err) }
