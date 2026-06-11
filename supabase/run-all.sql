@@ -37,16 +37,27 @@ CREATE TABLE IF NOT EXISTS quote_offers (
 ALTER TABLE quote_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quote_offers   ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "customers_own_requests"      ON quote_requests;
-DROP POLICY IF EXISTS "providers_see_open_requests" ON quote_requests;
-DROP POLICY IF EXISTS "providers_own_offers"        ON quote_offers;
-DROP POLICY IF EXISTS "customers_see_own_offers"    ON quote_offers;
+DROP POLICY IF EXISTS "customers_own_requests"          ON quote_requests;
+DROP POLICY IF EXISTS "providers_see_open_requests"     ON quote_requests;
+DROP POLICY IF EXISTS "Approved providers see open requests" ON quote_requests;
+DROP POLICY IF EXISTS "providers_own_offers"            ON quote_offers;
+DROP POLICY IF EXISTS "customers_see_own_offers"        ON quote_offers;
 
 CREATE POLICY "customers_own_requests" ON quote_requests
   FOR ALL USING (customer_id = auth.uid());
 
-CREATE POLICY "providers_see_open_requests" ON quote_requests
-  FOR SELECT USING (status = 'open');
+-- Only APPROVED providers may see open requests. The old policy
+-- (USING status='open') exposed every customer's pickup time,
+-- flight number and notes to anyone holding the public anon key.
+CREATE POLICY "Approved providers see open requests" ON quote_requests
+  FOR SELECT USING (
+    status = 'open'
+    AND EXISTS (
+      SELECT 1 FROM providers
+      WHERE providers.user_id = auth.uid()
+        AND providers.is_approved = true
+    )
+  );
 
 CREATE POLICY "providers_own_offers" ON quote_offers
   FOR ALL USING (
