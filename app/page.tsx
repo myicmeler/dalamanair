@@ -5,56 +5,6 @@ import { useRouter } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  metadataBase: new URL("https://dalaman.me"),
-  title: {
-    default: "Dalaman Airport Transfers | Book Reliable Private Transfers",
-    template: "%s | dalaman.me",
-  },
-  description:
-    "Compare and book trusted Dalaman Airport transfers to Marmaris, Içmeler, Fethiye and more. Fast, fixed-price private transfers with vetted local providers.",
-  keywords: [
-    "Dalaman airport transfers",
-    "Marmaris transfer",
-    "Içmeler transfer",
-    "Dalaman to Marmaris",
-    "private airport transfer Turkey",
-  ],
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    siteName: "dalaman.me",
-    title: "Dalaman Airport Transfers | Book Reliable Private Transfers",
-    description:
-      "Compare and book trusted Dalaman Airport transfers to Marmaris, Içmeler and beyond. Fixed prices, vetted providers.",
-    url: "https://dalaman.me/",
-    locale: "en_GB",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Dalaman Airport Transfers",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Dalaman Airport Transfers | dalaman.me",
-    description:
-      "Book reliable, fixed-price Dalaman Airport transfers with vetted local providers.",
-    images: ["/og-image.jpg"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
-
 
 const labels = {
   en: {
