@@ -8,10 +8,10 @@ import { createClient } from '@/lib/supabase'
 
 const labels = {
   en: {
-    tag: 'Içmeler · Marmaris · Dalaman',
+    tag: 'Içmeler · Marmaris · Fethiye · Dalaman',
     h1a: 'The smarter way to get from',
-    h1b: 'Dalaman airport to Marmaris and Içmeler.',
-    sub: 'Compare trusted local transfer companies, book in minutes, and arrive at your hotel without the stress.',
+    h1b: 'Dalaman airport to Marmaris, Içmeler & the Fethiye coast.',
+    sub: 'Compare trusted local transfer companies for Marmaris, Içmeler, Fethiye, Hisarönü and Ölüdeniz. Book in minutes, and arrive at your hotel without the stress.',
     pickup: 'Pick-up', dropoff: 'Drop-off',
     date: 'Date', time: 'Time', passengers: 'Passengers',
     returnDate: 'Return date', returnTime: 'Return time', returnFrom: 'Return pick-up',
@@ -24,10 +24,10 @@ const labels = {
     w3t: 'Vetted local providers', w3d: 'Every transfer company on dalaman.me is reviewed and approved by us. Only trusted, insured operators make the list.',
   },
   tr: {
-    tag: 'İçmeler · Marmaris · Dalaman',
+    tag: 'İçmeler · Marmaris · Fethiye · Dalaman',
     h1a: 'Dalaman havalimanından',
-    h1b: 'Marmaris ve İçmeler\'e akıllı transfer.',
-    sub: 'Güvenilir yerel transfer şirketlerini karşılaştırın, dakikalar içinde rezervasyon yapın ve stressiz otelinize ulaşın.',
+    h1b: 'Marmaris, İçmeler ve Fethiye sahiline akıllı transfer.',
+    sub: 'Marmaris, İçmeler, Fethiye, Hisarönü ve Ölüdeniz için güvenilir yerel transfer şirketlerini karşılaştırın, dakikalar içinde rezervasyon yapın ve stressiz otelinize ulaşın.',
     pickup: 'Alış', dropoff: 'Varış',
     date: 'Tarih', time: 'Saat', passengers: 'Yolcular',
     returnDate: 'Dönüş tarihi', returnTime: 'Dönüş saati', returnFrom: 'Dönüş alış',
@@ -200,7 +200,7 @@ export default function Home() {
             <img src="/logo.jpg" alt="dalaman.me" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
             <div>
               <div style={{ fontSize: '14px', fontWeight: '700', color: '#ffffff', letterSpacing: '0.1em', marginBottom: '2px' }}>dalaman.me</div>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>Airport transfers · Marmaris region</div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>Airport transfers · Marmaris &amp; Fethiye region</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '16px' }}>
