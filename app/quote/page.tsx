@@ -6,6 +6,72 @@ import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 import { callFunction } from '@/lib/functions'
 
+// ---- Country dial codes for the Phone / WhatsApp field ----
+type DialCode = { iso: string; name: string; dial: string; flag: string }
+const COMMON_CODES: DialCode[] = [
+  { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+  { iso: 'IE', name: 'Ireland', dial: '+353', flag: '🇮🇪' },
+  { iso: 'NO', name: 'Norway', dial: '+47', flag: '🇳🇴' },
+  { iso: 'TR', name: 'Turkey', dial: '+90', flag: '🇹🇷' },
+  { iso: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
+  { iso: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱' },
+  { iso: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
+  { iso: 'BE', name: 'Belgium', dial: '+32', flag: '🇧🇪' },
+  { iso: 'SE', name: 'Sweden', dial: '+46', flag: '🇸🇪' },
+  { iso: 'DK', name: 'Denmark', dial: '+45', flag: '🇩🇰' },
+]
+const ALL_CODES: DialCode[] = [
+  { iso: 'AL', name: 'Albania', dial: '+355', flag: '🇦🇱' },
+  { iso: 'AT', name: 'Austria', dial: '+43', flag: '🇦🇹' },
+  { iso: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺' },
+  { iso: 'BE', name: 'Belgium', dial: '+32', flag: '🇧🇪' },
+  { iso: 'BG', name: 'Bulgaria', dial: '+359', flag: '🇧🇬' },
+  { iso: 'BA', name: 'Bosnia & Herzegovina', dial: '+387', flag: '🇧🇦' },
+  { iso: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦' },
+  { iso: 'HR', name: 'Croatia', dial: '+385', flag: '🇭🇷' },
+  { iso: 'CY', name: 'Cyprus', dial: '+357', flag: '🇨🇾' },
+  { iso: 'CZ', name: 'Czechia', dial: '+420', flag: '🇨🇿' },
+  { iso: 'DK', name: 'Denmark', dial: '+45', flag: '🇩🇰' },
+  { iso: 'EE', name: 'Estonia', dial: '+372', flag: '🇪🇪' },
+  { iso: 'FI', name: 'Finland', dial: '+358', flag: '🇫🇮' },
+  { iso: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
+  { iso: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
+  { iso: 'GR', name: 'Greece', dial: '+30', flag: '🇬🇷' },
+  { iso: 'HU', name: 'Hungary', dial: '+36', flag: '🇭🇺' },
+  { iso: 'IS', name: 'Iceland', dial: '+354', flag: '🇮🇸' },
+  { iso: 'IN', name: 'India', dial: '+91', flag: '🇮🇳' },
+  { iso: 'IE', name: 'Ireland', dial: '+353', flag: '🇮🇪' },
+  { iso: 'IL', name: 'Israel', dial: '+972', flag: '🇮🇱' },
+  { iso: 'IT', name: 'Italy', dial: '+39', flag: '🇮🇹' },
+  { iso: 'LV', name: 'Latvia', dial: '+371', flag: '🇱🇻' },
+  { iso: 'LT', name: 'Lithuania', dial: '+370', flag: '🇱🇹' },
+  { iso: 'LU', name: 'Luxembourg', dial: '+352', flag: '🇱🇺' },
+  { iso: 'MT', name: 'Malta', dial: '+356', flag: '🇲🇹' },
+  { iso: 'MD', name: 'Moldova', dial: '+373', flag: '🇲🇩' },
+  { iso: 'ME', name: 'Montenegro', dial: '+382', flag: '🇲🇪' },
+  { iso: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱' },
+  { iso: 'NZ', name: 'New Zealand', dial: '+64', flag: '🇳🇿' },
+  { iso: 'MK', name: 'North Macedonia', dial: '+389', flag: '🇲🇰' },
+  { iso: 'NO', name: 'Norway', dial: '+47', flag: '🇳🇴' },
+  { iso: 'PL', name: 'Poland', dial: '+48', flag: '🇵🇱' },
+  { iso: 'PT', name: 'Portugal', dial: '+351', flag: '🇵🇹' },
+  { iso: 'RO', name: 'Romania', dial: '+40', flag: '🇷🇴' },
+  { iso: 'RS', name: 'Serbia', dial: '+381', flag: '🇷🇸' },
+  { iso: 'SK', name: 'Slovakia', dial: '+421', flag: '🇸🇰' },
+  { iso: 'SI', name: 'Slovenia', dial: '+386', flag: '🇸🇮' },
+  { iso: 'ZA', name: 'South Africa', dial: '+27', flag: '🇿🇦' },
+  { iso: 'ES', name: 'Spain', dial: '+34', flag: '🇪🇸' },
+  { iso: 'SE', name: 'Sweden', dial: '+46', flag: '🇸🇪' },
+  { iso: 'CH', name: 'Switzerland', dial: '+41', flag: '🇨🇭' },
+  { iso: 'TR', name: 'Turkey', dial: '+90', flag: '🇹🇷' },
+  { iso: 'UA', name: 'Ukraine', dial: '+380', flag: '🇺🇦' },
+  { iso: 'AE', name: 'United Arab Emirates', dial: '+971', flag: '🇦🇪' },
+  { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+  { iso: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
+]
+const findDial = (iso: string) =>
+  [...COMMON_CODES, ...ALL_CODES].find(c => c.iso === iso)?.dial ?? '+44'
+
 function QuoteContent() {
   const router = useRouter()
   const urlParams = useSearchParams()
@@ -18,11 +84,13 @@ function QuoteContent() {
   const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
   const [enterComp, setEnterComp] = useState(false)
   const [compAnswer, setCompAnswer] = useState('')
+  const [phoneCountry, setPhoneCountry] = useState('GB')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [form, setForm] = useState({
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
     passengers: urlParams.get('passengers') ?? '2', luggage: '2',
-    flightNumber: '', notes: '',
+    flightNumber: '', notes: '', hotelName: '',
     returnDate: urlParams.get('returnDate') ?? '', returnTime: urlParams.get('returnTime') ?? '10:00',
     returnPickup: urlParams.get('returnPickup') ?? '', returnDropoff: urlParams.get('returnDropoff') ?? '',
     returnPassengers: urlParams.get('returnPassengers') ?? '2', returnLuggage: urlParams.get('returnLuggage') ?? '2',
@@ -45,9 +113,15 @@ function QuoteContent() {
     return diffDays < 5
   }
 
+  // Phone / WhatsApp -> clean international number (e.g. +447700900123)
+  const phoneNational = phoneNumber.replace(/\D/g, '').replace(/^0+/, '')
+  const phoneE164 = phoneNational ? `${findDial(phoneCountry)}${phoneNational}` : ''
+  const phoneValid = phoneNational.length >= 6 && phoneNational.length <= 14
+
   const tooClose = dateTooClose(form.date)
   const canSubmit = form.pickup && form.dropoff && form.date && form.time && !tooClose
-    && (!isReturn || (form.returnDate && form.returnTime && form.returnPickup && form.returnDropoff))
+    && form.flightNumber.trim() && form.hotelName.trim() && phoneValid
+    && (!isReturn || (form.returnDate && form.returnTime && form.returnPickup && form.returnDropoff && form.returnFlightNumber.trim()))
 
   async function handleSubmit() {
     setSubmitting(true)
@@ -59,14 +133,15 @@ function QuoteContent() {
         customer_id: user.id, pickup_location_id: form.pickup, dropoff_location_id: form.dropoff,
         pickup_time: pickupDateTime, passengers: parseInt(form.passengers),
         luggage: parseInt(form.luggage), trip_type: isReturn ? 'return' : 'oneway',
-        flight_number: form.flightNumber || null, notes: form.notes || null, status: 'open',
+        flight_number: form.flightNumber.trim() || null, notes: form.notes || null, status: 'open',
+        hotel_name: form.hotelName.trim() || null, contact_phone: phoneE164 || null,
         expires_at: pickupDateTime, currency,
         return_time: isReturn ? `${form.returnDate}T${form.returnTime}:00` : null,
         return_pickup_location_id: isReturn ? form.returnPickup || null : null,
         return_dropoff_location_id: isReturn ? form.returnDropoff || null : null,
         return_passengers: isReturn ? parseInt(form.returnPassengers) : null,
         return_luggage: isReturn ? parseInt(form.returnLuggage) : null,
-        return_flight_number: isReturn ? form.returnFlightNumber || null : null,
+        return_flight_number: isReturn ? form.returnFlightNumber.trim() || null : null,
         return_notes: isReturn ? form.returnNotes || null : null,
       }).select().single()
       if (error || !request) throw error
@@ -187,8 +262,34 @@ function QuoteContent() {
             </div>
           </div>
 
-          <div style={{ marginBottom: '12px' }}><label style={lbl}>Flight number (optional)</label><input type="text" value={form.flightNumber} onChange={e => setForm(p => ({ ...p, flightNumber: e.target.value }))} placeholder="TK 1234" style={inp} /></div>
+          <div style={{ marginBottom: '12px' }}><label style={lbl}>Flight number</label><input type="text" value={form.flightNumber} onChange={e => setForm(p => ({ ...p, flightNumber: e.target.value }))} placeholder="TK 1234" style={inp} /></div>
           <div><label style={lbl}>Special requirements (optional)</label><textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
+        </div>
+
+        {/* CONTACT & HOTEL */}
+        <div style={card}>
+          <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Your details</p>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={lbl}>Hotel name</label>
+            <input type="text" value={form.hotelName} onChange={e => setForm(p => ({ ...p, hotelName: e.target.value }))} placeholder="e.g. Marti Resort, Içmeler" style={inp} />
+          </div>
+
+          <div>
+            <label style={lbl}>Phone / WhatsApp</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select aria-label="Country code" value={phoneCountry} onChange={e => setPhoneCountry(e.target.value)} style={{ ...inp, flex: '0 0 150px' }}>
+                <optgroup label="Common">
+                  {COMMON_CODES.map(c => <option key={'c-' + c.iso} value={c.iso}>{c.flag} {c.dial} {c.name}</option>)}
+                </optgroup>
+                <optgroup label="All countries">
+                  {ALL_CODES.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.dial} {c.name}</option>)}
+                </optgroup>
+              </select>
+              <input type="tel" inputMode="numeric" autoComplete="tel-national" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="7700 900123" style={{ ...inp, flex: 1 }} />
+            </div>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>Used by your driver on the day — WhatsApp ideal.</p>
+          </div>
         </div>
 
         {/* RETURN CHECKBOX */}
@@ -243,7 +344,7 @@ function QuoteContent() {
               </div>
             </div>
 
-            <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number (optional)</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
+            <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
             <div><label style={lbl}>Return special requirements (optional)</label><textarea value={form.returnNotes} onChange={e => setForm(p => ({ ...p, returnNotes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
           </div>
         )}
