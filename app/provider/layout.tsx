@@ -84,6 +84,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   // Full menu — everything, including occasional actions
   const menuItems = [
     ...navItems,
+    { href:'/provider/prices', label:'Default prices' },
     { href:'/provider/log-transfers', label:'Log a transfer' },
   ]
 
