@@ -135,7 +135,8 @@ export default function ProviderBookings() {
         const dt = new Date(b.pickup_time)
         const needsConfirm = b.status === 'pending_provider_confirmation'
         const canAssign = (b.status === 'confirmed' || b.status === 'pending_customer_acknowledgement') && !b.driver_id
-        
+        const custPhone = b.customer_phone || b.customer?.phone   // trip phone first, then account phone
+
         return (
           <div key={b.id} style={{backgroundColor:'#1a1f26', border:needsConfirm?'1px solid #f4b942':'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', overflow:'hidden', marginBottom:'14px'}}>
             <div style={{padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
@@ -151,7 +152,7 @@ export default function ProviderBookings() {
               </div>
             </div>
             <div style={{padding:'12px 16px'}}>
-              {b.customer&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Customer</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.customer.full_name}{b.customer.phone&&<span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>📞 {b.customer.phone}</span>}</div><div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{b.customer.email}</div></div>}
+              {b.customer&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Customer</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{b.customer.full_name}</div><div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{b.customer.email}</div>{custPhone&&<div style={{marginTop:'6px'}}><a href={`tel:${custPhone}`} style={{fontSize:'15px', fontWeight:'700', color:'#ff4d4d', textDecoration:'none', letterSpacing:'0.02em'}}>📞 {custPhone}</a></div>}</div>}
               {b.vehicle&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Vehicle</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.vehicle.make} {b.vehicle.model} · {b.vehicle.seats} seats</div></div>}
               {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.driver.full_name}</div></div>}
               {b.customer_notes&&<div style={{marginBottom:'8px', padding:'8px 12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', fontSize:'12px', color:'rgba(255,255,255,0.6)', fontStyle:'italic'}}>"{b.customer_notes}"</div>}
