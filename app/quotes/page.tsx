@@ -85,7 +85,7 @@ export default function MyQuotes() {
               data: {
                 pickup: req.pickup?.name,
                 dropoff: req.dropoff?.name,
-                date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
+                date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }),
                 price: rejected.price?.toFixed(2),
                 currency: req.currency ?? 'EUR',
               }
@@ -128,8 +128,8 @@ export default function MyQuotes() {
             type: 'offer_accepted_provider', to: '', providerUserId: offer.provider.user_id,
             data: {
               pickup: req.pickup?.name, dropoff: req.dropoff?.name,
-              date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
-              time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+              date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
+              time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
               price: offer.price.toFixed(2), currency: req.currency ?? 'EUR',
               passengers: req.passengers, flightNumber: req.flight_number, notes: req.notes,
             }
@@ -232,7 +232,7 @@ export default function MyQuotes() {
                   </div>
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.45)', marginBottom:'2px'}}>
-                  🛫 {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
+                  🛫 {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {req.passengers} pax · {req.luggage ?? 0} bags
                   {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
                 {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
@@ -242,7 +242,7 @@ export default function MyQuotes() {
                       ↩ {req.return_pickup?.name ?? '—'} → {req.return_dropoff?.name ?? '—'}
                     </div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>
-                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.return_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
+                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {new Date(req.return_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
                       {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
                     </div>
                     {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.25)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
