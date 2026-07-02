@@ -57,7 +57,7 @@ export default function AdminBookings() {
                 <div>
                   <div style={{fontSize:'13px', fontWeight:'500'}}>{b.pickup?.name} → {b.dropoff?.name}</div>
                   <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', marginTop:'2px'}}>
-                    {new Date(b.pickup_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {new Date(b.pickup_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}
+                    {new Date(b.pickup_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {new Date(b.pickup_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})}
                   </div>
                 </div>
                 <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', flexShrink:0, marginLeft:'8px', backgroundColor:`${statusColor[b.status]}20`, color:statusColor[b.status]}}>
