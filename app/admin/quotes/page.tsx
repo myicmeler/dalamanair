@@ -118,8 +118,8 @@ export default function AdminQuotes() {
             customerName: req.customer?.full_name || 'Customer',
             pickup: req.pickup?.name,
             dropoff: req.dropoff?.name,
-            date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
-            time: new Date(req.pickup_time).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }),
+            date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' }),
+            time: new Date(req.pickup_time).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone:'UTC' }),
             providerName: offer.provider?.company_name,
             oldPrice: `${sym}${oldPrice?.toFixed(2)}`,
             newPrice: `${sym}${newPrice.toFixed(2)}`,
@@ -146,7 +146,7 @@ export default function AdminQuotes() {
           customerName: req.customer?.full_name || 'Customer',
           pickup: req.pickup?.name,
           dropoff: req.dropoff?.name,
-          date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }),
+          date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' }),
           offerCount: pendingCount,
           quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
         }
@@ -239,7 +239,7 @@ export default function AdminQuotes() {
       const lowest = prices.length ? Math.min(...prices).toFixed(2) : ''
       const accepted = offers.find((o:any) => o.status==='accepted')
       rows.push([req.id, req.customer?.full_name??'', req.customer?.email??'', req.pickup?.name??'', req.dropoff?.name??'',
-        new Date(req.pickup_time).toLocaleDateString('en-GB'), new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+        new Date(req.pickup_time).toLocaleDateString('en-GB',{timeZone:'UTC'}), new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
         req.passengers, req.trip_type, req.flight_number??'', req.status, offers.length, lowest, accepted?accepted.price.toFixed(2):'',
         new Date(req.created_at).toLocaleDateString('en-GB')])
     })
@@ -334,7 +334,7 @@ export default function AdminQuotes() {
                   {req.currency && <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.5)', fontWeight:'600'}}>{sym} {req.currency}</span>}
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
-                  {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {req.passengers} pax
+                  {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {req.passengers} pax
                   {req.trip_type==='return'&&' · Return'}{req.flight_number&&` · ✈ ${req.flight_number}`}
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'2px'}}>{req.customer?.full_name||'—'} · {req.customer?.email||'—'}</div>
