@@ -18,7 +18,6 @@ const navItems = [
   { href:'/admin/outreach/',  label:'Outreach' },
   { href:'/admin/analytics/', label:'📊 Analytics' },
   { href:'/admin/emails/',    label:'📧 Emails' },
-  { href:'/admin/competition/', label:'🎲 Prize draw' },
   { href:'/admin/cleanup/',   label:'🗑 Cleanup' },
 ]
 
