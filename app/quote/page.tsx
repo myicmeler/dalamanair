@@ -176,6 +176,8 @@ function QuoteContent() {
         <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '10px' }}>Request sent</p>
         <h1 style={{ fontSize: '26px', fontWeight: '500', color: '#ffffff', marginBottom: '10px' }}>Quote request submitted</h1>
         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>All approved providers have been notified. You will receive an email each time a provider submits an offer.</p>
+        {/* ADDED: time-accuracy confirmation line */}
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>The dates and times you entered are used <strong style={{ color: 'rgba(255,255,255,0.7)' }}>exactly as submitted</strong>. Please review them in your quotes — if anything needs changing, contact us to correct it.</p>
         {enterComp && <p style={{ fontSize: '13px', color: '#f4b942', marginBottom: '8px' }}>🎉 You're entered into this month's prize draw — good luck!</p>}
         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '32px' }}>Prices are hidden until a provider responds.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
@@ -375,6 +377,13 @@ function QuoteContent() {
             <textarea value={compAnswer} onChange={e => setCompAnswer(e.target.value)} placeholder="e.g. reliability, price, comfort, friendly drivers..." rows={3} maxLength={500} style={{ ...inp, resize: 'none' }} />
           </div>
         )}
+
+        {/* ADDED: time-accuracy notice before submitting */}
+        <div style={{ backgroundColor: 'rgba(244,185,66,0.06)', border: '1px solid rgba(244,185,66,0.2)', borderRadius: '6px', padding: '12px 14px', marginBottom: '14px' }}>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.6', margin: 0 }}>
+            ⏱ <strong style={{ color: '#f4b942' }}>Please double-check every date and time.</strong> We use them exactly as you enter them — they are never adjusted or converted. You are responsible for their accuracy; if you spot a mistake after sending, contact us and we'll correct it.
+          </p>
+        </div>
 
         <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{ width: '100%', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', padding: '16px', borderRadius: '6px', border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
           {submitting ? 'Sending...' : 'Request quotes →'}
