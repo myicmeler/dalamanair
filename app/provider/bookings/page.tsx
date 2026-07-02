@@ -54,8 +54,9 @@ export default function ProviderBookings() {
           type: 'provider_confirmed_acknowledge', customerId: booking.customer_id,
           data: {
             pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
-            date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}),
-            time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+            // timeZone:'UTC' added — send the time exactly as it was entered, no conversion
+            date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
+            time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
             providerName: provider.company_name, price: booking.final_price?.toFixed(2),
           }
         })
@@ -146,7 +147,8 @@ export default function ProviderBookings() {
               </div>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px'}}>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
-                  {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {b.passengers} pax{b.flight_number&&` · ✈ ${b.flight_number}`}
+                  {/* timeZone:'UTC' added on both — show the time exactly as entered, same on every device */}
+                  {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {b.passengers} pax{b.flight_number&&` · ✈ ${b.flight_number}`}
                 </div>
                 <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>€ {b.final_price?.toFixed(2)}</span>
               </div>
