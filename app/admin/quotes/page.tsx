@@ -32,6 +32,8 @@ export default function AdminQuotes() {
       supabase.from('quote_requests').select(`*,
         pickup:locations!pickup_location_id(name),
         dropoff:locations!dropoff_location_id(name),
+        return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
+        return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name),
         customer:users!customer_id(email, full_name),
         quote_offers(*, provider:providers(company_name, user_id, user:users!user_id(email)), vehicle:vehicles(make,model,seats))
       `).order('created_at', { ascending: false }),
@@ -334,9 +336,16 @@ export default function AdminQuotes() {
                   {req.currency && <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.5)', fontWeight:'600'}}>{sym} {req.currency}</span>}
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
-                  {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {req.passengers} pax
+                  🛫 {new Date(req.pickup_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {req.passengers} pax
                   {req.trip_type==='return'&&' · Return'}{req.flight_number&&` · ✈ ${req.flight_number}`}
                 </div>
+                {req.trip_type === 'return' && req.return_time && (
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'2px'}}>
+                    🛬 {new Date(req.return_time).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {new Date(req.return_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {req.return_passengers ?? req.passengers} pax
+                    {req.return_pickup?.name && req.return_dropoff?.name && ` · ${req.return_pickup.name} → ${req.return_dropoff.name}`}
+                    {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
+                  </div>
+                )}
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'2px'}}>{req.customer?.full_name||'—'} · {req.customer?.email||'—'}</div>
               </div>
               <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'4px', flexShrink:0}}>
