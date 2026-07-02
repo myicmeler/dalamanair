@@ -135,6 +135,32 @@ export default function MyQuotes() {
             }
           })
         } catch (e) { console.error(e) }
+
+        // --- RETURN LEG (bug fix, 2 Jul 2026) ---
+        // For return trips, ALSO create the return booking row. Price is 0 on the
+        // return row: the accepted offer price covers the round trip and sits on
+        // the outbound row (Option A). The set_booking_group trigger links the
+        // two rows by group_id automatically.
+        if (req.trip_type === 'return' && req.return_time) {
+          const { data: returnBooking } = await supabase.from('bookings').insert({
+            customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
+            pickup_location_id: req.return_pickup_location_id, dropoff_location_id: req.return_dropoff_location_id,
+            direction: 'return', pickup_time: req.return_time,
+            passengers: req.return_passengers ?? req.passengers,
+            luggage: req.return_luggage ?? req.luggage,
+            status: 'pending_provider_confirmation',
+            price: 0, discount_pct: 0, final_price: 0,
+            flight_number: req.return_flight_number, customer_notes: req.return_notes,
+          }).select().single()
+          if (returnBooking) {
+            await supabase.from('booking_status_history').insert({
+              booking_id: returnBooking.id, status: 'pending_provider_confirmation',
+              changed_by: user?.id, changed_by_role: 'customer',
+              note: 'Return leg — price included in outbound (round-trip offer)'
+            })
+          }
+        }
+        // --- END RETURN LEG ---
       }
       router.push('/bookings/')
     } catch (err) { console.error(err) }
