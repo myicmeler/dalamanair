@@ -190,6 +190,7 @@ export default function ProviderQuotes() {
       </div>
       <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'4px'}}>Open requests from customers — submit your best price</p>
       <p style={{fontSize:'10px', color:'rgba(255,255,255,0.2)', marginBottom:'20px'}}>
+        {/* NOT changed on purpose: this is the live "last refreshed" clock, not a customer-registered time */}
         Last updated: {lastRefresh.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} · auto-refreshes every 30s
       </p>
 
@@ -233,7 +234,8 @@ export default function ProviderQuotes() {
                   <span style={{fontSize:'11px', color:'rgba(255,255,255,0.2)', marginLeft:'auto'}}>{isExpanded ? '▲' : '▼'}</span>
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
-                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
+                  {/* timeZone:'UTC' added — outbound time shown exactly as the customer entered it, no conversion */}
+                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})} · {req.passengers} pax · {req.luggage ?? 0} bags
                   {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
                 {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
@@ -244,7 +246,8 @@ export default function ProviderQuotes() {
                       ↩ {req.return_pickup?.name ?? '—'} → {req.return_dropoff?.name ?? '—'}
                     </div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>
-                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
+                      {/* timeZone:'UTC' added — return time shown exactly as the customer entered it, no conversion */}
+                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
                       {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
                     </div>
                     {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
@@ -316,6 +319,7 @@ export default function ProviderQuotes() {
                       <span style={{color:'rgba(255,255,255,0.6)', textTransform:'capitalize', fontWeight:'500'}}>{h.status}</span>
                       <span style={{color:'rgba(255,255,255,0.3)', marginLeft:'6px'}}>by {h.changed_by_role}</span>
                       {h.note && <span style={{color:'rgba(255,255,255,0.25)', fontStyle:'italic', fontSize:'11px', marginLeft:'6px'}}>— {h.note}</span>}
+                      {/* NOT changed on purpose: audit-log event time (when the status changed), not a customer-registered transfer time */}
                       <div style={{fontSize:'10px', color:'rgba(255,255,255,0.2)', marginTop:'1px'}}>
                         {new Date(h.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})} · {new Date(h.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
                       </div>
