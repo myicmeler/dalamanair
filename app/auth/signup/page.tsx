@@ -49,6 +49,11 @@ export default function SignUpPage() {
       const userId = data.user?.id
       if (!userId) { setError('Could not create account. Please try again.'); setLoading(false); return }
 
+      // Save phone (trigger does not copy it from metadata)
+      if (form.phone) {
+        await supabase.from('users').update({ phone: form.phone }).eq('id', userId)
+      }
+
       if (isProvider) {
         // 2. Call edge function to create provider record server-side
         const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/register-provider`, {
