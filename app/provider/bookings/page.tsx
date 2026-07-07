@@ -4,6 +4,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { callFunction } from '@/lib/functions'
 
+// Currency symbol from the booking's own currency (backfilled from the linked quote).
+// Falls back to € for anything that isn't GBP.
+const sym = (c?: string) => (c === 'GBP' ? '£' : '€')
+
 export default function ProviderBookings() {
   const router = useRouter()
   const supabase = createClient() as any
@@ -150,7 +154,7 @@ export default function ProviderBookings() {
                   {/* timeZone:'UTC' added on both — show the time exactly as entered, same on every device */}
                   {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {b.passengers} pax{b.flight_number&&` · ✈ ${b.flight_number}`}
                 </div>
-                <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>€ {b.final_price?.toFixed(2)}</span>
+                <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>{sym(b.currency)} {b.final_price?.toFixed(2)}</span>
               </div>
             </div>
             <div style={{padding:'12px 16px'}}>
