@@ -2,6 +2,10 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
+// Currency symbol from the booking's own currency (backfilled from the linked quote).
+// Falls back to € for anything that isn't GBP.
+const sym = (c?: string) => (c === 'GBP' ? '£' : '€')
+
 export default function AdminBookings() {
   const supabase = createClient() as any
   const [bookings, setBookings] = useState<any[]>([])
@@ -71,7 +75,7 @@ export default function AdminBookings() {
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
                   {b.provider?.company_name||'—'}{b.driver?` · ${b.driver.full_name}`:''}
                 </div>
-                <div style={{fontSize:'14px', fontWeight:'500'}}>€{b.final_price?.toFixed(2)}</div>
+                <div style={{fontSize:'14px', fontWeight:'500'}}>{sym(b.currency)}{b.final_price?.toFixed(2)}</div>
               </div>
             </div>
           ))}
