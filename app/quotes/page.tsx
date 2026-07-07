@@ -101,6 +101,7 @@ export default function MyQuotes() {
         direction: 'outbound', pickup_time: req.pickup_time, passengers: req.passengers,
         luggage: req.luggage, status: 'pending_provider_confirmation', price: offer.price,
         discount_pct: 0, final_price: offer.price,
+        currency: req.currency ?? 'EUR',
         flight_number: req.flight_number, customer_notes: req.notes,
       }).select().single()
       if (booking) {
@@ -150,6 +151,7 @@ export default function MyQuotes() {
             luggage: req.return_luggage ?? req.luggage,
             status: 'pending_provider_confirmation',
             price: 0, discount_pct: 0, final_price: 0,
+            currency: req.currency ?? 'EUR',
             flight_number: req.return_flight_number, customer_notes: req.return_notes,
           }).select().single()
           if (returnBooking) {
