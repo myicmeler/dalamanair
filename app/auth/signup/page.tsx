@@ -36,7 +36,7 @@ export default function SignUpPage() {
     setLoading(true); setError('')
 
     try {
-      // 1. Create auth user (phone goes into metadata; the handle_new_user trigger copies it into public.users)
+      // 1. Create auth user
       const { data, error: authErr } = await supabase.auth.signUp({
         email: form.email, password: form.password,
         options: {
@@ -92,7 +92,7 @@ export default function SignUpPage() {
       <div style={{fontSize:'40px', marginBottom:'16px'}}>✉</div>
       <h1 style={{fontSize:'22px', fontWeight:500, color:'#ffffff', marginBottom:'10px'}}>Check your email</h1>
       <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', lineHeight:'1.7', maxWidth:'320px', marginBottom:'24px'}}>
-        Confirmation link sent to <strong style={{color:'rgba(255,255,255,0.8)'}}>{form.email}</strong>
+        Confirmation link sent to <strong style={{color:'#f4b942'}}>{form.email}</strong>. Click the link in the email and you'll be logged in automatically.
       </p>
       {isProvider && (
         <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', lineHeight:'1.6', maxWidth:'320px', marginBottom:'16px'}}>
