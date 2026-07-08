@@ -41,7 +41,7 @@ export default function SignUpPage() {
         email: form.email, password: form.password,
         options: {
           data:{ full_name: form.fullName, phone: form.phone },
-          emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/welcome/' : '/'}`,
+          emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/wlcome/' : '/'}`,
         }
       })
       if (authErr) { setError(authErr.message); setLoading(false); return }
@@ -76,7 +76,7 @@ export default function SignUpPage() {
       }
 
       if (data.session) {
-        router.replace(isProvider ? '/provider/welcome/' : '/')
+        router.replace(isProvider ? '/provider/wlcome/' : '/')
       } else {
         setSuccess(true)
       }
