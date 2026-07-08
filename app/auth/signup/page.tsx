@@ -95,8 +95,8 @@ export default function SignUpPage() {
         Confirmation link sent to <strong>{form.email}</strong>. Click the link in the email and you'll be logged in automatically.
       </p>
       {isProvider && (
-        <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', lineHeight:'1.6', maxWidth:'320px', marginBottom:'16px'}}>
-          Once confirmed you can log in and start receiving quote requests from customers.
+        <p style={{fontSize:'13px', color:'#f4b942', lineHeight:'1.6', maxWidth:'320px', marginBottom:'16px'}}>
+          Once you're logged in, you can start receiving quote requests from customers.
         </p>
       )}
       <Link href="/auth/signin/" style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>← Back to sign in</Link>
