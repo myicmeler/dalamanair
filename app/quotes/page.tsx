@@ -95,7 +95,7 @@ export default function MyQuotes() {
       }
       // --- END NOTIFY REJECTED PROVIDERS ---
 
-      const { data: booking } = await supabase.from('bookings').insert({
+      const { data: booking, error: bookingError } = await supabase.from('bookings').insert({
         customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
         pickup_location_id: req.pickup_location_id, dropoff_location_id: req.dropoff_location_id,
         direction: 'outbound', pickup_time: req.pickup_time, passengers: req.passengers,
@@ -105,6 +105,7 @@ export default function MyQuotes() {
         request_id: req.id,
         flight_number: req.flight_number, customer_notes: req.notes,
       }).select().single()
+      if (bookingError) console.error('OUTBOUND BOOKING INSERT FAILED:', bookingError)
       if (booking) {
         await supabase.from('booking_status_history').insert({
           booking_id: booking.id, status: 'pending_provider_confirmation',
@@ -138,16 +139,20 @@ export default function MyQuotes() {
           })
         } catch (e) { console.error(e) }
 
-        // --- RETURN LEG (bug fix, 2 Jul 2026) ---
+        // --- RETURN LEG (bug fix, 2 Jul 2026; direction corrected 26 Jul 2026) ---
         // For return trips, ALSO create the return booking row. Price is 0 on the
         // return row: the accepted offer price covers the round trip and sits on
         // the outbound row (Option A). The set_booking_group trigger links the
         // two rows by group_id automatically.
+        //
+        // IMPORTANT: the bookings.direction column is the trip_direction enum,
+        // which accepts ONLY 'outbound' and 'inbound'. Passing 'return' makes the
+        // insert fail silently and the return leg never gets created.
         if (req.trip_type === 'return' && req.return_time) {
-          const { data: returnBooking } = await supabase.from('bookings').insert({
+          const { data: returnBooking, error: returnError } = await supabase.from('bookings').insert({
             customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
             pickup_location_id: req.return_pickup_location_id, dropoff_location_id: req.return_dropoff_location_id,
-            direction: 'return', pickup_time: req.return_time,
+            direction: 'inbound', pickup_time: req.return_time,
             passengers: req.return_passengers ?? req.passengers,
             luggage: req.return_luggage ?? req.luggage,
             status: 'pending_provider_confirmation',
@@ -156,6 +161,7 @@ export default function MyQuotes() {
             request_id: req.id,
             flight_number: req.return_flight_number, customer_notes: req.return_notes,
           }).select().single()
+          if (returnError) console.error('RETURN LEG BOOKING INSERT FAILED:', returnError)
           if (returnBooking) {
             await supabase.from('booking_status_history').insert({
               booking_id: returnBooking.id, status: 'pending_provider_confirmation',
