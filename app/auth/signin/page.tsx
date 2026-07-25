@@ -116,8 +116,9 @@ function SignInContent() {
       <p style={{marginTop:'20px', fontSize:'13px'}}>
         <Link href="/auth/reset/" style={{color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>Forgot password?</Link>
       </p>
-    </div><script data-goatcounter="https://dalaman.goatcounter.com/count"
+      <script data-goatcounter="https://dalaman.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
+    </div>
   )
 }
 
