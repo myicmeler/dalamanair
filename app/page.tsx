@@ -212,5 +212,7 @@ export default function Home() {
         </div>
       </footer>
     </div>
+    <script data-goatcounter="https://dalaman.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
   )
 }
