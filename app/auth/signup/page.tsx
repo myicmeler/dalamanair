@@ -183,6 +183,7 @@ export default function SignUpPage() {
           {loading ? 'Creating...' : isProvider ? 'Register as provider →' : 'Create account →'}
         </button>
       </div>
-    </div>
+    </div><script data-goatcounter="https://dalaman.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
   )
 }
