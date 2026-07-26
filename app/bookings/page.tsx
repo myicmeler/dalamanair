@@ -43,12 +43,9 @@ export default function MyBookings() {
     setAcknowledging(booking.id)
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      // The trg_log_booking_status_change trigger writes the history row
+      // automatically on every status change, so no manual insert here.
       await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', booking.id)
-      await supabase.from('booking_status_history').insert({
-        booking_id: booking.id, status: 'confirmed',
-        changed_by: user?.id, changed_by_role: 'customer',
-        note: 'Customer acknowledged provider confirmation — booking fully confirmed'
-      })
       if (booking.provider?.user_id) {
         await supabase.from('user_notifications').insert({
           user_id: booking.provider.user_id,
@@ -81,12 +78,8 @@ export default function MyBookings() {
     setCancelling(booking.id)
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      // History row written automatically by trg_log_booking_status_change.
       await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id)
-      await supabase.from('booking_status_history').insert({
-        booking_id: booking.id, status: 'cancelled',
-        changed_by: user?.id, changed_by_role: 'customer',
-        note: 'Cancelled by customer'
-      })
       const urgent = isUrgent(booking.pickup_time)
       const date = new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'})
       const time = new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})
