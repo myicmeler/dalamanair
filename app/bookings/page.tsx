@@ -27,6 +27,11 @@ export default function MyBookings() {
     setLoading(false)
   }
 
+  // Currency symbol from booking.currency — £ for GBP, € otherwise
+  function sym(currency?: string) {
+    return currency === 'GBP' ? '£' : '€'
+  }
+
   function isUrgent(pickupTime: string): boolean {
     const pickup = new Date(pickupTime)
     const now = new Date()
@@ -61,6 +66,7 @@ export default function MyBookings() {
               date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
               time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
               price: booking.final_price?.toFixed(2),
+              currency: booking.currency ?? 'EUR',
             }
           })
         } catch (e) { console.error(e) }
@@ -100,6 +106,7 @@ export default function MyBookings() {
             data: {
               pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
               date, time, price: booking.final_price?.toFixed(2),
+              currency: booking.currency ?? 'EUR',
               urgent,
               customerPhone: null,
               customerEmail: user?.email,
@@ -115,6 +122,7 @@ export default function MyBookings() {
           data: {
             pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
             date, time, price: booking.final_price?.toFixed(2),
+            currency: booking.currency ?? 'EUR',
             providerName: booking.provider?.company_name,
             urgent,
             providerPhone: booking.provider?.phone,
@@ -174,7 +182,7 @@ export default function MyBookings() {
                     {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {b.passengers} pax
                     {b.flight_number&&` · ✈ ${b.flight_number}`}
                   </div>
-                  <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>€ {b.final_price?.toFixed(2)}</span>
+                  <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>{sym(b.currency)} {b.final_price?.toFixed(2)}</span>
                 </div>
               </div>
               <div style={{padding:'12px 16px'}}>
