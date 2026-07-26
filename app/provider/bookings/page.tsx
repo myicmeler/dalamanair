@@ -40,15 +40,22 @@ export default function ProviderBookings() {
   async function confirmBooking(booking: any) {
     setProcessing(booking.id)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       // History row written automatically by trg_log_booking_status_change.
-      await supabase.from('bookings').update({ status: 'pending_customer_acknowledgement' }).eq('id', booking.id)
-      await supabase.from('user_notifications').insert({
+      const { error: confirmError } = await supabase.from('bookings')
+        .update({ status: 'pending_customer_acknowledgement' })
+        .eq('id', booking.id)
+      if (confirmError) {
+        console.error('CONFIRM BOOKING FAILED:', confirmError)
+        alert('Could not confirm the booking. Please try again.')
+        return
+      }
+      const { error: notifyError } = await supabase.from('user_notifications').insert({
         user_id: booking.customer_id, type: 'booking_provider_confirmed',
         title: 'Provider confirmed your booking',
         body: `${provider.company_name} confirmed. Please acknowledge to fully confirm.`,
         link: '/bookings/'
       })
+      if (notifyError) console.error('CONFIRM NOTIFICATION FAILED:', notifyError)
       try {
         await callFunction('send-email', {
           type: 'provider_confirmed_acknowledge', customerId: booking.customer_id,
@@ -62,43 +69,72 @@ export default function ProviderBookings() {
         })
       } catch (e) { console.error(e) }
       await load()
-    } catch (err) { console.error(err) }
-    setProcessing(null)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setProcessing(null)
+    }
   }
 
   async function rejectBooking(booking: any) {
     if (!confirm('Reject this booking? The customer will be notified.')) return
     setProcessing(booking.id)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       // History row written automatically by trg_log_booking_status_change.
-      await supabase.from('bookings').update({ status: 'rejected_by_provider' }).eq('id', booking.id)
-      await supabase.from('user_notifications').insert({
+      const { error: rejectError } = await supabase.from('bookings')
+        .update({ status: 'rejected_by_provider' })
+        .eq('id', booking.id)
+      if (rejectError) {
+        console.error('REJECT BOOKING FAILED:', rejectError)
+        alert('Could not reject the booking. Please try again.')
+        return
+      }
+      const { error: notifyError } = await supabase.from('user_notifications').insert({
         user_id: booking.customer_id, type: 'booking_rejected',
         title: 'Provider declined booking',
         body: `${provider.company_name} could not fulfil ${booking.pickup?.name} → ${booking.dropoff?.name}.`,
         link: '/bookings/'
       })
+      if (notifyError) console.error('REJECT NOTIFICATION FAILED:', notifyError)
       await load()
-    } catch (err) { console.error(err) }
-    setProcessing(null)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setProcessing(null)
+    }
   }
 
   async function assignDriver(booking: any, driverId: string) {
     setProcessing(booking.id)
-    await supabase.from('bookings').update({ driver_id: driverId, status: 'driver_assigned' }).eq('id', booking.id)
-    const { data: { user } } = await supabase.auth.getUser()
-    const driver = drivers.find(d => d.id === driverId)
-    // History row written automatically by trg_log_booking_status_change.
-    // The driver's identity is recoverable from bookings.driver_id.
-    await supabase.from('user_notifications').insert({
-      user_id: booking.customer_id, type: 'driver_assigned',
-      title: 'Driver assigned to your transfer',
-      body: `${driver?.full_name} will be your driver. Phone: ${driver?.phone}`,
-      link: '/bookings/'
-    })
-    await load()
-    setProcessing(null)
+    try {
+      const driver = drivers.find(d => d.id === driverId)
+      // History row written automatically by trg_log_booking_status_change.
+      // The driver's identity is recoverable from bookings.driver_id.
+      const { error: assignError } = await supabase.from('bookings')
+        .update({ driver_id: driverId, status: 'driver_assigned' })
+        .eq('id', booking.id)
+      if (assignError) {
+        console.error('ASSIGN DRIVER FAILED:', assignError)
+        alert('Could not assign the driver. Please try again.')
+        return
+      }
+      const { error: notifyError } = await supabase.from('user_notifications').insert({
+        user_id: booking.customer_id, type: 'driver_assigned',
+        title: 'Driver assigned to your transfer',
+        body: `${driver?.full_name} will be your driver. Phone: ${driver?.phone}`,
+        link: '/bookings/'
+      })
+      // Non-fatal: the driver is assigned either way, so do not block on this.
+      if (notifyError) console.error('DRIVER ASSIGNED NOTIFICATION FAILED:', notifyError)
+      // TODO (issue 11): email the customer here once a driver_assigned
+      // template exists in send-email. Currently they are never told by email.
+      await load()
+    } catch (err) {
+      console.error('assignDriver error:', err)
+      alert('Something went wrong assigning the driver. Please try again.')
+    } finally {
+      setProcessing(null)
+    }
   }
 
   const statusMap: Record<string,{bg:string,color:string,label:string}> = {
