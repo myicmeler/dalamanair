@@ -57,12 +57,9 @@ export default function MyQuotes() {
       const { data: { user } } = await supabase.auth.getUser()
       await supabase.from('quote_offers').update({ status: 'accepted' }).eq('id', offerId)
       await supabase.from('quote_offers').update({ status: 'rejected' }).eq('request_id', requestId).neq('id', offerId)
+      // The quote_status_change_trigger writes the history row automatically
+      // on every status change, so no manual insert here.
       await supabase.from('quote_requests').update({ status: 'accepted' }).eq('id', requestId)
-      await supabase.from('quote_status_history').insert({
-        quote_request_id: requestId, status: 'accepted',
-        changed_by: user?.id, changed_by_role: 'customer',
-        note: `Offer accepted from ${offer.provider?.company_name}`
-      })
 
       // --- NOTIFY REJECTED PROVIDERS ---
       const rejectedOffers = (req.quote_offers ?? []).filter((o: any) => o.id !== offerId)
@@ -142,8 +139,7 @@ export default function MyQuotes() {
         // --- RETURN LEG (bug fix, 2 Jul 2026; direction corrected 26 Jul 2026) ---
         // For return trips, ALSO create the return booking row. Price is 0 on the
         // return row: the accepted offer price covers the round trip and sits on
-        // the outbound row (Option A). The set_booking_group trigger links the
-        // two rows by group_id automatically.
+        // the outbound row (Option A). The two legs are linked by request_id.
         //
         // IMPORTANT: the bookings.direction column is the trip_direction enum,
         // which accepts ONLY 'outbound' and 'inbound'. Passing 'return' makes the
@@ -184,11 +180,8 @@ export default function MyQuotes() {
       const { data: { user } } = await supabase.auth.getUser()
       const req = requests.find(r => r.id === requestId)
       if (hasOffers) {
+        // History row written automatically by quote_status_change_trigger.
         await supabase.from('quote_requests').update({ status: 'cancelled' }).eq('id', requestId)
-        await supabase.from('quote_status_history').insert({
-          quote_request_id: requestId, status: 'cancelled',
-          changed_by: user?.id, changed_by_role: 'customer', note: 'Cancelled by customer'
-        })
         for (const offer of req.quote_offers || []) {
           if (offer.provider?.user_id) {
             const { error: notifyError } = await supabase.from('user_notifications').insert({
