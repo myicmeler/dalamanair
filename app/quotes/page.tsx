@@ -191,12 +191,29 @@ export default function MyQuotes() {
         })
         for (const offer of req.quote_offers || []) {
           if (offer.provider?.user_id) {
-            await supabase.from('user_notifications').insert({
+            const { error: notifyError } = await supabase.from('user_notifications').insert({
               user_id: offer.provider.user_id, type: 'request_cancelled',
               title: 'Quote request cancelled',
               body: `Customer cancelled the request for ${req.pickup?.name} → ${req.dropoff?.name}.`,
               link: '/provider/quotes/'
             })
+            if (notifyError) console.error('CANCEL NOTIFICATION FAILED:', notifyError)
+            // Email too — nothing in the app displays notifications yet, so without
+            // this the provider would never learn the request had been cancelled.
+            try {
+              await callFunction('send-email', {
+                type: 'request_cancelled',
+                to: '',
+                providerUserId: offer.provider.user_id,
+                data: {
+                  pickup: req.pickup?.name,
+                  dropoff: req.dropoff?.name,
+                  date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }),
+                  price: offer.price?.toFixed(2),
+                  currency: req.currency ?? 'EUR',
+                }
+              })
+            } catch (e) { console.error('Cancelled-request email error:', e) }
           }
         }
         setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'cancelled' } : r))
