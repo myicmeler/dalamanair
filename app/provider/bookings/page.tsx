@@ -41,12 +41,8 @@ export default function ProviderBookings() {
     setProcessing(booking.id)
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      // History row written automatically by trg_log_booking_status_change.
       await supabase.from('bookings').update({ status: 'pending_customer_acknowledgement' }).eq('id', booking.id)
-      await supabase.from('booking_status_history').insert({
-        booking_id: booking.id, status: 'pending_customer_acknowledgement',
-        changed_by: user?.id, changed_by_role: 'provider',
-        note: 'Provider confirmed — awaiting customer acknowledgement'
-      })
       await supabase.from('user_notifications').insert({
         user_id: booking.customer_id, type: 'booking_provider_confirmed',
         title: 'Provider confirmed your booking',
@@ -75,12 +71,8 @@ export default function ProviderBookings() {
     setProcessing(booking.id)
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      // History row written automatically by trg_log_booking_status_change.
       await supabase.from('bookings').update({ status: 'rejected_by_provider' }).eq('id', booking.id)
-      await supabase.from('booking_status_history').insert({
-        booking_id: booking.id, status: 'rejected_by_provider',
-        changed_by: user?.id, changed_by_role: 'provider',
-        note: 'Provider could not fulfil this booking'
-      })
       await supabase.from('user_notifications').insert({
         user_id: booking.customer_id, type: 'booking_rejected',
         title: 'Provider declined booking',
@@ -97,11 +89,8 @@ export default function ProviderBookings() {
     await supabase.from('bookings').update({ driver_id: driverId, status: 'driver_assigned' }).eq('id', booking.id)
     const { data: { user } } = await supabase.auth.getUser()
     const driver = drivers.find(d => d.id === driverId)
-    await supabase.from('booking_status_history').insert({
-      booking_id: booking.id, status: 'driver_assigned',
-      changed_by: user?.id, changed_by_role: 'provider',
-      note: `Driver assigned: ${driver?.full_name}`
-    })
+    // History row written automatically by trg_log_booking_status_change.
+    // The driver's identity is recoverable from bookings.driver_id.
     await supabase.from('user_notifications').insert({
       user_id: booking.customer_id, type: 'driver_assigned',
       title: 'Driver assigned to your transfer',
