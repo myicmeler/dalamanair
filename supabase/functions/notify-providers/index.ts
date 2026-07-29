@@ -56,19 +56,22 @@ serve(async (req) => {
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', SERVICE_KEY)
 
-    // --- AUTHORIZATION ---
-    // This function sends a provider email blast. Allow internal/cron callers
-    // (service-role key) or any authenticated user; reject anonymous callers
-    // so the public anon key can't be used to spam providers. verify_jwt alone
-    // does not prove identity because the anon key is a valid project JWT.
+    // --- AUTHENTICATION ---
+    // This function sends a provider email blast, so it must not be callable
+    // anonymously (the public anon key satisfies verify_jwt but does not prove
+    // identity). Accept the service-role key (cron/internal) or resolve the
+    // caller from their token; authorization against the specific request
+    // happens once we've loaded it, below.
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
-    if (token !== SERVICE_KEY) {
+    const isServiceRole = token === SERVICE_KEY
+    let callerId: string | null = null
+    if (!isServiceRole) {
       const { data: { user }, error } = await supabase.auth.getUser(token)
       if (error || !user) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
+      callerId = user.id
     }
-    // --- end authorization ---
 
     const { requestId } = await req.json()
     if (!requestId) throw new Error('requestId is required')
@@ -77,6 +80,19 @@ serve(async (req) => {
       .select('*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)')
       .eq('id', requestId).single()
     if (!request) throw new Error('Not found')
+
+    // --- AUTHORIZATION ---
+    // Only the service role, an admin, or the customer who owns the request may
+    // trigger a blast for it — otherwise any logged-in user could spam every
+    // provider by calling this with arbitrary request IDs.
+    if (!isServiceRole) {
+      const { data: profile } = await supabase.from('users').select('role').eq('id', callerId).single()
+      const isOwner = request.customer_id === callerId
+      if (profile?.role !== 'admin' && !isOwner) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+    }
+    // --- end authorization ---
 
     // Get providers who already submitted an offer on this request
     const { data: existingOffers } = await supabase.from('quote_offers')

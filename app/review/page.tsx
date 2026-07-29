@@ -38,36 +38,29 @@ function ReviewContent() {
         setLoading(false)
         return
       }
+      // Reviewing requires being signed in as the booking's customer. Send
+      // anonymous visitors to sign in and back — we never look a booking up
+      // without an authenticated, ownership-checked query.
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        const { data } = await supabase
-          .from('bookings')
-          .select('id, status, pickup_time, customer_id, provider_id, driver_id, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), driver:drivers(full_name), provider:providers(company_name)')
-          .eq('id', token)
-          .eq('status', 'completed')
-          .single()
-        if (data) {
-          setBooking(data)
+        router.replace(`/auth/signin/?redirect=${encodeURIComponent(`/review/?token=${token}`)}`)
+        return
+      }
+      const { data } = await supabase
+        .from('bookings')
+        .select('id, status, pickup_time, customer_id, provider_id, driver_id, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), driver:drivers(full_name), provider:providers(company_name)')
+        .eq('id', token)
+        .single()
+      if (data) {
+        if (data.status !== 'completed') {
+          setError(lang === 'en' ? 'You can only review completed trips' : 'Yalnızca tamamlanmış seyahatleri değerlendirebilirsiniz')
+        } else if (data.customer_id !== user.id) {
+          setError(lang === 'en' ? 'This booking isn\'t yours' : 'Bu rezervasyon size ait değil')
         } else {
-          setError(lang === 'en' ? 'Booking not found or not completed yet' : 'Rezervasyon bulunamadı veya henüz tamamlanmadı')
+          setBooking(data)
         }
       } else {
-        const { data } = await supabase
-          .from('bookings')
-          .select('id, status, pickup_time, customer_id, provider_id, driver_id, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name), driver:drivers(full_name), provider:providers(company_name)')
-          .eq('id', token)
-          .single()
-        if (data) {
-          if (data.status !== 'completed') {
-            setError(lang === 'en' ? 'You can only review completed trips' : 'Yalnızca tamamlanmış seyahatleri değerlendirebilirsiniz')
-          } else if (data.customer_id !== user.id) {
-            setError(lang === 'en' ? 'This booking isn\'t yours' : 'Bu rezervasyon size ait değil')
-          } else {
-            setBooking(data)
-          }
-        } else {
-          setError(lang === 'en' ? 'Booking not found' : 'Rezervasyon bulunamadı')
-        }
+        setError(lang === 'en' ? 'Booking not found' : 'Rezervasyon bulunamadı')
       }
       setLoading(false)
     }

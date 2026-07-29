@@ -19,11 +19,19 @@ function SignInContent() {
   const passwordRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const redirect = params.get('redirect') ?? '/'
+  // Only honour same-origin relative paths. An absolute URL (https://evil.com)
+  // or a protocol-relative one (//evil.com) would turn ?redirect= into an open
+  // redirect, so anything that isn't a plain "/path" falls back to the home page.
+  const redirect = (() => {
+    try {
+      const d = decodeURIComponent(params.get('redirect') ?? '/')
+      return d.startsWith('/') && !d.startsWith('//') && !d.startsWith('/\\') ? d : '/'
+    } catch { return '/' }
+  })()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (session) window.location.href = decodeURIComponent(redirect)
+      if (session) window.location.href = redirect
     })
   }, [])
 
@@ -50,7 +58,7 @@ function SignInContent() {
       setLoading(false)
       return
     }
-    window.location.href = decodeURIComponent(redirect)
+    window.location.href = redirect
   }
 
   return (
