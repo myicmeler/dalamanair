@@ -68,13 +68,17 @@ serve(async (req) => {
     const { data: existingProvider } = await supabase
       .from('providers').select('id').eq('user_id', userId).maybeSingle()
     if (!existingProvider) {
+      // Self-registered providers start UNAPPROVED. An admin must review
+      // and approve them (Admin → Providers) before they become visible or
+      // receive quote requests. The supplied TURSAB number is unverified, so
+      // auto-approving here would let anyone claim to be a vetted operator.
       const { error: provErr } = await supabase.from('providers').insert({
         user_id: userId,
         company_name: companyName,
         contact_name: fullName,
         phone: phone || null,
         tursab_number: tursabNumber,
-        is_approved: true,
+        is_approved: false,
       })
       if (provErr) {
         console.error('Provider insert error:', provErr)

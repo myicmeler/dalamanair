@@ -129,23 +129,37 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', SERVICE_KEY)
 
     // --- AUTHORIZATION ---
-    // This function sends email from our domain to arbitrary recipients, so it
-    // must not be callable anonymously (the public anon key satisfies
-    // verify_jwt but does not prove identity). Allow internal/cron callers
-    // (service-role key) or any authenticated user; reject everyone else.
+    // This function sends email from our domain, so it must not be callable
+    // anonymously (the public anon key satisfies verify_jwt but does not prove
+    // identity). Callers fall into two tiers:
+    //   * privileged  — the service-role key (cron/internal) or a signed-in
+    //                   admin. May send to an arbitrary `to` address.
+    //   * regular     — any other authenticated user. May only send to a
+    //                   recipient we resolve from `providerUserId`/`customerId`
+    //                   (i.e. a real platform user), never to a free-form
+    //                   address. This stops a logged-in customer from using the
+    //                   endpoint as an open relay to spam arbitrary inboxes.
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
-    if (token !== SERVICE_KEY) {
+    let isPrivileged = token === SERVICE_KEY
+    if (!isPrivileged) {
       const { data: { user }, error } = await supabase.auth.getUser(token)
       if (error || !user) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
+      const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+      isPrivileged = profile?.role === 'admin'
     }
     // --- end authorization ---
 
     const { type, to, providerUserId, customerId, data } = await req.json()
     if (!type) return new Response(JSON.stringify({ error:'type required' }), { status:400, headers:{ ...corsHeaders, 'Content-Type':'application/json' } })
 
-    let recipient = to
+    // A non-empty free-form `to` is only honoured for privileged callers.
+    if (to && !isPrivileged) {
+      return new Response(JSON.stringify({ error: 'Not authorized to send to an arbitrary address' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    let recipient = isPrivileged ? to : ''
 
     if (!recipient && (providerUserId || customerId)) {
       const userId = providerUserId || customerId
