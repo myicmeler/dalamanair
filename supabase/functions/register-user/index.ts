@@ -90,11 +90,14 @@ Deno.serve(async (req) => {
   // Create a confirmed auth user (no confirmation email sent).
   // Random password — user sets their own via the email link below.
   const password = crypto.randomUUID() + crypto.randomUUID();
+  // Include phone in user_metadata so the on_auth_user_created trigger
+  // (handle_new_user) captures it into public.users.phone directly. The
+  // update below is kept as belt-and-braces.
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name, role },
+    user_metadata: { full_name, phone, role },
   });
 
   if (createErr || !created?.user) {
