@@ -69,7 +69,7 @@ export default function AdminBookings() {
                 </span>
               </div>
               <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'4px'}}>
-                {b.customer?.full_name||b.customer?.email||'—'} · {b.passengers} pax
+                {(b.source==='manual' ? (b.manual_customer_name||b.manual_customer_email) : (b.customer?.full_name||b.customer?.email)) || '—'}{b.source==='manual'?' · logged':''} · {b.passengers} pax
               </div>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>

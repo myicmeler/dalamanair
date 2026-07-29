@@ -109,7 +109,7 @@ export default function AdminDashboard() {
               <div key={b.id} style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <div>
                   <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'2px'}}>{b.pickup?.name} → {b.dropoff?.name}</div>
-                  <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>{b.customer?.email} · {new Date(b.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}</div>
+                  <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>{(b.source==='manual' ? (b.manual_customer_email||b.manual_customer_name) : b.customer?.email) || '—'} · {new Date(b.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}</div>
                 </div>
                 <div style={{textAlign:'right'}}>
                   <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'4px'}}>{sym(b.currency)}{b.final_price?.toFixed(0)}</div>
