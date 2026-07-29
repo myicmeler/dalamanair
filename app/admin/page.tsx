@@ -2,9 +2,26 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
+// Bookings can be in EUR or GBP; never sum them together. Total per currency.
+const sym = (c?: string) => (c === 'GBP' ? '£' : '€')
+function revByCurrency(rows: any[]): Record<string, number> {
+  const acc: Record<string, number> = { EUR: 0, GBP: 0 }
+  for (const b of rows) {
+    const c = b.currency === 'GBP' ? 'GBP' : 'EUR'
+    acc[c] += b.final_price || 0
+  }
+  return acc
+}
+function fmtRev(m: Record<string, number>): string {
+  const parts: string[] = []
+  if (m.EUR) parts.push(`€${m.EUR.toFixed(0)}`)
+  if (m.GBP) parts.push(`£${m.GBP.toFixed(0)}`)
+  return parts.length ? parts.join(' · ') : '€0'
+}
+
 export default function AdminDashboard() {
   const supabase = createClient() as any
-  const [stats, setStats] = useState({ totalBookings:0, bookingsToday:0, totalRevenue:0, revenueToday:0, providers:0, pendingProviders:0, pendingReviews:0, users:0, avgRating:0 })
+  const [stats, setStats] = useState({ totalBookings:0, bookingsToday:0, totalRevenue:{EUR:0,GBP:0} as Record<string,number>, revenueToday:{EUR:0,GBP:0} as Record<string,number>, providers:0, pendingProviders:0, pendingReviews:0, users:0, avgRating:0 })
   const [recent, setRecent] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -12,15 +29,15 @@ export default function AdminDashboard() {
     async function load() {
       const today = new Date().toISOString().split('T')[0]
       const [{ data: allBk }, { data: todayBk }, { data: providers }, { data: users }, { data: reviews }, { data: recentBk }] = await Promise.all([
-        supabase.from('bookings').select('final_price, status'),
-        supabase.from('bookings').select('final_price').gte('pickup_time', today+'T00:00:00').lte('pickup_time', today+'T23:59:59'),
+        supabase.from('bookings').select('final_price, currency, status'),
+        supabase.from('bookings').select('final_price, currency').gte('pickup_time', today+'T00:00:00').lte('pickup_time', today+'T23:59:59'),
         supabase.from('providers').select('is_approved, avg_rating'),
         supabase.from('users').select('id'),
         supabase.from('reviews').select('rating, is_published'),
         supabase.from('bookings').select('*, customer:users(email), pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)').order('created_at', {ascending:false}).limit(5),
       ])
-      const totalRevenue = (allBk??[]).reduce((s:number,b:any)=>s+(b.final_price||0),0)
-      const revenueToday = (todayBk??[]).reduce((s:number,b:any)=>s+(b.final_price||0),0)
+      const totalRevenue = revByCurrency(allBk??[])
+      const revenueToday = revByCurrency(todayBk??[])
       const avgRating = reviews&&reviews.length>0 ? reviews.reduce((s:number,r:any)=>s+(r.rating||0),0)/reviews.length : 0
       setStats({
         totalBookings:allBk?.length??0, bookingsToday:todayBk?.length??0,
@@ -54,7 +71,7 @@ export default function AdminDashboard() {
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'20px'}}>
             {[
               {num:stats.bookingsToday, label:'Today', sub:`${stats.totalBookings} total`},
-              {num:`€${stats.revenueToday.toFixed(0)}`, label:'Revenue today', sub:`€${stats.totalRevenue.toFixed(0)} total`},
+              {num:fmtRev(stats.revenueToday), label:'Revenue today', sub:`${fmtRev(stats.totalRevenue)} total`},
               {num:stats.users, label:'Users', sub:'Registered'},
               {num:stats.avgRating.toFixed(1)+'★', label:'Platform rating', sub:'Reviews'},
             ].map(s => (
@@ -95,7 +112,7 @@ export default function AdminDashboard() {
                   <div style={{fontSize:'11px', color:'rgba(255,255,255,0.4)'}}>{b.customer?.email} · {new Date(b.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}</div>
                 </div>
                 <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'4px'}}>€{b.final_price?.toFixed(0)}</div>
+                  <div style={{fontSize:'13px', fontWeight:'500', marginBottom:'4px'}}>{sym(b.currency)}{b.final_price?.toFixed(0)}</div>
                   <span style={{fontSize:'10px', padding:'3px 8px', borderRadius:'10px', backgroundColor:`${statusColor[b.status]}20`, color:statusColor[b.status]}}>
                     {b.status?.replace('_',' ')}
                   </span>
