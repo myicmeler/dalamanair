@@ -7,10 +7,10 @@ const faqs = [
   {
     category: 'Bookings',
     items: [
-      { q:'How do I book a transfer?', a:'Search for your route on the homepage, choose a vehicle, fill in your details and confirm. You\'ll receive a confirmation email immediately.' },
-      { q:'Can I book a return transfer?', a:'Yes — select "Return" on the search form and enter your return date and time. Return bookings receive a 10% discount.' },
-      { q:'What is the difference between booking and requesting a quote?', a:'Booking is instant — you choose a vehicle and confirm. Requesting a quote lets providers compete for your business with their best price, useful for large groups or special requirements.' },
-      { q:'How far in advance should I book?', a:'We recommend booking at least 24 hours before your transfer. For peak season (July–August) booking a few days in advance is advisable.' },
+      { q:'How do I book a transfer?', a:'Enter your route, date, time and passengers on the homepage and submit a quote request. Approved local providers send you their best prices; you compare them on your quotes page and accept the one you like. The provider then confirms and you acknowledge to finalise — you\'re notified by email at each step.' },
+      { q:'Can I request a return transfer?', a:'Yes — tick "Add return journey" when you request a quote and enter your return date and time. Providers quote a single price covering both legs.' },
+      { q:'How do offers work?', a:'Your request goes to all approved providers at once. They submit their best price privately — blind bidding, so they can\'t see each other\'s offers. You pick the offer you prefer; there\'s no obligation to accept any.' },
+      { q:'How far in advance should I request a transfer?', a:'We recommend requesting at least a few days before travel so providers have time to respond — quote requests stay open for 48 hours. For peak season (July–August) the earlier the better.' },
     ]
   },
   {
@@ -25,7 +25,7 @@ const faqs = [
   {
     category: 'Prices & payment',
     items: [
-      { q:'Are prices fixed?', a:'Yes. The price shown at booking is the final price. No hidden fees, no fuel surcharges, no meter running.' },
+      { q:'Are prices fixed?', a:'Yes. The price you accept from a provider is the final price. No hidden fees, no fuel surcharges, no meter running.' },
       { q:'How do I pay?', a:'Payment is made directly to your driver in cash or by card on the day of transfer. No upfront payment is required through dalaman.me.' },
       { q:'Why are prices different between providers?', a:'Each transfer company sets their own prices. Differences reflect vehicle type, company size, and included services such as meet & greet or child seats.' },
       { q:'Is there a charge if I cancel?', a:'Cancellation policies are set by individual providers. Check your confirmation email for the provider\'s contact details and cancellation terms.' },

@@ -103,7 +103,7 @@ function ReviewContent() {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center px-4">
         <div className="max-w-sm text-center">
-          <Link href="/" className="text-[11px] tracking-[0.22em] text-ink block mb-10 font-medium">DALAMANAIR</Link>
+          <Link href="/" className="text-[11px] tracking-[0.22em] text-ink block mb-10 font-medium">dalaman.me</Link>
           <div className="w-14 h-14 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-2xl mx-auto mb-6">!</div>
           <h1 className="text-2xl font-medium text-ink mb-3">{lang === 'en' ? 'Something went wrong' : 'Bir sorun oluştu'}</h1>
           <p className="text-[13px] text-sub mb-6">{error}</p>
@@ -117,7 +117,7 @@ function ReviewContent() {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center px-4">
         <div className="max-w-sm text-center">
-          <Link href="/" className="text-[11px] tracking-[0.22em] text-ink block mb-10 font-medium">DALAMANAIR</Link>
+          <Link href="/" className="text-[11px] tracking-[0.22em] text-ink block mb-10 font-medium">dalaman.me</Link>
           <div className="w-14 h-14 rounded-full bg-accent/20 text-accent-2 flex items-center justify-center text-2xl mx-auto mb-6">✓</div>
           <h1 className="text-2xl font-medium text-ink mb-3">{lang === 'en' ? 'Thank you!' : 'Teşekkürler!'}</h1>
           <p className="text-[13px] text-sub mb-6">
@@ -136,7 +136,7 @@ function ReviewContent() {
   return (
     <div className="min-h-screen bg-paper">
       <div className="px-5 py-8 border-b border-line bg-white flex justify-between items-center">
-        <Link href="/" className="text-[11px] tracking-[0.22em] text-ink font-medium">DALAMANAIR</Link>
+        <Link href="/" className="text-[11px] tracking-[0.22em] text-ink font-medium">dalaman.me</Link>
         <div className="flex gap-2 text-[11px] tracking-widest">
           {(['en','tr'] as const).map(l => (
             <button key={l} onClick={() => setLang(l)}
