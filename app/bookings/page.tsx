@@ -13,6 +13,7 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true)
   const [acknowledging, setAcknowledging] = useState<string|null>(null)
   const [cancelling, setCancelling] = useState<string|null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -41,19 +42,20 @@ export default function MyBookings() {
 
   async function acknowledgeBooking(booking: any) {
     setAcknowledging(booking.id)
+    setError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      // The trg_log_booking_status_change trigger writes the history row
-      // automatically on every status change, so no manual insert here.
-      await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', booking.id)
+      // Atomic: sets the booking to confirmed and writes the provider
+      // notification in one transaction (history row is written by the
+      // AFTER UPDATE trigger).
+      const { error: rpcError } = await supabase.rpc('acknowledge_booking', { p_booking_id: booking.id })
+      if (rpcError) {
+        console.error('acknowledge_booking failed:', rpcError)
+        setError('Could not confirm this booking. Please refresh and try again.')
+        setAcknowledging(null)
+        return
+      }
+      // Best-effort email (outside the transaction).
       if (booking.provider?.user_id) {
-        await supabase.from('user_notifications').insert({
-          user_id: booking.provider.user_id,
-          type: 'booking_confirmed',
-          title: 'Booking fully confirmed',
-          body: `Customer acknowledged the booking for ${booking.pickup?.name} → ${booking.dropoff?.name}.`,
-          link: '/provider/bookings/'
-        })
         try {
           await callFunction('send-email', {
             type: 'booking_fully_confirmed',
@@ -69,29 +71,34 @@ export default function MyBookings() {
         } catch (e) { console.error(e) }
       }
       await load()
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      setError('Something went wrong. Please try again.')
+    }
     setAcknowledging(null)
   }
 
   async function cancelBooking(booking: any) {
     if (!confirm('Are you sure you want to cancel this booking?')) return
     setCancelling(booking.id)
+    setError('')
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      // History row written automatically by trg_log_booking_status_change.
-      await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id)
+      // Atomic: sets the booking to cancelled and writes the provider
+      // notification in one transaction (history row via the AFTER UPDATE trigger).
+      const { error: rpcError } = await supabase.rpc('cancel_booking', { p_booking_id: booking.id })
+      if (rpcError) {
+        console.error('cancel_booking failed:', rpcError)
+        setError('Could not cancel this booking. Please refresh and try again.')
+        setCancelling(null)
+        return
+      }
       const urgent = isUrgent(booking.pickup_time)
       const date = new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'})
       const time = new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})
-      // Notify provider
+      // Best-effort emails (outside the transaction). The provider's in-app
+      // notification is already written atomically by cancel_booking.
       if (booking.provider?.user_id) {
-        await supabase.from('user_notifications').insert({
-          user_id: booking.provider.user_id,
-          type: 'booking_cancelled',
-          title: 'Booking cancelled',
-          body: `Customer cancelled the booking for ${booking.pickup?.name} → ${booking.dropoff?.name} on ${date}.`,
-          link: '/provider/bookings/'
-        })
         try {
           await callFunction('send-email', {
             type: 'booking_cancelled_provider',
@@ -124,7 +131,10 @@ export default function MyBookings() {
         })
       } catch (e) { console.error(e) }
       await load()
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      setError('Something went wrong. Please try again.')
+    }
     setCancelling(null)
   }
 
@@ -149,6 +159,11 @@ export default function MyBookings() {
           <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>Your trips</p>
           <h1 style={{fontSize:'clamp(22px,5vw,26px)', fontWeight:'500', color:'#ffffff'}}>My bookings</h1>
         </div>
+        {error && (
+          <div style={{background:'rgba(162,45,45,0.18)', border:'1px solid #A32D2D', borderRadius:'8px', padding:'12px 14px', marginBottom:'14px', fontSize:'13px', color:'#f09595'}}>
+            {error}
+          </div>
+        )}
         {loading ? (
           <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
         ) : bookings.length === 0 ? (
