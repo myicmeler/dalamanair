@@ -33,12 +33,12 @@ export default function HowItWorks() {
         <h2 style={{fontSize:'26px', fontWeight:'500', color:'#ffffff', marginBottom:'32px'}}>Booking a transfer</h2>
 
         {[
-          { num:'01', title:'Search for your route', desc:'Enter your pick-up location (e.g. Dalaman Airport), your destination (e.g. Içmeler), your travel date, time and number of passengers. Click Search transfers.' },
-          { num:'02', title:'Compare and choose', desc:'Browse available vehicles from vetted local transfer companies. Compare prices, vehicle types and passenger capacity. All prices are fixed — what you see is what you pay.' },
-          { num:'03', title:'Book and confirm', desc:'Select your vehicle, enter your name, email, phone and flight number. Confirm your booking — you\'ll receive a confirmation email immediately.' },
-          { num:'04', title:'Your driver meets you', desc:'On the day, your driver will be at arrivals with a name board showing your name. If your flight is delayed, your driver is updated automatically — no extra charge.' },
-          { num:'05', title:'Pay on the day', desc:'Payment is made directly to the driver on the day of transfer. No upfront card payment required through dalaman.me.' },
-          { num:'06', title:'Leave a review', desc:'After your transfer you\'ll receive a review request by email. Your feedback helps other travellers and rewards the best providers.' },
+          { num:'01', title:'Tell us your trip', desc:'On the homepage, enter your pick-up (e.g. Dalaman Airport), destination (e.g. Içmeler), date, time and number of passengers, then request a quote. Add a return journey in the same step if you need one.' },
+          { num:'02', title:'Providers send their prices', desc:'Your request goes to all approved local transfer companies at once. They submit their best price privately — this is blind bidding, so they can\'t see each other\'s offers. You\'re notified by email as offers arrive.' },
+          { num:'03', title:'Compare and accept', desc:'Review the offers on your quotes page — company, vehicle, rating and price — and accept the one you prefer. All prices are fixed: what you accept is what you pay. There\'s no obligation to accept any offer.' },
+          { num:'04', title:'Provider confirms', desc:'The provider confirms your booking and you acknowledge it to finalise. You can track the status any time on your bookings page.' },
+          { num:'05', title:'Your driver meets you', desc:'On the day, your driver will be at arrivals with a name board showing your name. Enter your flight number and, if your flight is delayed, the driver adjusts pick-up automatically — no extra charge.' },
+          { num:'06', title:'Pay on the day, then review', desc:'Payment is made directly to the driver on the day — cash or card, no upfront payment through dalaman.me. Afterwards you\'ll receive an email to review your transfer.' },
         ].map(s => (
           <div key={s.num} style={{display:'flex', gap:'24px', marginBottom:'32px', alignItems:'flex-start'}}>
             <div style={{fontSize:'13px', fontWeight:'600', color:'#f4b942', letterSpacing:'0.1em', minWidth:'32px', paddingTop:'2px'}}>{s.num}</div>
@@ -50,43 +50,19 @@ export default function HowItWorks() {
         ))}
 
         {/* Divider */}
-        <div style={{height:'1px', backgroundColor:'#e5e3dd', margin:'48px 0'}} />
-
-        {/* Quote requests */}
-        <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', marginBottom:'8px'}}>Alternative</p>
-        <h2 style={{fontSize:'26px', fontWeight:'500', color:'#ffffff', marginBottom:'16px'}}>Request a custom quote</h2>
-        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.5)', lineHeight:'1.7', marginBottom:'28px'}}>
-          If you have special requirements — a large group, extra luggage, specific vehicle type, or a non-standard route — you can submit a quote request instead of booking directly.
-        </p>
-        {[
-          { title:'Submit your request', desc:'Fill in your route, date, passenger count and any special requirements. Your request is sent to all approved providers on the platform.' },
-          { title:'Receive competitive offers', desc:'Providers submit their best price privately — they cannot see each other\'s offers. You\'ll receive an email notification for each offer that arrives.' },
-          { title:'Accept the best offer', desc:'Review the offers on your quotes page and accept the one you prefer. A confirmed booking is created automatically — no payment upfront.' },
-        ].map((s, i) => (
-          <div key={i} style={{display:'flex', gap:'16px', marginBottom:'20px', alignItems:'flex-start', backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'20px'}}>
-            <div style={{width:'28px', height:'28px', borderRadius:'50%', backgroundColor:'#f4b942', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', color:'#ffffff', flexShrink:0}}>
-              {i+1}
-            </div>
-            <div>
-              <h4 style={{fontSize:'15px', fontWeight:'500', color:'#ffffff', marginBottom:'6px'}}>{s.title}</h4>
-              <p style={{fontSize:'13px', color:'rgba(255,255,255,0.5)', lineHeight:'1.6', margin:0}}>{s.desc}</p>
-            </div>
-          </div>
-        ))}
-
-        <div style={{height:'1px', backgroundColor:'#e5e3dd', margin:'48px 0'}} />
+        <div style={{height:'1px', backgroundColor:'rgba(255,255,255,0.08)', margin:'48px 0'}} />
 
         {/* FAQ */}
         <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#e0a528', textTransform:'uppercase', marginBottom:'8px'}}>Common questions</p>
         <h2 style={{fontSize:'26px', fontWeight:'500', color:'#ffffff', marginBottom:'28px'}}>Frequently asked questions</h2>
 
         {[
-          { q:'Are the prices really fixed?', a:'Yes. The price shown at booking is the final price. There are no hidden fees, no fuel surcharges and no meter running. What you see is what you pay.' },
-          { q:'What if my flight is delayed?', a:'Enter your flight number when booking. Your driver tracks your flight and adjusts pick-up time automatically at no extra cost.' },
+          { q:'Are the prices really fixed?', a:'Yes. The price you accept from a provider is the final price. There are no hidden fees, no fuel surcharges and no meter running. What you see is what you pay.' },
+          { q:'What if my flight is delayed?', a:'Enter your flight number with your request. Your driver tracks your flight and adjusts pick-up time automatically at no extra cost.' },
           { q:'Can I cancel or change my booking?', a:'Contact the provider directly using the contact details in your confirmation email. Cancellation policies vary by provider.' },
           { q:'Who are the transfer providers?', a:'dalaman.me is an independent booking platform. All transfer companies listed are reviewed and approved by us before they can take bookings. We require valid insurance and TURSAB registration where applicable.' },
           { q:'How do I pay?', a:'Payment is made directly to your driver in cash or by card on the day of transfer. No upfront payment is required through dalaman.me.' },
-          { q:'Is dalaman.me the transfer company?', a:'No. dalaman.me is a booking platform that connects travellers with local transfer operators. Your transfer is carried out by the provider you selected at booking.' },
+          { q:'Is dalaman.me the transfer company?', a:'No. dalaman.me is a booking platform that connects travellers with local transfer operators. Your transfer is carried out by the provider whose offer you accepted.' },
         ].map((faq, i) => (
           <div key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'20px 0'}}>
             <h4 style={{fontSize:'15px', fontWeight:'500', color:'#ffffff', marginBottom:'8px'}}>{faq.q}</h4>

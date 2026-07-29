@@ -7,5 +7,5 @@ export default function BookingPage() {
   useEffect(() => {
     router.replace('/quote/')
   }, [])
-  return <div style={{minHeight:'100vh', backgroundColor:'#faf8f3'}} />
+  return <div style={{minHeight:'100vh', backgroundColor:'#0f1419'}} />
 }
