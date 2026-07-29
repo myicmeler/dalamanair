@@ -1,89 +1,80 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
-export default function ProviderQuotes() {
+const sym = (c?: string) => (c === 'GBP' ? '£' : '€')
+
+// Statuses that represent a live, upcoming transfer (not finished/cancelled).
+const LIVE_STATUSES = ['pending_provider_confirmation', 'pending_customer_acknowledgement', 'confirmed', 'driver_assigned']
+
+const statusLabel: Record<string, { label: string, color: string }> = {
+  pending_provider_confirmation:    { label: 'Confirm',        color: '#f4b942' },
+  pending_customer_acknowledgement: { label: 'Awaiting customer', color: '#378ADD' },
+  confirmed:                        { label: 'Confirmed',      color: '#1D9E75' },
+  driver_assigned:                  { label: 'Driver assigned', color: '#378ADD' },
+}
+
+export default function ProviderDashboard() {
+  const router = useRouter()
   const supabase = createClient() as any
-  const [requests, setRequests] = useState<any[]>([])
-  const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [providerId, setProviderId] = useState('')
-  const [submitting, setSubmitting] = useState<string|null>(null)
-  const [declining, setDeclining] = useState<string|null>(null)
-  const [declineModal, setDeclineModal] = useState<string|null>(null)
-  const [declineComment, setDeclineComment] = useState('')
-  const [offers, setOffers] = useState<Record<string, { price:string, vehicleId:string, notes:string }>>({})
+  const [provider, setProvider] = useState<any>(null)
+  const [bookings, setBookings] = useState<any[]>([])
+  const [newQuotes, setNewQuotes] = useState(0)
+  const [fleet, setFleet] = useState({ vehicles: 0, drivers: 0 })
 
   useEffect(() => {
     async function load() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { setError('Not signed in'); setLoading(false); return }
+        if (!user) { router.push('/auth/signin?redirect=/provider'); return }
 
-        const { data: provider, error: provErr } = await supabase
-          .from('providers').select('id, company_name').eq('user_id', user.id).single()
-
-        if (provErr || !provider) {
+        const { data: prov, error: provErr } = await supabase
+          .from('providers')
+          .select('id, company_name, avg_rating, total_reviews, is_approved')
+          .eq('user_id', user.id).single()
+        if (provErr || !prov) {
           setError('Provider account not found. Make sure your account is approved.')
           setLoading(false)
           return
         }
+        setProvider(prov)
 
-        setProviderId(provider.id)
+        // Bookings for this provider (schedule + action state computed below).
+        const { data: bks } = await supabase.from('bookings')
+          .select('id, status, pickup_time, driver_id, final_price, currency, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)')
+          .eq('provider_id', prov.id)
+          .order('pickup_time', { ascending: true })
+        setBookings(bks ?? [])
 
-        const { data: declined } = await supabase
-          .from('quote_declines').select('request_id').eq('provider_id', provider.id)
-        const declinedIds = new Set((declined ?? []).map((d: any) => d.request_id))
+        // Active fleet counts (head-only, no rows transferred).
+        const [{ count: vehCount }, { count: drvCount }] = await Promise.all([
+          supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('provider_id', prov.id).eq('is_active', true),
+          supabase.from('drivers').select('id', { count: 'exact', head: true }).eq('provider_id', prov.id).eq('is_active', true),
+        ])
+        setFleet({ vehicles: vehCount ?? 0, drivers: drvCount ?? 0 })
 
-        const { data: reqs, error: reqErr } = await supabase
-          .from('quote_requests')
-          .select(`*,
-            pickup:locations!pickup_location_id(name),
-            dropoff:locations!dropoff_location_id(name),
-            return_pickup:locations!quote_requests_return_pickup_location_id_fkey(name),
-            return_dropoff:locations!quote_requests_return_dropoff_location_id_fkey(name)`)
-          .eq('status', 'open')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-
-        if (reqErr) {
-          console.error('Quote requests error:', reqErr)
-          setError(`Could not load quote requests: ${reqErr.message}`)
-          setLoading(false)
-          return
-        }
-
-        if (reqs && reqs.length > 0) {
-          const { data: myOffers } = await supabase
-            .from('quote_offers').select('request_id, status, expiry_reason, price')
-            .eq('provider_id', provider.id)
-            .in('request_id', reqs.map((r: any) => r.id))
-
-          const offeredMap: Record<string, any> = {}
-          for (const o of (myOffers ?? [])) {
-            offeredMap[o.request_id] = o
-          }
-
-          const visible = reqs
-            .filter((r: any) => !declinedIds.has(r.id))
-            .map((r: any) => ({
-              ...r,
-              already_offered: !!offeredMap[r.id],
-              offer_status: offeredMap[r.id]?.status ?? null,
-              offer_expiry_reason: offeredMap[r.id]?.expiry_reason ?? null,
-              offered_price: offeredMap[r.id]?.price ?? null,
-            }))
-
-          setRequests(visible)
+        // Open quote requests this provider has neither offered on nor declined
+        // (same rule as the layout badge).
+        const { data: openReqs } = await supabase.from('quote_requests')
+          .select('id').eq('status', 'open').gt('expires_at', new Date().toISOString())
+        if (openReqs && openReqs.length > 0) {
+          const ids = openReqs.map((r: any) => r.id)
+          const [{ data: myOffers }, { data: myDeclines }] = await Promise.all([
+            supabase.from('quote_offers').select('request_id').eq('provider_id', prov.id).in('request_id', ids),
+            supabase.from('quote_declines').select('request_id').eq('provider_id', prov.id).in('request_id', ids),
+          ])
+          const handled = new Set([
+            ...(myOffers ?? []).map((o: any) => o.request_id),
+            ...(myDeclines ?? []).map((d: any) => d.request_id),
+          ])
+          setNewQuotes(openReqs.filter((r: any) => !handled.has(r.id)).length)
         } else {
-          setRequests([])
+          setNewQuotes(0)
         }
-
-        const { data: vh } = await supabase
-          .from('vehicles').select('*').eq('provider_id', provider.id)
-        if (vh) setVehicles(vh)
-
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -93,207 +84,116 @@ export default function ProviderQuotes() {
     load()
   }, [])
 
-  function updateOffer(reqId: string, field: string, value: string) {
-    setOffers(prev => ({ ...prev, [reqId]: { price:'', vehicleId:'', notes:'', ...prev[reqId], [field]: value } }))
+  const now = Date.now()
+  const needsConfirm = bookings.filter(b => b.status === 'pending_provider_confirmation').length
+  const needsDriver = bookings.filter(b => (b.status === 'confirmed' || b.status === 'pending_customer_acknowledgement') && !b.driver_id).length
+  const upcoming = bookings.filter(b => LIVE_STATUSES.includes(b.status) && new Date(b.pickup_time).getTime() >= now).slice(0, 5)
+  const totalBookings = bookings.length
+
+  const greeting = (() => {
+    const h = new Date().getHours()
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  })()
+
+  const card: React.CSSProperties = { backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '16px' }
+
+  function ActionCard({ href, count, label, accent }: { href: string, count: number, label: string, accent: string }) {
+    return (
+      <Link href={href} style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', color: '#f0ede6', borderColor: `${accent}55`, backgroundColor: `${accent}12` }}>
+        <span style={{ fontSize: '14px', fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: '20px', fontWeight: 700, color: accent }}>{count} →</span>
+      </Link>
+    )
   }
 
-  async function submitOffer(reqId: string) {
-    const offer = offers[reqId]
-    if (!offer?.price) return
-    setSubmitting(reqId)
-    try {
-      const { error } = await supabase.from('quote_offers').insert({
-        request_id:  reqId,
-        provider_id: providerId,
-        vehicle_id:  offer.vehicleId || null,
-        price:       parseFloat(offer.price),
-        notes:       offer.notes || null,
-        status:      'pending',
-      })
-      if (!error) {
-        setRequests(prev => prev.map(r => r.id === reqId ? {
-          ...r,
-          already_offered: true,
-          offer_status: 'pending',
-          offered_price: parseFloat(offer.price),
-        } : r))
-      }
-    } catch (err) {
-      console.error(err)
-    }
-    setSubmitting(null)
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,0.3)' }}>Loading...</div>
+  }
+  if (error) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <div style={{ backgroundColor: 'rgba(162,45,45,0.15)', border: '1px solid rgba(162,45,45,0.3)', borderRadius: '8px', padding: '20px', color: '#f09595', fontSize: '14px' }}>{error}</div>
+      </div>
+    )
   }
 
-  async function confirmDecline(reqId: string) {
-    setDeclining(reqId)
-    try {
-      const { error } = await supabase.from('quote_declines').insert({
-        request_id:  reqId,
-        provider_id: providerId,
-        comment:     declineComment.trim() || null,
-      })
-      if (!error) {
-        setRequests(prev => prev.filter(r => r.id !== reqId))
-      }
-    } catch (err) {
-      console.error(err)
-    }
-    setDeclining(null)
-    setDeclineModal(null)
-    setDeclineComment('')
-  }
-
-  function currencySymbol(currency: string) {
-    return currency === 'GBP' ? '£' : '€'
-  }
-
-  const card: React.CSSProperties = { backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', padding:'16px', marginBottom:'10px' }
-  const inp: React.CSSProperties = { fontSize:'14px', padding:'10px', backgroundColor:'#1e2530', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'6px', color:'#f0ede6', outline:'none', colorScheme:'dark' as any }
+  const hasActions = needsConfirm > 0 || needsDriver > 0 || newQuotes > 0
 
   return (
-    <div style={{padding:'20px'}}>
-      <h1 style={{fontSize:'20px', fontWeight:'500', marginBottom:'4px'}}>Quote requests</h1>
-      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'20px'}}>Open requests from customers — submit your best price</p>
+    <div style={{ padding: '20px' }}>
+      <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '6px' }}>{greeting}</p>
+      <h1 style={{ fontSize: 'clamp(20px,5vw,24px)', fontWeight: 500, marginBottom: '16px' }}>{provider.company_name}</h1>
 
-      {loading && <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>}
-
-      {!loading && error && (
-        <div style={{backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.3)', borderRadius:'8px', padding:'20px', color:'#f09595', fontSize:'14px'}}>
-          {error}
+      {!provider.is_approved && (
+        <div style={{ backgroundColor: 'rgba(239,159,39,0.1)', border: '1px solid rgba(239,159,39,0.3)', borderRadius: '8px', padding: '14px', marginBottom: '16px', fontSize: '13px', color: '#EF9F27', lineHeight: 1.5 }}>
+          Your account is pending approval. You will start receiving quote requests once an admin approves you.
         </div>
       )}
 
-      {!loading && !error && requests.length === 0 && (
-        <div style={{...card, textAlign:'center', padding:'48px', color:'rgba(255,255,255,0.3)'}}>
-          <div style={{fontSize:'32px', marginBottom:'12px'}}>📋</div>
-          <p style={{fontSize:'15px', marginBottom:'6px', color:'rgba(255,255,255,0.5)'}}>No open quote requests right now</p>
-          <p style={{fontSize:'13px'}}>When customers submit requests you will be notified by email and they will appear here.</p>
-        </div>
-      )}
-
-      {!loading && !error && requests.map((req: any) => {
-        const offer = offers[req.id] ?? { price:'', vehicleId:'', notes:'' }
-        const dt = new Date(req.pickup_time)
-        const canSubmit = offer.price && !req.already_offered && submitting !== req.id
-        const offerExpired = req.offer_status === 'expired'
-        const isReturn = req.trip_type === 'return'
-        const sym = currencySymbol(req.currency ?? 'EUR')
-
-        return (
-          <div key={req.id} style={card}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px'}}>
-              <div style={{flex:1}}>
-                {/* Outbound */}
-                <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
-                  {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
-                  <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)', fontWeight:'600', flexShrink:0}}>
-                    {sym} {req.currency ?? 'EUR'}
-                  </span>
-                  <div style={{fontSize:'16px', fontWeight:'500'}}>{req.pickup?.name} → {req.dropoff?.name}</div>
-                </div>
-                <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
-                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.passengers} pax · {req.luggage ?? 0} bags
-                  {req.flight_number && ` · ✈ ${req.flight_number}`}
-                </div>
-                {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
-
-                {/* Return leg */}
-                {isReturn && req.return_time && (
-                  <>
-                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginTop:'6px', marginBottom:'2px'}}>
-                      ↩ {req.return_pickup?.name ?? '—'} → {req.return_dropoff?.name ?? '—'}
-                    </div>
-                    <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>
-                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
-                      {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
-                    </div>
-                    {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
-                  </>
-                )}
-              </div>
-
-              <div style={{display:'flex', alignItems:'center', gap:'10px', flexShrink:0}}>
-                <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)'}}>
-                  Expires {new Date(req.expires_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
-                </div>
-                {!req.already_offered && (
-                  <button
-                    onClick={() => { setDeclineModal(req.id); setDeclineComment('') }}
-                    style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', letterSpacing:'0.05em'}}>
-                    Decline
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {offerExpired ? (
-              <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.4)'}}>
-                ⌛ {req.offer_expiry_reason ?? 'Offer expired'}
-              </div>
-            ) : req.already_offered ? (
-              <div style={{backgroundColor:'rgba(29,158,117,0.1)', border:'1px solid rgba(29,158,117,0.2)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'#1D9E75'}}>
-                ✓ Offer submitted · <strong>{sym} {req.offered_price != null ? req.offered_price.toFixed(2) : '—'}</strong> · waiting for customer response
-              </div>
-            ) : (
-              <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'12px', display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
-                <div style={{flex:'1', minWidth:'120px'}}>
-                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Your price ({sym}) *</label>
-                  <input type="number" placeholder="0.00" value={offer.price}
-                    onChange={e => updateOffer(req.id, 'price', e.target.value)}
-                    style={{...inp, width:'100%', boxSizing:'border-box'}} />
-                </div>
-                {vehicles.length > 0 && (
-                  <div style={{flex:'2', minWidth:'180px'}}>
-                    <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Vehicle</label>
-                    <select value={offer.vehicleId} onChange={e => updateOffer(req.id, 'vehicleId', e.target.value)}
-                      style={{...inp, width:'100%', boxSizing:'border-box'}}>
-                      <option value="">— select vehicle —</option>
-                      {vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.make} {v.model} ({v.seats} seats)</option>)}
-                    </select>
-                  </div>
-                )}
-                <div style={{flex:'2', minWidth:'180px'}}>
-                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Note to customer</label>
-                  <input type="text" placeholder="Optional message..." value={offer.notes}
-                    onChange={e => updateOffer(req.id, 'notes', e.target.value)}
-                    style={{...inp, width:'100%', boxSizing:'border-box'}} />
-                </div>
-                <button onClick={() => submitOffer(req.id)} disabled={!canSubmit}
-                  style={{padding:'10px 20px', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:'600', cursor: canSubmit ? 'pointer' : 'not-allowed', letterSpacing:'0.05em', textTransform:'uppercase', whiteSpace:'nowrap'}}>
-                  {submitting === req.id ? 'Submitting...' : 'Submit offer'}
-                </button>
-              </div>
-            )}
+      {/* Action items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+        {newQuotes > 0 && <ActionCard href="/provider/quotes" count={newQuotes} label={`New quote request${newQuotes > 1 ? 's' : ''} to answer`} accent="#f4b942" />}
+        {needsConfirm > 0 && <ActionCard href="/provider/bookings" count={needsConfirm} label={`Booking${needsConfirm > 1 ? 's' : ''} awaiting your confirmation`} accent="#f4b942" />}
+        {needsDriver > 0 && <ActionCard href="/provider/bookings" count={needsDriver} label={`Booking${needsDriver > 1 ? 's' : ''} needing a driver`} accent="#378ADD" />}
+        {!hasActions && (
+          <div style={{ ...card, textAlign: 'center', padding: '28px', color: 'rgba(255,255,255,0.4)' }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>✓</div>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.55)' }}>You're all caught up — nothing needs your attention right now.</p>
           </div>
-        )
-      })}
+        )}
+      </div>
 
-      {declineModal && (
-        <div style={{position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:'20px'}}>
-          <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'10px', padding:'24px', maxWidth:'420px', width:'100%'}}>
-            <h2 style={{fontSize:'16px', fontWeight:'500', marginBottom:'6px'}}>Decline this request?</h2>
-            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', marginBottom:'16px'}}>This request will be removed from your list. The customer will not be notified.</p>
-            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px'}}>Reason (optional — internal only)</label>
-            <textarea
-              value={declineComment}
-              onChange={e => setDeclineComment(e.target.value)}
-              placeholder="e.g. date not available, route too far..."
-              rows={3}
-              style={{...inp, width:'100%', boxSizing:'border-box', resize:'none', marginBottom:'16px'}}
-            />
-            <div style={{display:'flex', gap:'10px'}}>
-              <button onClick={() => { setDeclineModal(null); setDeclineComment('') }}
-                style={{flex:1, padding:'11px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'13px', cursor:'pointer'}}>
-                Cancel
-              </button>
-              <button onClick={() => confirmDecline(declineModal)} disabled={declining === declineModal}
-                style={{flex:1, padding:'11px', backgroundColor:'rgba(162,45,45,0.8)', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
-                {declining === declineModal ? 'Declining...' : 'Yes, decline'}
-              </button>
-            </div>
+      {/* Upcoming transfers */}
+      <h2 style={{ fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '10px' }}>Upcoming transfers</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+        {upcoming.length === 0 ? (
+          <div style={{ ...card, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '13px', padding: '24px' }}>No upcoming transfers</div>
+        ) : upcoming.map(b => {
+          const dt = new Date(b.pickup_time)
+          const s = statusLabel[b.status] ?? { label: b.status, color: 'rgba(255,255,255,0.4)' }
+          return (
+            <Link key={b.id} href="/provider/bookings" style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#f0ede6' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.pickup?.name} → {b.dropoff?.name}</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
+                  {dt.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' })} · {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: '#f4b942', marginBottom: '4px' }}>{sym(b.currency)} {b.final_price?.toFixed(0)}</div>
+                <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: `${s.color}20`, color: s.color, fontWeight: 500 }}>{s.label}</span>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '10px', marginBottom: '20px' }}>
+        {[
+          { num: totalBookings, label: 'Total bookings' },
+          { num: provider.total_reviews > 0 ? `${Number(provider.avg_rating).toFixed(1)}★` : '—', label: `Rating · ${provider.total_reviews} review${provider.total_reviews === 1 ? '' : 's'}` },
+          { num: fleet.vehicles, label: 'Active vehicles' },
+          { num: fleet.drivers, label: 'Active drivers' },
+        ].map(s => (
+          <div key={s.label} style={card}>
+            <div style={{ fontSize: '22px', fontWeight: 500, marginBottom: '4px' }}>{s.num}</div>
+            <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>{s.label}</div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+
+      {/* Quick links */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {[
+          { href: '/provider/prices', label: 'Default prices' },
+          { href: '/provider/log-transfers', label: 'Log a transfer' },
+          { href: '/provider/vehicles', label: 'Manage fleet' },
+          { href: '/provider/drivers', label: 'Manage drivers' },
+        ].map(l => (
+          <Link key={l.href} href={l.href} style={{ ...card, padding: '10px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.65)', textDecoration: 'none' }}>{l.label} →</Link>
+        ))}
+      </div>
     </div>
   )
 }
