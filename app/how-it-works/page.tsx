@@ -1,5 +1,25 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'How It Works',
+  description:
+    'How dalaman.me works: request a quote, compare offers from vetted local companies, and book your Dalaman airport transfer to Marmaris, Içmeler or Fethiye — before you fly.',
+  keywords: [
+    'how dalaman transfers work',
+    'book Dalaman airport transfer',
+    'compare Dalaman transfer quotes',
+    'Dalaman to Marmaris transfer',
+  ],
+  alternates: { canonical: '/how-it-works/' },
+  openGraph: {
+    title: 'How It Works — Dalaman Airport Transfers',
+    description:
+      'Request a quote, compare offers from vetted local companies, and book your Dalaman airport transfer before you fly.',
+    url: '/how-it-works/',
+  },
+}
 
 export default function HowItWorks() {
   return (
