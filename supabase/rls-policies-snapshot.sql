@@ -111,6 +111,9 @@ CREATE POLICY "Users read own profile" ON public.profiles AS PERMISSIVE FOR SELE
 -- ---------- provider_cancelled_requests ----------
 CREATE POLICY "Providers see own cancelled request refs" ON public.provider_cancelled_requests AS PERMISSIVE FOR SELECT TO public
   USING ((provider_id IN ( SELECT providers.id FROM providers WHERE (providers.user_id = auth.uid()))));
+-- INSERT policy added in security-hardening-4.sql
+CREATE POLICY "Providers insert own cancelled request refs" ON public.provider_cancelled_requests AS PERMISSIVE FOR INSERT TO public
+  WITH CHECK ((provider_id = my_provider_id()));
 
 -- ---------- provider_route_prices ----------
 CREATE POLICY prp_admin ON public.provider_route_prices AS PERMISSIVE FOR ALL TO public
@@ -152,9 +155,9 @@ CREATE POLICY "Providers see offers on open requests" ON public.quote_offers AS 
   USING ((request_id IN ( SELECT quote_requests.id FROM quote_requests WHERE (quote_requests.status = 'open'::text))));
 CREATE POLICY customers_see_own_offers ON public.quote_offers AS PERMISSIVE FOR SELECT TO public
   USING ((request_id IN ( SELECT quote_requests.id FROM quote_requests WHERE (quote_requests.customer_id = auth.uid()))));
-CREATE POLICY customers_update_own_request_offers ON public.quote_offers AS PERMISSIVE FOR UPDATE TO public
-  USING ((request_id IN ( SELECT quote_requests.id FROM quote_requests WHERE (quote_requests.customer_id = auth.uid()))))
-  WITH CHECK ((request_id IN ( SELECT quote_requests.id FROM quote_requests WHERE (quote_requests.customer_id = auth.uid()))));
+-- NOTE: customers_update_own_request_offers (FOR UPDATE) was dropped in
+-- security-hardening-4.sql — it allowed customers to tamper with offer prices,
+-- and the accept flow now runs through the accept_quote_offer() RPC instead.
 
 -- ---------- quote_requests ----------
 CREATE POLICY "Admins read all quote requests" ON public.quote_requests AS PERMISSIVE FOR ALL TO public
