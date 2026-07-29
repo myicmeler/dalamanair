@@ -126,8 +126,21 @@ export default function ProviderBookings() {
       })
       // Non-fatal: the driver is assigned either way, so do not block on this.
       if (notifyError) console.error('DRIVER ASSIGNED NOTIFICATION FAILED:', notifyError)
-      // TODO (issue 11): email the customer here once a driver_assigned
-      // template exists in send-email. Currently they are never told by email.
+      // Email the customer (best-effort — the assignment is already committed).
+      try {
+        await callFunction('send-email', {
+          type: 'driver_assigned', customerId: booking.customer_id,
+          data: {
+            pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
+            date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
+            time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
+            driverName: driver?.full_name, driverPhone: driver?.phone,
+            providerName: provider?.company_name,
+            vehicle: booking.vehicle ? `${booking.vehicle.make} ${booking.vehicle.model}` : null,
+            price: booking.final_price?.toFixed(2), currency: booking.currency ?? 'EUR',
+          }
+        })
+      } catch (e) { console.error('driver-assigned email error:', e) }
       await load()
     } catch (err) {
       console.error('assignDriver error:', err)

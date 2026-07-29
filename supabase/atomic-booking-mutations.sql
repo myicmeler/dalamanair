@@ -91,13 +91,15 @@ BEGIN
           'Customer accepted offer - awaiting provider confirmation');
 
   -- Return leg (direction 'inbound'; price 0 — covered by the outbound row).
+  -- Share the outbound booking's group_id so both legs are linked as one group
+  -- (set_booking_group only fills group_id when null, so an explicit value wins).
   IF v_req.trip_type = 'return' AND v_req.return_time IS NOT NULL THEN
     INSERT INTO bookings (
-      customer_id, provider_id, vehicle_id, pickup_location_id, dropoff_location_id,
+      group_id, customer_id, provider_id, vehicle_id, pickup_location_id, dropoff_location_id,
       direction, pickup_time, passengers, luggage, status, price, discount_pct,
       final_price, currency, request_id, flight_number, customer_notes
     ) VALUES (
-      v_req.customer_id, v_offer.provider_id, v_offer.vehicle_id,
+      v_booking_id, v_req.customer_id, v_offer.provider_id, v_offer.vehicle_id,
       v_req.return_pickup_location_id, v_req.return_dropoff_location_id,
       'inbound', v_req.return_time,
       COALESCE(v_req.return_passengers, v_req.passengers),
