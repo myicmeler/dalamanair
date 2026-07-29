@@ -68,6 +68,19 @@ export default function ProviderBookings() {
           }
         })
       } catch (e) { console.error(e) }
+      // Best-effort SMS (dormant until NEXT_PUBLIC_SMS_ENABLED=true and send-sms is deployed with Plivo creds).
+      if (process.env.NEXT_PUBLIC_SMS_ENABLED === 'true') {
+        try {
+          await callFunction('send-sms', {
+            type: 'provider_confirmed_acknowledge', bookingId: booking.id, customerId: booking.customer_id,
+            data: {
+              route: `${booking.pickup?.name} -> ${booking.dropoff?.name}`,
+              date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}),
+              providerName: provider.company_name,
+            }
+          })
+        } catch (e) { console.error('provider-confirmed sms error:', e) }
+      }
       await load()
     } catch (err) {
       console.error(err)
@@ -141,6 +154,20 @@ export default function ProviderBookings() {
           }
         })
       } catch (e) { console.error('driver-assigned email error:', e) }
+      // Best-effort SMS (dormant until NEXT_PUBLIC_SMS_ENABLED=true and send-sms is deployed with Plivo creds).
+      if (process.env.NEXT_PUBLIC_SMS_ENABLED === 'true') {
+        try {
+          await callFunction('send-sms', {
+            type: 'driver_assigned', bookingId: booking.id, customerId: booking.customer_id,
+            data: {
+              route: `${booking.pickup?.name} -> ${booking.dropoff?.name}`,
+              date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}),
+              time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
+              driverName: driver?.full_name, driverPhone: driver?.phone,
+            }
+          })
+        } catch (e) { console.error('driver-assigned sms error:', e) }
+      }
       await load()
     } catch (err) {
       console.error('assignDriver error:', err)
