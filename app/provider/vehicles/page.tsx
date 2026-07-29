@@ -8,6 +8,7 @@ export default function ProviderVehicles() {
   const supabase = createClient() as any
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [providerId, setProviderId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -16,9 +17,9 @@ export default function ProviderVehicles() {
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) { setLoading(false); return }   // layout redirects unauthenticated users
       const { data: provider } = await supabase.from('providers').select('id').eq('user_id', user.id).single()
-      if (!provider) return
+      if (!provider) { setError('Provider account not found. Make sure your account is approved.'); setLoading(false); return }
       setProviderId(provider.id)
       const { data: vh } = await supabase.from('vehicles').select('*').eq('provider_id', provider.id).order('type')
       if (vh) setVehicles(vh)
@@ -101,7 +102,9 @@ export default function ProviderVehicles() {
         </div>
       )}
 
-      {loading ? (
+      {error ? (
+        <div style={{backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.3)', borderRadius:'8px', padding:'20px', color:'#f09595', fontSize:'14px'}}>{error}</div>
+      ) : loading ? (
         <div style={{textAlign:'center', padding:'40px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
       ) : (
         <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
