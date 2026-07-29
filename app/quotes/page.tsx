@@ -13,6 +13,7 @@ export default function MyQuotes() {
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState<string|null>(null)
   const [cancelling, setCancelling] = useState<string|null>(null)
+  const [error, setError] = useState('')
   const [expanded, setExpanded] = useState<string|null>(null)
   const [historyMap, setHistoryMap] = useState<Record<string,any[]>>({})
 
@@ -52,32 +53,32 @@ export default function MyQuotes() {
 
   async function acceptOffer(offerId: string, requestId: string, offer: any) {
     setAccepting(offerId)
+    setError('')
     try {
       const req = requests.find(r => r.id === requestId)
-      const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('quote_offers').update({ status: 'accepted' }).eq('id', offerId)
-      await supabase.from('quote_offers').update({ status: 'rejected' }).eq('request_id', requestId).neq('id', offerId)
-      // The quote_status_change_trigger writes the history row automatically
-      // on every status change, so no manual insert here.
-      await supabase.from('quote_requests').update({ status: 'accepted' }).eq('id', requestId)
+      // All the DB work (accept this offer, reject the rest, mark the request
+      // accepted, create the outbound + return bookings, seed history, write
+      // in-app notifications) happens atomically inside this one function — it
+      // either fully succeeds or fully rolls back.
+      const { error: rpcError } = await supabase.rpc('accept_quote_offer', { p_offer_id: offerId })
+      if (rpcError) {
+        console.error('accept_quote_offer failed:', rpcError)
+        setError(lang === 'en'
+          ? 'Could not accept this offer — it may have just been withdrawn or already actioned. Please refresh and try again.'
+          : 'Bu teklif kabul edilemedi — geri çekilmiş veya daha önce işlenmiş olabilir. Lütfen sayfayı yenileyip tekrar deneyin.')
+        setAccepting(null)
+        return
+      }
 
-      // --- NOTIFY REJECTED PROVIDERS ---
-      const rejectedOffers = (req.quote_offers ?? []).filter((o: any) => o.id !== offerId)
+      // The booking now exists and is committed. Emails are best-effort side
+      // effects (Mailgun can't be part of the DB transaction) — a failure here
+      // must never block the user or undo the booking.
+      const rejectedOffers = (req?.quote_offers ?? []).filter((o: any) => o.id !== offerId)
       for (const rejected of rejectedOffers) {
         if (rejected.provider?.user_id) {
-          // In-app notification
-          await supabase.from('user_notifications').insert({
-            user_id: rejected.provider.user_id,
-            type: 'offer_not_selected',
-            title: 'Your offer was not selected',
-            body: `The customer chose another provider for ${req.pickup?.name} → ${req.dropoff?.name}. Better luck next time!`,
-            link: '/provider/quotes/'
-          })
-          // Email notification
           try {
             await callFunction('send-email', {
               type: 'offer_not_selected',
-              to: '',
               providerUserId: rejected.provider.user_id,
               data: {
                 pickup: req.pickup?.name,
@@ -90,113 +91,53 @@ export default function MyQuotes() {
           } catch (e) { console.error('Rejected provider email error:', e) }
         }
       }
-      // --- END NOTIFY REJECTED PROVIDERS ---
-
-      const { data: booking, error: bookingError } = await supabase.from('bookings').insert({
-        customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
-        pickup_location_id: req.pickup_location_id, dropoff_location_id: req.dropoff_location_id,
-        direction: 'outbound', pickup_time: req.pickup_time, passengers: req.passengers,
-        luggage: req.luggage, status: 'pending_provider_confirmation', price: offer.price,
-        discount_pct: 0, final_price: offer.price,
-        currency: req.currency ?? 'EUR',
-        request_id: req.id,
-        flight_number: req.flight_number, customer_notes: req.notes,
-      }).select().single()
-      if (bookingError) console.error('OUTBOUND BOOKING INSERT FAILED:', bookingError)
-      if (booking) {
-        await supabase.from('booking_status_history').insert({
-          booking_id: booking.id, status: 'pending_provider_confirmation',
-          changed_by: user?.id, changed_by_role: 'customer',
-          note: 'Customer accepted offer — awaiting provider confirmation'
-        })
-        if (offer.provider?.user_id) {
-          await supabase.from('user_notifications').insert({
-            user_id: offer.provider.user_id, type: 'booking_pending_confirmation',
-            title: 'Offer accepted — please confirm',
-            body: `Customer accepted your offer for ${req.pickup?.name} → ${req.dropoff?.name}. Confirm to proceed.`,
-            link: '/provider/bookings/'
-          })
-        }
-        await supabase.from('user_notifications').insert({
-          user_id: user?.id, type: 'booking_awaiting_provider',
-          title: 'Offer accepted — waiting for provider',
-          body: `${offer.provider?.company_name} will confirm shortly. You'll be notified.`,
-          link: '/bookings/'
-        })
-        try {
-          await callFunction('send-email', {
-            type: 'offer_accepted_provider', to: '', providerUserId: offer.provider.user_id,
-            data: {
-              pickup: req.pickup?.name, dropoff: req.dropoff?.name,
-              date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
-              time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
-              price: offer.price.toFixed(2), currency: req.currency ?? 'EUR',
-              passengers: req.passengers, flightNumber: req.flight_number, notes: req.notes,
-            }
-          })
-        } catch (e) { console.error(e) }
-
-        // --- RETURN LEG (bug fix, 2 Jul 2026; direction corrected 26 Jul 2026) ---
-        // For return trips, ALSO create the return booking row. Price is 0 on the
-        // return row: the accepted offer price covers the round trip and sits on
-        // the outbound row (Option A). The two legs are linked by request_id.
-        //
-        // IMPORTANT: the bookings.direction column is the trip_direction enum,
-        // which accepts ONLY 'outbound' and 'inbound'. Passing 'return' makes the
-        // insert fail silently and the return leg never gets created.
-        if (req.trip_type === 'return' && req.return_time) {
-          const { data: returnBooking, error: returnError } = await supabase.from('bookings').insert({
-            customer_id: req.customer_id, provider_id: offer.provider_id, vehicle_id: offer.vehicle_id,
-            pickup_location_id: req.return_pickup_location_id, dropoff_location_id: req.return_dropoff_location_id,
-            direction: 'inbound', pickup_time: req.return_time,
-            passengers: req.return_passengers ?? req.passengers,
-            luggage: req.return_luggage ?? req.luggage,
-            status: 'pending_provider_confirmation',
-            price: 0, discount_pct: 0, final_price: 0,
-            currency: req.currency ?? 'EUR',
-            request_id: req.id,
-            flight_number: req.return_flight_number, customer_notes: req.return_notes,
-          }).select().single()
-          if (returnError) console.error('RETURN LEG BOOKING INSERT FAILED:', returnError)
-          if (returnBooking) {
-            await supabase.from('booking_status_history').insert({
-              booking_id: returnBooking.id, status: 'pending_provider_confirmation',
-              changed_by: user?.id, changed_by_role: 'customer',
-              note: 'Return leg — price included in outbound (round-trip offer)'
-            })
+      try {
+        await callFunction('send-email', {
+          type: 'offer_accepted_provider', providerUserId: offer.provider.user_id,
+          data: {
+            pickup: req.pickup?.name, dropoff: req.dropoff?.name,
+            date: new Date(req.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
+            time: new Date(req.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
+            price: offer.price.toFixed(2), currency: req.currency ?? 'EUR',
+            passengers: req.passengers, flightNumber: req.flight_number, notes: req.notes,
           }
-        }
-        // --- END RETURN LEG ---
-      }
+        })
+      } catch (e) { console.error(e) }
+
       router.push('/bookings/')
-    } catch (err) { console.error(err) }
-    setAccepting(null)
+    } catch (err) {
+      console.error(err)
+      setError(lang === 'en' ? 'Something went wrong. Please try again.' : 'Bir şeyler ters gitti. Lütfen tekrar deneyin.')
+      setAccepting(null)
+    }
   }
 
   async function cancelRequest(requestId: string, hasOffers: boolean) {
     if (!confirm(hasOffers ? 'Cancel this quote request? Providers who submitted offers will be notified.' : 'Delete this quote request?')) return
     setCancelling(requestId)
+    setError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       const req = requests.find(r => r.id === requestId)
+      // Atomic: marks the request cancelled and writes the provider
+      // notifications (or deletes the request if it had no offers) in one
+      // transaction, then returns 'cancelled' or 'deleted'.
+      const { error: rpcError } = await supabase.rpc('cancel_quote_request', { p_request_id: requestId })
+      if (rpcError) {
+        console.error('cancel_quote_request failed:', rpcError)
+        setError(lang === 'en'
+          ? 'Could not cancel this request. Please refresh and try again.'
+          : 'Bu talep iptal edilemedi. Lütfen sayfayı yenileyip tekrar deneyin.')
+        setCancelling(null)
+        return
+      }
+
       if (hasOffers) {
-        // History row written automatically by quote_status_change_trigger.
-        await supabase.from('quote_requests').update({ status: 'cancelled' }).eq('id', requestId)
-        for (const offer of req.quote_offers || []) {
+        // Best-effort email to each provider who had offered (outside the txn).
+        for (const offer of req?.quote_offers || []) {
           if (offer.provider?.user_id) {
-            const { error: notifyError } = await supabase.from('user_notifications').insert({
-              user_id: offer.provider.user_id, type: 'request_cancelled',
-              title: 'Quote request cancelled',
-              body: `Customer cancelled the request for ${req.pickup?.name} → ${req.dropoff?.name}.`,
-              link: '/provider/quotes/'
-            })
-            if (notifyError) console.error('CANCEL NOTIFICATION FAILED:', notifyError)
-            // Email too — nothing in the app displays notifications yet, so without
-            // this the provider would never learn the request had been cancelled.
             try {
               await callFunction('send-email', {
                 type: 'request_cancelled',
-                to: '',
                 providerUserId: offer.provider.user_id,
                 data: {
                   pickup: req.pickup?.name,
@@ -211,10 +152,12 @@ export default function MyQuotes() {
         }
         setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'cancelled' } : r))
       } else {
-        await supabase.from('quote_requests').delete().eq('id', requestId)
         setRequests(prev => prev.filter(r => r.id !== requestId))
       }
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      setError(lang === 'en' ? 'Something went wrong. Please try again.' : 'Bir şeyler ters gitti. Lütfen tekrar deneyin.')
+    }
     setCancelling(null)
   }
 
@@ -246,6 +189,12 @@ export default function MyQuotes() {
           </div>
           <a href="/quote/" style={{padding:'10px 16px', backgroundColor:'#f4b942', color:'#0f1419', borderRadius:'6px', fontSize:'12px', fontWeight:'500', textDecoration:'none', letterSpacing:'0.05em', textTransform:'uppercase', whiteSpace:'nowrap'}}>+ New</a>
         </div>
+
+        {error && (
+          <div style={{background:'rgba(162,45,45,0.18)', border:'1px solid #A32D2D', borderRadius:'8px', padding:'12px 14px', marginBottom:'14px', fontSize:'13px', color:'#f09595'}}>
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
