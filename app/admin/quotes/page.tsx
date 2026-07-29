@@ -100,16 +100,18 @@ export default function AdminQuotes() {
       const newPrice = parseFloat(editOfferPrice)
       const oldPrice = offer.price
 
-      await supabase.from('quote_offers')
-        .update({ price: newPrice })
-        .eq('id', offer.id)
-
-      const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('quote_status_history').insert({
-        quote_request_id: req.id, status: req.status,
-        changed_by: user?.id, changed_by_role: 'admin',
-        note: `Offer price updated by admin: ${oldPrice?.toFixed(2)} → ${newPrice.toFixed(2)} (${offer.provider?.company_name})`
+      // Atomic: updates the price and writes a verified-admin audit row in
+      // one transaction (the audit role is set server-side after an is_admin
+      // check, so it can't be spoofed by the client).
+      const { error: rpcError } = await supabase.rpc('admin_update_offer_price', {
+        p_offer_id: offer.id, p_new_price: newPrice,
       })
+      if (rpcError) {
+        console.error('admin_update_offer_price failed:', rpcError)
+        alert('Could not update the price. Please try again.')
+        setSavingOffer(false)
+        return
+      }
 
       const sym = req.currency === 'GBP' ? '£' : '€'
       try {
@@ -184,13 +186,10 @@ export default function AdminQuotes() {
     if (!confirm(`Permanently delete this ${req.status} request?\n\n${label}\n\nThis removes the request, its offers, history and any competition entry. This cannot be undone.`)) return
     setDeleting(req.id)
     try {
-      // Delete dependent rows first (in case cascade isn't set on every table)
-      await supabase.from('quote_offers').delete().eq('request_id', req.id)
-      await supabase.from('quote_declines').delete().eq('request_id', req.id)
-      await supabase.from('quote_status_history').delete().eq('quote_request_id', req.id)
-      await supabase.from('competition_entries').delete().eq('quote_request_id', req.id)
-      // Finally the request itself
-      const { error } = await supabase.from('quote_requests').delete().eq('id', req.id)
+      // One transaction removes the request and every dependent row
+      // (offers, declines, history, competition entries) — all-or-nothing,
+      // admin-verified server-side.
+      const { error } = await supabase.rpc('admin_delete_quote_requests', { p_ids: [req.id] })
       if (error) throw error
       setRequests(prev => prev.filter(r => r.id !== req.id))
       if (expanded === req.id) setExpanded(null)
@@ -208,11 +207,8 @@ export default function AdminQuotes() {
     setBulkDeleting(true)
     try {
       const ids = targets.map(r => r.id)
-      await supabase.from('quote_offers').delete().in('request_id', ids)
-      await supabase.from('quote_declines').delete().in('request_id', ids)
-      await supabase.from('quote_status_history').delete().in('quote_request_id', ids)
-      await supabase.from('competition_entries').delete().in('quote_request_id', ids)
-      const { error } = await supabase.from('quote_requests').delete().in('id', ids)
+      // Single transaction for the whole batch — no partial deletes.
+      const { error } = await supabase.rpc('admin_delete_quote_requests', { p_ids: ids })
       if (error) throw error
       setRequests(prev => prev.filter(r => r.status !== status))
       setExpanded(null)
