@@ -11,10 +11,16 @@ export default function AdminUsers() {
   const [showReset, setShowReset] = useState<string|null>(null)
   const [message, setMessage] = useState<Record<string,{text:string,ok:boolean}>>({})
   const [toggling, setToggling] = useState<string|null>(null)
+  const [currentUserId, setCurrentUserId] = useState('')
+  const [showPurge, setShowPurge] = useState<string|null>(null)
+  const [purgeText, setPurgeText] = useState<Record<string,string>>({})
+  const [purging, setPurging] = useState<string|null>(null)
 
   useEffect(() => { load() }, [])
 
   async function load() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) setCurrentUserId(user.id)
     const { data } = await supabase
       .from('users')
       .select('id, email, full_name, role, is_active, created_at')
@@ -52,6 +58,33 @@ export default function AdminUsers() {
       setMessage(p => ({...p, [userId]: {text:err.message, ok:false}}))
     }
     setResetting(null)
+  }
+
+  // Permanently delete a single user + all their data + auth account. Uses the
+  // same delete-test-data edge function (admin-verified server-side) that the
+  // Clean-up danger zone uses to purge by email pattern — here scoped to one id.
+  async function purgeUser(userId: string, email: string) {
+    setPurging(userId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-test-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ userIds: [userId], deleteAuth: true }),
+      })
+      const result = await res.json()
+      if (!res.ok || result.error) throw new Error(result.error || 'Purge failed')
+      setUsers(prev => prev.filter(u => u.id !== userId))
+      setShowPurge(null)
+      setPurgeText(p => ({ ...p, [userId]: '' }))
+    } catch (err: any) {
+      setMessage(p => ({ ...p, [userId]: { text: err.message, ok: false } }))
+    }
+    setPurging(null)
   }
 
   async function toggleActive(userId: string, currentlyActive: boolean) {
@@ -112,6 +145,14 @@ export default function AdminUsers() {
                     >
                       {toggling === u.id ? '...' : isActive ? 'Deactivate' : 'Reactivate'}
                     </button>
+                    {u.id !== currentUserId && (
+                      <button
+                        onClick={() => { setShowReset(null); setShowPurge(showPurge === u.id ? null : u.id); setPurgeText(p => ({...p, [u.id]: ''})) }}
+                        style={{padding:'5px 12px', background:'none', border:'1px solid rgba(162,45,45,0.6)', borderRadius:'4px', color:'#f09595', fontSize:'11px', cursor:'pointer', fontFamily:'inherit'}}
+                      >
+                        {showPurge === u.id ? 'Cancel' : '🗑 Purge'}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -137,6 +178,31 @@ export default function AdminUsers() {
                     {msg && (
                       <p style={{fontSize:'12px', color:msg.ok?'#1D9E75':'#f09595', marginTop:'6px', margin:'6px 0 0'}}>{msg.text}</p>
                     )}
+                  </div>
+                )}
+
+                {showPurge === u.id && (
+                  <div style={{marginTop:'12px', paddingTop:'12px', borderTop:'1px solid rgba(162,45,45,0.25)'}}>
+                    <p style={{fontSize:'12px', color:'#f09595', margin:'0 0 8px', lineHeight:'1.5'}}>
+                      Permanently delete <strong>{u.email}</strong> — their profile, login and all their data (bookings, quotes, reviews). This cannot be undone. Type <strong>DELETE</strong> to confirm.
+                    </p>
+                    <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                      <input
+                        type="text"
+                        placeholder="DELETE"
+                        value={purgeText[u.id] || ''}
+                        onChange={e => setPurgeText(p => ({...p, [u.id]: e.target.value}))}
+                        onKeyDown={e => e.key === 'Enter' && purgeText[u.id] === 'DELETE' && purgeUser(u.id, u.email)}
+                        style={{...inp, borderColor: purgeText[u.id] === 'DELETE' ? '#a32d2d' : 'rgba(255,255,255,0.15)'}}
+                      />
+                      <button
+                        onClick={() => purgeUser(u.id, u.email)}
+                        disabled={purgeText[u.id] !== 'DELETE' || purging === u.id}
+                        style={{padding:'9px 16px', backgroundColor: purgeText[u.id] === 'DELETE' ? '#a32d2d' : 'rgba(162,45,45,0.3)', color:'#ffffff', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor: purgeText[u.id] === 'DELETE' ? 'pointer' : 'not-allowed', fontFamily:'inherit', whiteSpace:'nowrap'}}
+                      >
+                        {purging === u.id ? 'Purging...' : 'Purge permanently'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
