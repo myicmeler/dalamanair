@@ -12,6 +12,22 @@ const UTM_CAMPAIGNS = [
   { source:'qr', medium:'print', campaign:'hotel', label:'QR Code — Hotel' },
 ]
 
+// Bookings can be in EUR or GBP; never sum them together. Total per currency.
+function revByCurrency(rows: any[]): Record<string, number> {
+  const acc: Record<string, number> = { EUR: 0, GBP: 0 }
+  for (const b of rows) {
+    const c = b.currency === 'GBP' ? 'GBP' : 'EUR'
+    acc[c] += b.final_price || 0
+  }
+  return acc
+}
+function fmtRev(m: Record<string, number>): string {
+  const parts: string[] = []
+  if (m.EUR) parts.push(`€${m.EUR.toFixed(0)}`)
+  if (m.GBP) parts.push(`£${m.GBP.toFixed(0)}`)
+  return parts.length ? parts.join(' · ') : '€0'
+}
+
 export default function OutreachDashboard() {
   const supabase = createClient() as any
   const [bookings, setBookings] = useState<any[]>([])
@@ -22,7 +38,7 @@ export default function OutreachDashboard() {
 
   async function load() {
     setLoading(true)
-    let query = supabase.from('bookings').select('id, created_at, final_price, status, utm_source, utm_medium, utm_campaign')
+    let query = supabase.from('bookings').select('id, created_at, final_price, currency, status, utm_source, utm_medium, utm_campaign')
     
     if (period !== 'all') {
       const days = period === '7d' ? 7 : 30
@@ -44,7 +60,7 @@ export default function OutreachDashboard() {
       return true
     })
     const confirmed = filtered.filter(b => b.status === 'confirmed' || b.status === 'completed' || b.status === 'driver_assigned')
-    const revenue = confirmed.reduce((s: number, b: any) => s + (b.final_price || 0), 0)
+    const revenue = revByCurrency(confirmed)
     return { total: filtered.length, confirmed: confirmed.length, revenue }
   }
 
@@ -76,7 +92,7 @@ export default function OutreachDashboard() {
         {[
           { num: totalStats.total, label: 'Total bookings' },
           { num: totalStats.confirmed, label: 'Confirmed' },
-          { num: `€${totalStats.revenue.toFixed(0)}`, label: 'Revenue' },
+          { num: fmtRev(totalStats.revenue), label: 'Revenue' },
         ].map(s => (
           <div key={s.label} style={cardStyle}>
             <div style={{fontSize:'24px', fontWeight:'500', marginBottom:'4px'}}>{s.num}</div>
@@ -97,7 +113,7 @@ export default function OutreachDashboard() {
                 <div style={{fontSize:'13px', fontWeight:'500'}}>{utm.label}</div>
                 <div style={{display:'flex', gap:'16px', fontSize:'12px'}}>
                   <span style={{color:'rgba(255,255,255,0.5)'}}>{stats.total} bookings</span>
-                  <span style={{color:'#1D9E75'}}>€{stats.revenue.toFixed(0)}</span>
+                  <span style={{color:'#1D9E75'}}>{fmtRev(stats.revenue)}</span>
                 </div>
               </div>
               <div style={{backgroundColor:'rgba(255,255,255,0.06)', borderRadius:'4px', height:'6px', overflow:'hidden'}}>
