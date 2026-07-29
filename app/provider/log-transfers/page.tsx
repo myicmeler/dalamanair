@@ -149,6 +149,7 @@ export default function LogTransfers() {
           luggage: parseInt(r.luggage) || 0,
           status: 'confirmed',
           discount_pct: 0,
+          currency: r.currency,
           source: 'manual',
           channel: 'provider_logged',
           manual_customer_name: r.customer_name,

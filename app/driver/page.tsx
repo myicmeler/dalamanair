@@ -126,6 +126,10 @@ export default function DriverView() {
               const mapUrl = b.pickup?.address
                 ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(b.pickup.address)}`
                 : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.pickup?.name ?? '')}`
+              // Manually-logged transfers keep the real customer in manual_customer_*.
+              const isManual = b.source === 'manual'
+              const custName = isManual ? (b.manual_customer_name ?? '—') : (b.customer?.full_name ?? '—')
+              const custPhone = isManual ? (b.manual_customer_phone || b.customer_phone) : b.customer?.phone
               return (
                 <div key={b.id} className="bg-white/[0.04] border border-white/10 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-3">
@@ -165,10 +169,10 @@ export default function DriverView() {
                   <div className="border-t border-white/10 pt-3 mb-3">
                     <div className="text-[10px] tracking-widest text-muted uppercase mb-1.5">Customer</div>
                     <div className="flex items-center justify-between">
-                      <div className="text-sm">{b.customer?.full_name ?? '—'}</div>
-                      {b.customer?.phone && (
-                        <a href={`tel:${b.customer.phone}`} className="text-xs bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded transition-colors">
-                          📞 {b.customer.phone}
+                      <div className="text-sm">{custName}</div>
+                      {custPhone && (
+                        <a href={`tel:${custPhone}`} className="text-xs bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded transition-colors">
+                          📞 {custPhone}
                         </a>
                       )}
                     </div>
