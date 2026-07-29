@@ -89,8 +89,7 @@ function SearchContent() {
             <p style={{fontSize:'12px', color:'rgba(255,255,255,0.25)', textAlign:'center', lineHeight:'1.6'}}>Payment is made directly to your driver on transfer day.</p>
           </>
         )}
-      </div><script data-goatcounter="https://dalaman.goatcounter.com/count"
-        async src="//gc.zgo.at/count.js"></script>
+      </div>
     </div>
   )
 }

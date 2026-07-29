@@ -46,14 +46,40 @@ export default function AdminImport() {
   }
 
   function parseCSV(text: string): Record<string, string>[] {
-    const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean)
-    if (lines.length < 2) return []
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-    return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim().replace(/"/g, ''))
-      const row: Record<string, string> = {}
-      headers.forEach((h, i) => { row[h] = values[i] ?? '' })
-      return row
+    // RFC-4180-style parser: handles quoted fields with embedded commas and
+    // newlines, and "" escaped quotes — the old split(',') broke on any of
+    // those (e.g. a value like "Marmaris, Turkey").
+    const rows: string[][] = []
+    let row: string[] = []
+    let field = ''
+    let inQuotes = false
+    const s = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i]
+      if (inQuotes) {
+        if (c === '"') {
+          if (s[i + 1] === '"') { field += '"'; i++ }   // escaped quote
+          else inQuotes = false
+        } else field += c
+      } else if (c === '"') {
+        inQuotes = true
+      } else if (c === ',') {
+        row.push(field); field = ''
+      } else if (c === '\n') {
+        row.push(field); rows.push(row); row = []; field = ''
+      } else {
+        field += c
+      }
+    }
+    row.push(field); rows.push(row)   // flush the final field/row
+
+    const nonEmpty = rows.filter(r => r.some(v => v.trim() !== ''))
+    if (nonEmpty.length < 2) return []
+    const headers = nonEmpty[0].map(h => h.trim())
+    return nonEmpty.slice(1).map(cols => {
+      const obj: Record<string, string> = {}
+      headers.forEach((h, i) => { obj[h] = (cols[i] ?? '').trim() })
+      return obj
     })
   }
 
