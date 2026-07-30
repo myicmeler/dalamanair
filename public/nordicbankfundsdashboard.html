@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Look-through — Nordic bank funds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E7EAEE;
+  --paper2:#F3F5F8;
+  --card:#FFFFFF;
+  --ink:#0F1720;
+  --ink2:#4A5A69;
+  --ink3:#78889A;
+  --line:#CDD5DD;
+  --line2:#E3E8ED;
+  --borea:#1E5F74;
+  --eika:#4A3F8F;
+  --pensum:#C1121F;
+  --residual:#B6C0CA;
+  --up:#1C7C4A;
+  --down:#C1121F;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --mono:'IBM Plex Mono','SF Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+
+/* ---------- masthead ---------- */
+.masthead{padding:52px 0 30px}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink3);display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+}
+.eyebrow span{white-space:nowrap}
+.eyebrow i{width:3px;height:3px;background:var(--ink3);border-radius:50%;display:inline-block;font-style:normal}
+h1{
+  font-family:var(--display);
+  font-weight:800;
+  font-size:clamp(38px,6.6vw,72px);
+  line-height:.98;
+  letter-spacing:-.03em;
+  margin:18px 0 0;
+  max-width:15ch;
+}
+h1 em{font-style:normal;color:var(--pensum)}
+.thesis{
+  margin:20px 0 0;max-width:60ch;font-size:17px;color:var(--ink2);line-height:1.55;
+}
+
+/* ---------- fund chips ---------- */
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:34px}
+.chip{
+  background:var(--card);border:1px solid var(--line2);border-radius:3px;
+  padding:16px 16px 14px;text-align:left;cursor:pointer;position:relative;
+  border-top:3px solid var(--c);transition:transform .16s ease, box-shadow .16s ease;
+  font-family:var(--body);
+}
+.chip:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,32,.09)}
+.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.chip[aria-pressed="false"]{opacity:.42}
+.chip .cname{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:-.01em;line-height:1.2}
+.chip .cmeta{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:8px;letter-spacing:.04em}
+.chip .ctop{font-size:13px;color:var(--ink2);margin-top:9px}
+.chip .ctop b{font-weight:600;color:var(--ink)}
+.chip .clive{font-family:var(--mono);font-size:11.5px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line2);letter-spacing:.02em;min-height:20px}
+.chip .clive.up{color:var(--up)}
+.chip .clive.down{color:var(--down)}
+.chip .clive.flat{color:var(--ink3)}
+.chip .clive b{font-weight:600}
+
+/* ---------- live status bar ---------- */
+.livebar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px;
+  padding:11px 14px;background:var(--card);border:1px solid var(--line2);border-radius:3px;
+  font-family:var(--mono);font-size:11.5px;color:var(--ink2);letter-spacing:.03em;
+}
+.livebar .dot{width:8px;height:8px;border-radius:50%;background:var(--ink3);flex:none}
+.livebar.on .dot{background:var(--up)}
+.livebar.err .dot{background:var(--pensum)}
+.livebar.load .dot{background:#E08A2E;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.livebar .msg{flex:1;min-width:200px}
+.livebar .msg b{color:var(--ink);font-weight:600}
+.livebar .msg .up{color:var(--up)}
+.livebar .msg .down{color:var(--down)}
+.livebar button{
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;background:var(--paper2);
+  border:1px solid var(--line);color:var(--ink2);padding:5px 13px;border-radius:2px;cursor:pointer;
+}
+.livebar button:hover:not(:disabled){background:var(--ink);color:#fff;border-color:var(--ink)}
+.livebar button:disabled{opacity:.45;cursor:default}
+
+/* ---------- section frame ---------- */
+section{margin-top:56px}
+.shead{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:22px;flex-wrap:wrap}
+.shead h2{font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:-.02em;margin:0}
+.shead p{margin:0;font-size:13px;color:var(--ink3);flex:1;min-width:220px}
+
+/* ---------- allocation ---------- */
+.alloc{background:var(--card);border:1px solid var(--line2);border-radius:3px;padding:20px}
+.alloc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.field label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink3);margin-bottom:7px}
+.field .row{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--c);padding-bottom:5px}
+.field .kr{font-family:var(--mono);font-size:12px;color:var(--ink3)}
+.field input{
+  border:0;background:transparent;font-family:var(--mono);font-weight:500;font-size:22px;
+  color:var(--ink);width:100%;padding:0;letter-spacing:-.02em;
+}
+.field input:focus{outline:none}
+.field .row:focus-within{border-bottom-width:3px;padding-bottom:4px}
+.field .pct{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:7px}
+.field .live{font-family:var(--mono);font-size:11px;margin-top:4px;min-height:16px}
+.field .live.up{color:var(--up)}.field .live.down{color:var(--down)}.field .live.flat{color:var(--ink3)}
+.presets{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center}
+.presets span{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink3);margin-right:2px}
+.presets button{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;background:var(--paper2);
+  border:1px solid var(--line);color:var(--ink2);padding:6px 11px;border-radius:2px;cursor:pointer;
+}
+.presets button:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.presets button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* ---------- stat strip ---------- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line2);border:1px solid var(--line2);margin-top:14px;border-radius:3px;overflow:hidden}
+.stat{background:var(--card);padding:16px 15px}
+.stat .v{font-family:var(--mono);font-weight:600;font-size:26px;letter-spacing:-.03em;line-height:1}
+.stat .v.up{color:var(--up)}.stat .v.down{color:var(--down)}
+.stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-top:9px}
+.stat .n{font-size:12px;color:var(--ink3);margin-top:5px;line-height:1.35}
+.stat .n .up{color:var(--up);font-weight:500}.stat .n .down{color:var(--down);font-weight:500}
+
+/* ---------- matrix (signature) ---------- */
+.matrix{background:var(--card);border:1px solid var(--line2);border-radius:3px;overflow:hidden}
+.mx-head,.mx-row{display:grid;grid-template-columns:minmax(160px,1.5fr) 26px repeat(3,1fr) 76px;align-items:center;gap:0}
+.mx-head{
+  font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
+  padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:2;
+}
+.mx-head .col{text-align:left;padding-left:8px}
+.mx-head .tot{text-align:right}
+.mx-row{padding:0 16px;border-bottom:1px solid var(--line2);min-height:38px;transition:background .12s}
+.mx-row:last-child{border-bottom:0}
+.mx-row:hover{background:var(--paper2)}
+.mx-row.all3{background:linear-gradient(90deg,rgba(193,18,31,.045),rgba(193,18,31,0) 55%)}
+.mx-name{font-size:13.5px;font-weight:500;line-height:1.25;padding:8px 10px 8px 0}
+.mx-name small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink3);font-weight:400;letter-spacing:.03em;margin-top:2px}
+.mx-name small.qt.up{color:var(--up)}.mx-name small.qt.down{color:var(--down)}.mx-name small.qt.flat{color:var(--ink3)}
+.spine{display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center}
+.spine b{width:5px;height:5px;border-radius:50%;background:var(--line);display:block}
+.spine b.on{background:var(--ink)}
+.cell{padding:0 8px;position:relative;height:100%;display:flex;align-items:center}
+.bar{height:15px;border-radius:1px;position:relative;min-width:2px;transition:opacity .16s}
+.bar span{
+  position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink2);white-space:nowrap;
+}
+.cell.empty::before{content:'';width:100%;height:1px;background:var(--line2)}
+.mx-tot{text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:500;padding-left:6px}
+.dim .bar{opacity:.14}
+.dim .bar.live{opacity:1}
+.mx-note{padding:12px 16px;font-size:12px;color:var(--ink3);border-top:1px solid var(--line);background:var(--paper2);line-height:1.5}
+
+/* ---------- blended bars ---------- */
+.blend{background:var(--card);border:1px solid var(--line2);border-radius:3px;padding:6px 16px}
+.brow{display:grid;grid-template-columns:minmax(150px,1fr) 3fr 62px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line2)}
+.brow:last-of-type{border-bottom:0}
+.brow .bn{font-size:13.5px;font-weight:500}
+.stack{display:flex;height:17px;border-radius:1px;overflow:hidden;background:var(--paper2)}
+.seg{height:100%;transition:width .35s cubic-bezier(.4,0,.2,1)}
+.bv{font-family:var(--mono);font-size:12.5px;text-align:right;font-weight:500}
+
+/* ---------- split bars ---------- */
+.splits{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.panel{background:var(--card);border:1px solid var(--line2);border-radius:3px;padding:18px}
+.panel h3{font-family:var(--display);font-weight:600;font-size:15px;margin:0 0 4px;letter-spacing:-.01em}
+.panel .sub{font-size:12px;color:var(--ink3);margin:0 0 16px}
+.srow{margin-bottom:14px}
+.srow .sl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px}
+.sbar{display:flex;height:22px;border-radius:1px;overflow:hidden;background:var(--paper2)}
+.sseg{height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:#fff;overflow:hidden;transition:width .35s ease}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line2)}
+.legend div{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink2)}
+.legend i{width:9px;height:9px;border-radius:1px;display:block}
+
+/* ---------- footer ---------- */
+footer{margin-top:60px;border-top:1px solid var(--line);padding-top:20px;font-size:12.5px;color:var(--ink3);line-height:1.65}
+footer b{color:var(--ink2);font-weight:600}
+footer ol{padding-left:18px;margin:10px 0 0}
+footer li{margin-bottom:6px}
+
+@media (max-width:820px){
+  .chips{grid-template-columns:1fr}
+  .alloc-grid{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .splits{grid-template-columns:1fr}
+  .mx-head,.mx-row{grid-template-columns:minmax(120px,1.3fr) 20px repeat(3,1fr) 58px}
+  .bar span{display:none}
+  .brow{grid-template-columns:minmax(110px,1fr) 2fr 54px;gap:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Nordnet · Eksponering</span><i></i><span>3 funds</span><i></i><span>22 companies</span><i></i><span id="captured">Captured 21:20</span>
+    </div>
+    <h1>Two of these funds are <em>nearly the same fund</em>.</h1>
+    <p class="thesis">Eika Egenkapitalbevis and Pensum Nordic Banking Sector share nine of their twelve largest positions. Borea is the one holding something different — half its book is insurance, and it reaches into Denmark and Finland. Set your amounts below to see what you actually own underneath — now marked to today's live share prices.</p>
+
+    <div class="chips" id="chips"></div>
+
+    <div class="livebar load" id="liveBar" role="status" aria-live="polite">
+      <span class="dot"></span>
+      <span class="msg" id="liveMsg">Fetching live share prices…</span>
+      <button id="liveRefresh" disabled>Refresh</button>
+    </div>
+  </header>
+
+  <section>
+    <div class="shead">
+      <h2>Your allocation</h2>
+      <p>Enter what you hold in each fund. Everything below recalculates on a look-through basis, and each fund is marked to today's move in its underlying shares.</p>
+    </div>
+    <div class="alloc">
+      <div class="alloc-grid" id="allocGrid"></div>
+      <div class="presets">
+        <span>Presets</span>
+        <button data-preset="equal">Equal thirds</button>
+        <button data-preset="borea">Borea heavy</button>
+        <button data-preset="norway">Norway heavy</button>
+        <button data-preset="clear">Reset to 100 000</button>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>The overlap</h2>
+      <p>Each company's weight inside each fund. Dots on the spine count how many funds hold it. Ticker line shows today's live price.</p>
+    </div>
+    <div class="matrix">
+      <div class="mx-head">
+        <div>Company</div>
+        <div></div>
+        <div class="col">Borea</div>
+        <div class="col">Eika</div>
+        <div class="col">Pensum</div>
+        <div class="tot">Your %</div>
+      </div>
+      <div id="mxBody"></div>
+      <div class="mx-note">Bars are scaled to the largest single position across all three funds (DNB at 14,0 % inside Pensum). "Your %" is the blended weight in your combined holding, given the amounts above. Live prices are delayed quotes from Yahoo Finance and may be missing for some savings banks.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>What you own, blended</h2>
+      <p>Top positions across the three funds combined. Each bar is segmented by which fund contributes it.</p>
+    </div>
+    <div class="blend" id="blend"></div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>Where the money sits</h2>
+      <p>Business type and home market, per fund and blended. Classification is my own labelling, not the funds'.</p>
+    </div>
+    <div class="splits">
+      <div class="panel">
+        <h3>By business type</h3>
+        <p class="sub">Savings-bank equity certificates behave very differently to Nordic large-cap banks.</p>
+        <div id="typeSplit"></div>
+        <div class="legend" id="typeLegend"></div>
+      </div>
+      <div class="panel">
+        <h3>By home market</h3>
+        <p class="sub">Only Borea takes you meaningfully outside Norway.</p>
+        <div id="ctrySplit"></div>
+        <div class="legend" id="ctryLegend"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>About this data.</b>
+    <ol>
+      <li>Weights are read directly from the Eksponering tab of each fund in the Nordnet app. Only the positions visible on screen are included — twelve per fund, covering 65,8 % (Borea), 68,2 % (Eika) and 69,6 % (Pensum) of each portfolio. The remainder is shown as <i>Not disclosed on screen</i> and is treated as unknown, not as cash.</li>
+      <li>Pensum listed Sparebanken Norge twice (7,4 % and 3,5 %) and SpareBank 1 Østfold Akershus twice (2,3 % and 2,2 %), almost certainly two instrument classes of the same issuer. Those pairs are merged here and marked in the table.</li>
+      <li>Business type and home market are my classification for comparison purposes. Nordea is treated as Finnish and NOBA as Swedish by domicile.</li>
+      <li><b>Live prices.</b> On load the page fetches delayed quotes for each holding from Yahoo Finance and marks each fund to today's move on a look-through basis: the fund's value is adjusted by the weighted change of the shares it holds that were priced. Only the disclosed, priced portion moves — undisclosed and unpriced holdings are held flat, so the estimate is conservative. Fetching runs through a public CORS proxy and can fail or rate-limit; when it does, the page falls back to the static weights and says so. These are single-moment weights, not fund NAVs, and nothing here is investment advice.</li>
+    </ol>
+  </footer>
+
+</div>
+
+<script>
+const FUNDS=[
+ {id:'borea', name:'Borea Nordisk Utbytte N', color:'#1E5F74', disclosed:65.8},
+ {id:'eika',  name:'Eika Egenkapitalbevis N', color:'#4A3F8F', disclosed:68.2},
+ {id:'pensum',name:'Pensum Nordic Banking Sector A', color:'#C1121F', disclosed:69.6}
+];
+
+const H=[
+ {n:'DNB Bank',              t:'Large bank', c:'Norway',  w:{borea:4.6, eika:5.2, pensum:14.0}},
+ {n:'SpareBank 1 SMN',       t:'Savings bank', c:'Norway',w:{eika:9.3, pensum:13.4}},
+ {n:'Sparebanken Norge',     t:'Savings bank', c:'Norway',w:{eika:9.2, pensum:10.9}, note:'Pensum: 7,4 + 3,5 merged'},
+ {n:'SpareBank 1 Sør-Norge', t:'Savings bank', c:'Norway',w:{eika:4.6, pensum:7.2}},
+ {n:'SpareBank 1 Nord-Norge',t:'Savings bank', c:'Norway',w:{eika:7.2, pensum:3.2}},
+ {n:'SpareBank 1 Østlandet', t:'Savings bank', c:'Norway',w:{eika:6.8, pensum:4.7}},
+ {n:'Sparebanken Møre',      t:'Savings bank', c:'Norway',w:{eika:4.2, pensum:3.4}},
+ {n:'SpareBank 1 Sørøst-Norge',t:'Savings bank',c:'Norway',w:{pensum:4.5}},
+ {n:'SpareBank 1 Østfold Akershus',t:'Savings bank',c:'Norway',w:{pensum:4.5}, note:'Pensum: 2,3 + 2,2 merged'},
+ {n:'SpareBank 1 Ringerike Hadeland',t:'Savings bank',c:'Norway',w:{eika:3.2}},
+ {n:'Nordea Bank',           t:'Large bank', c:'Finland', w:{borea:4.7, eika:4.7}},
+ {n:'Danske Bank',           t:'Large bank', c:'Denmark', w:{borea:6.5, eika:4.5}},
+ {n:'Swedbank A',            t:'Large bank', c:'Sweden',  w:{borea:4.0, eika:4.7, pensum:3.8}},
+ {n:'SEB A',                 t:'Large bank', c:'Sweden',  w:{borea:4.6}},
+ {n:'Handelsbanken A',       t:'Large bank', c:'Sweden',  w:{eika:4.6}},
+ {n:'NOBA Bank',             t:'Consumer bank', c:'Sweden', w:{borea:6.1}},
+ {n:'Alm. Brand',            t:'Insurance', c:'Denmark',  w:{borea:7.1}},
+ {n:'Sampo A',               t:'Insurance', c:'Finland',  w:{borea:6.6}},
+ {n:'Gjensidige Forsikring', t:'Insurance', c:'Norway',   w:{borea:6.5}},
+ {n:'Storebrand',            t:'Insurance', c:'Norway',   w:{borea:5.9}},
+ {n:'Protector Forsikring',  t:'Insurance', c:'Norway',   w:{borea:4.7}},
+ {n:'Tryg',                  t:'Insurance', c:'Denmark',  w:{borea:4.5}}
+];
+
+/* Yahoo Finance symbols for each holding. Unknown / unresolved symbols simply
+   contribute no live delta — the look-through math treats them as flat. */
+const TICKERS={
+ 'DNB Bank':'DNB.OL',
+ 'SpareBank 1 SMN':'MING.OL',
+ 'Sparebanken Norge':'SVEG.OL',
+ 'SpareBank 1 Sør-Norge':'SNOR.OL',
+ 'SpareBank 1 Nord-Norge':'NONG.OL',
+ 'SpareBank 1 Østlandet':'SPOL.OL',
+ 'Sparebanken Møre':'MORG.OL',
+ 'SpareBank 1 Sørøst-Norge':'SOON.OL',
+ 'SpareBank 1 Østfold Akershus':'SOAG.OL',
+ 'SpareBank 1 Ringerike Hadeland':'RING.OL',
+ 'Nordea Bank':'NDA-NO.OL',
+ 'Danske Bank':'DANSKE.CO',
+ 'Swedbank A':'SWED-A.ST',
+ 'SEB A':'SEB-A.ST',
+ 'Handelsbanken A':'SHB-A.ST',
+ 'NOBA Bank':'NOBA.ST',
+ 'Alm. Brand':'ALMB.CO',
+ 'Sampo A':'SAMPO.HE',
+ 'Gjensidige Forsikring':'GJF.OL',
+ 'Storebrand':'STB.OL',
+ 'Protector Forsikring':'PROT.OL',
+ 'Tryg':'TRYG.CO'
+};
+H.forEach(h=>{ h.ticker=TICKERS[h.n]||null; h.live=null; });
+
+const TYPES=[['Savings bank','#C1121F'],['Large bank','#1E5F74'],['Insurance','#4A3F8F'],['Consumer bank','#E08A2E']];
+const CTRYS=[['Norway','#1E5F74'],['Denmark','#C1121F'],['Sweden','#4A3F8F'],['Finland','#3E8E7E']];
+const RES='#B6C0CA';
+
+let amt={borea:100000, eika:100000, pensum:100000};
+let focus=null;
+
+const F=FUNDS.reduce((a,f)=>(a[f.id]=f,a),{});
+const nb=(v,d=1)=>v.toLocaleString('nb-NO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const kr=v=>Math.round(v).toLocaleString('nb-NO');
+const MAXW=14.0;
+
+function shares(){
+  const tot=FUNDS.reduce((s,f)=>s+(amt[f.id]||0),0);
+  const o={};
+  FUNDS.forEach(f=>o[f.id]= tot>0 ? (amt[f.id]||0)/tot : 0);
+  return {tot,s:o};
+}
+
+/* ---------- live pricing ---------- */
+let liveLoaded=false, liveErr=false, liveTime='';
+
+const PROXIES=[
+  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
+  u=>'https://thingproxy.freeboard.io/fetch/'+u,
+  u=>u
+];
+let goodProxy=null;
+
+async function fetchQuote(sym){
+  const target='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1d';
+  const order = goodProxy!=null
+    ? [goodProxy, ...PROXIES.map((_,i)=>i).filter(i=>i!==goodProxy)]
+    : PROXIES.map((_,i)=>i);
+  for(const idx of order){
+    try{
+      const r=await fetch(PROXIES[idx](target),{cache:'no-store'});
+      if(!r.ok) continue;
+      const j=await r.json();
+      const m=j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
+      if(m && typeof m.regularMarketPrice==='number'){
+        goodProxy=idx;
+        const prev = (typeof m.chartPreviousClose==='number' ? m.chartPreviousClose
+                   : typeof m.previousClose==='number' ? m.previousClose
+                   : m.regularMarketPrice);
+        return {price:m.regularMarketPrice, prev, chg: prev? (m.regularMarketPrice-prev)/prev : 0, ccy:m.currency||''};
+      }
+    }catch(e){/* try next proxy */}
+  }
+  return null;
+}
+
+async function loadLivePrices(){
+  const btn=document.getElementById('liveRefresh');
+  btn.disabled=true;
+  liveLoaded=false; liveErr=false;
+  const bar=document.getElementById('liveBar');
+  bar.className='livebar load';
+  document.getElementById('liveMsg').textContent='Fetching live share prices…';
+  const targets=H.filter(h=>h.ticker);
+  const results=await Promise.allSettled(targets.map(h=>fetchQuote(h.ticker)));
+  results.forEach((res,i)=>{ targets[i].live = (res.status==='fulfilled' ? res.value : null) || null; });
+  const priced=H.filter(h=>h.live).length;
+  liveLoaded = priced>0;
+  liveErr = priced===0;
+  try{ liveTime=new Date().toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}); }catch(e){ liveTime=''; }
+  updateLiveBar();
+  render();
+  btn.disabled=false;
+}
+
+function updateLiveBar(){
+  const bar=document.getElementById('liveBar'), msg=document.getElementById('liveMsg');
+  const priced=H.filter(h=>h.live).length;
+  if(liveErr && !priced){
+    bar.className='livebar err';
+    msg.innerHTML='<b>Live prices unavailable</b> · showing static weights (proxy blocked or markets unreachable)';
+    return;
+  }
+  bar.className='livebar on';
+  const totCost=FUNDS.reduce((s,f)=>s+(amt[f.id]||0),0);
+  let totVal=0; FUNDS.forEach(f=>{ const {r}=fundReturn(f.id); totVal+=(amt[f.id]||0)*(1+r); });
+  const move=totCost>0?(totVal-totCost)/totCost:0;
+  const cls=chgClass(move);
+  const arrow=cls==='up'?'▲':cls==='down'?'▼':'■';
+  msg.innerHTML='<b>Live</b> · '+priced+' of '+H.length+' holdings priced · portfolio '+
+    '<span class="'+cls+'">'+arrow+' '+pctSigned(move,2)+' today</span>'+(liveTime?' · updated '+liveTime:'');
+}
+
+function fundReturn(fid){
+  let cover=0, r=0;
+  H.forEach(h=>{ const w=h.w[fid]; if(w && h.live){ cover+=w; r+=w/100*h.live.chg; } });
+  return {r, cover};
+}
+function chgClass(x){ return x>0.00005?'up':x<-0.00005?'down':'flat'; }
+function pctSigned(x,d){ d=d==null?2:d; const s=x>0?'+':x<0?'−':''; return s+nb(Math.abs(x)*100,d)+' %'; }
+
+/* ---------- chips ---------- */
+function drawChips(){
+  const el=document.getElementById('chips');
+  el.innerHTML=FUNDS.map(f=>{
+    const rows=H.filter(h=>h.w[f.id]).sort((a,b)=>b.w[f.id]-a.w[f.id]);
+    const n=rows.length;
+    const top=rows[0];
+    return `<button class="chip" style="--c:${f.color}" data-f="${f.id}" aria-pressed="true">
+      <div class="cname">${f.name}</div>
+      <div class="cmeta">${n} POSITIONS SHOWN · ${nb(f.disclosed)} % COVERED</div>
+      <div class="ctop">Largest: <b>${top.n}</b> ${nb(top.w[f.id])} %</div>
+      <div class="clive" id="cl-${f.id}"></div>
+    </button>`;
+  }).join('');
+  el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+    focus = focus===b.dataset.f ? null : b.dataset.f;
+    el.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed', !focus||focus===x.dataset.f));
+    document.getElementById('mxBody').classList.toggle('dim', !!focus);
+    document.querySelectorAll('#mxBody .bar').forEach(x=>x.classList.toggle('live', focus && x.dataset.f===focus));
+  });
+}
+
+function drawChipLive(){
+  FUNDS.forEach(f=>{
+    const el=document.getElementById('cl-'+f.id);
+    if(!el) return;
+    if(!liveLoaded){ el.className='clive'; el.textContent=''; return; }
+    const {r,cover}=fundReturn(f.id);
+    const val=(amt[f.id]||0)*(1+r);
+    const cls=chgClass(r);
+    const arrow=cls==='up'?'▲':cls==='down'?'▼':'■';
+    el.className='clive '+cls;
+    el.innerHTML=`${arrow} <b>${pctSigned(r,2)}</b> today · ${kr(val)} kr`;
+  });
+}
+
+/* ---------- allocation ---------- */
+function drawAlloc(){
+  document.getElementById('allocGrid').innerHTML=FUNDS.map(f=>`
+    <div class="field" style="--c:${f.color}">
+      <label for="a-${f.id}">${f.name.split(' ')[0]}</label>
+      <div class="row"><span class="kr">kr</span><input id="a-${f.id}" data-f="${f.id}" inputmode="numeric" value="${kr(amt[f.id])}"></div>
+      <div class="pct" id="p-${f.id}"></div>
+      <div class="live" id="lv-${f.id}"></div>
+    </div>`).join('');
+  document.querySelectorAll('.field input').forEach(i=>{
+    i.addEventListener('input',e=>{
+      const v=parseInt(e.target.value.replace(/[^\d]/g,''),10);
+      amt[e.target.dataset.f]=isNaN(v)?0:v;
+      render();
+    });
+    i.addEventListener('blur',e=>{e.target.value=kr(amt[e.target.dataset.f]);});
+  });
+}
+document.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{
+  const p=b.dataset.preset;
+  if(p==='equal'||p==='clear') amt={borea:100000,eika:100000,pensum:100000};
+  if(p==='borea') amt={borea:200000,eika:50000,pensum:50000};
+  if(p==='norway') amt={borea:40000,eika:130000,pensum:130000};
+  FUNDS.forEach(f=>{const el=document.getElementById('a-'+f.id); if(el) el.value=kr(amt[f.id]);});
+  render();
+});
+
+/* ---------- blended weights ---------- */
+function blended(){
+  const {s}=shares();
+  return H.map(h=>{
+    const parts={};
+    let tot=0;
+    FUNDS.forEach(f=>{const w=(h.w[f.id]||0)*s[f.id]; parts[f.id]=w; tot+=w;});
+    return {...h, parts, tot};
+  }).sort((a,b)=>b.tot-a.tot||a.n.localeCompare(b.n));
+}
+
+/* ---------- matrix ---------- */
+function drawMatrix(rows){
+  document.getElementById('mxBody').innerHTML=rows.map(h=>{
+    const cnt=FUNDS.filter(f=>h.w[f.id]).length;
+    const cells=FUNDS.map(f=>{
+      const w=h.w[f.id];
+      if(!w) return `<div class="cell empty"></div>`;
+      return `<div class="cell"><div class="bar${focus===f.id?' live':''}" data-f="${f.id}" style="width:${(w/MAXW*72).toFixed(1)}%;background:${f.color}"><span>${nb(w)}</span></div></div>`;
+    }).join('');
+    let qt='';
+    if(h.live){
+      const dp=h.live.price>=100?1:2;
+      qt=`<small class="qt ${chgClass(h.live.chg)}">${h.ticker} · ${nb(h.live.price,dp)} ${h.live.ccy} · ${pctSigned(h.live.chg,2)}</small>`;
+    }else if(h.ticker && liveLoaded){
+      qt=`<small class="qt flat">${h.ticker} · no live price</small>`;
+    }
+    return `<div class="mx-row${cnt===3?' all3':''}">
+      <div class="mx-name">${h.n}${h.note?`<small>${h.note}</small>`:''}${qt}</div>
+      <div class="spine">${[0,1,2].map(i=>`<b class="${i<cnt?'on':''}"></b>`).join('')}</div>
+      ${cells}
+      <div class="mx-tot">${h.tot>0.04?nb(h.tot,1):'–'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('mxBody').classList.toggle('dim', !!focus);
+}
+
+/* ---------- blended bars ---------- */
+function drawBlend(rows){
+  const shown=rows.filter(r=>r.tot>0.04).slice(0,12);
+  const disclosed=rows.reduce((s,r)=>s+r.tot,0);
+  const max=shown.length?shown[0].tot:1;
+  let html=shown.map(h=>`
+    <div class="brow">
+      <div class="bn">${h.n}</div>
+      <div class="stack">${FUNDS.map(f=>h.parts[f.id]>0
+        ?`<div class="seg" style="width:${(h.parts[f.id]/max*100).toFixed(2)}%;background:${f.color}" title="${f.name}: ${nb(h.parts[f.id],2)} %"></div>`:'').join('')}</div>
+      <div class="bv">${nb(h.tot)} %</div>
+    </div>`).join('');
+  html+=`<div class="brow" style="border-top:1px solid var(--line);margin-top:4px">
+      <div class="bn" style="color:var(--ink3)">Not disclosed on screen</div>
+      <div class="stack"><div class="seg" style="width:${((100-disclosed)/max*100).toFixed(2)}%;background:${RES}"></div></div>
+      <div class="bv" style="color:var(--ink3)">${nb(100-disclosed)} %</div>
+    </div>`;
+  document.getElementById('blend').innerHTML=html;
+}
+
+/* ---------- stats ---------- */
+function drawStats(rows){
+  const {tot}=shares();
+  const disclosed=rows.reduce((s,r)=>s+r.tot,0);
+  const shown=rows.filter(r=>r.tot>0.001);
+  const top5=shown.slice(0,5).reduce((s,r)=>s+r.tot,0);
+  const norm=shown.map(r=>r.tot/disclosed);
+  const hhi=norm.reduce((s,w)=>s+w*w,0);
+  const eff=hhi>0?1/hhi:0;
+  const nor=shown.filter(r=>r.c==='Norway').reduce((s,r)=>s+r.tot,0);
+
+  let card1;
+  if(liveLoaded){
+    let totVal=0; FUNDS.forEach(f=>{ const {r}=fundReturn(f.id); totVal+=(amt[f.id]||0)*(1+r); });
+    const delta=totVal-tot;
+    const cls=chgClass(tot>0?delta/tot:0);
+    const arrow=cls==='up'?'▲':cls==='down'?'▼':'■';
+    const sign=delta>0?'+':delta<0?'−':'';
+    card1={v:kr(totVal)+' kr', vcls:cls, k:'Value today',
+      n:`<span class="${cls}">${arrow} ${sign}${kr(Math.abs(delta))} kr today</span> · cost ${kr(tot)}`};
+  }else{
+    card1={v:kr(tot)+' kr', vcls:'', k:'Total invested', n:'Across the three funds'};
+  }
+
+  const cards=[
+    card1,
+    {v:shown.length, k:'Distinct companies', n:'Of 22 possible — overlap collapses the count'},
+    {v:nb(top5/disclosed*100,0)+' %', k:'In the top five', n:'Share of disclosed holdings'},
+    {v:nb(nor/disclosed*100,0)+' %', k:'Norwegian issuers', n:'Effective holdings: '+nb(eff,1)}
+  ];
+  document.getElementById('stats').innerHTML=cards.map(c=>
+    `<div class="stat"><div class="v${c.vcls?' '+c.vcls:''}">${c.v}</div><div class="k">${c.k}</div><div class="n">${c.n}</div></div>`).join('');
+}
+
+/* ---------- splits ---------- */
+function splitBar(key, cats, rows){
+  const {s}=shares();
+  const series=[...FUNDS.map(f=>({label:f.name.split(' ')[0], get:h=>h.w[f.id]||0, den:f.disclosed})),
+                {label:'Blended', get:h=>h.tot, den:rows.reduce((a,r)=>a+r.tot,0)}];
+  return series.map(se=>{
+    const den=se.den||1;
+    const segs=cats.map(([c,col])=>{
+      const v=rows.filter(h=>h[key]===c).reduce((a,h)=>a+se.get(h),0);
+      return {c,col,pct:v/den*100};
+    }).filter(x=>x.pct>0.05);
+    return `<div class="srow">
+      <div class="sl"><span>${se.label}</span><span>${segs.map(x=>nb(x.pct,0)+' %').slice(0,0).join('')}</span></div>
+      <div class="sbar">${segs.map(x=>`<div class="sseg" style="width:${x.pct.toFixed(2)}%;background:${x.col}" title="${x.c} ${nb(x.pct)} %">${x.pct>11?nb(x.pct,0)+'%':''}</div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function drawSplits(rows){
+  document.getElementById('typeSplit').innerHTML=splitBar('t',TYPES,rows);
+  document.getElementById('ctrySplit').innerHTML=splitBar('c',CTRYS,rows);
+  document.getElementById('typeLegend').innerHTML=TYPES.map(([c,col])=>`<div><i style="background:${col}"></i>${c}</div>`).join('');
+  document.getElementById('ctryLegend').innerHTML=CTRYS.map(([c,col])=>`<div><i style="background:${col}"></i>${c}</div>`).join('');
+}
+
+/* ---------- render ---------- */
+function render(){
+  const {tot,s}=shares();
+  FUNDS.forEach(f=>{
+    const el=document.getElementById('p-'+f.id);
+    if(el) el.textContent=nb(s[f.id]*100,1)+' % of portfolio';
+    const lv=document.getElementById('lv-'+f.id);
+    if(lv){
+      if(liveLoaded){
+        const {r}=fundReturn(f.id);
+        const cls=chgClass(r);
+        const arrow=cls==='up'?'▲':cls==='down'?'▼':'■';
+        lv.className='live '+cls;
+        lv.textContent=`${arrow} ${pctSigned(r,2)} · ${kr((amt[f.id]||0)*(1+r))} kr today`;
+      }else{ lv.className='live'; lv.textContent=''; }
+    }
+  });
+  const rows=blended();
+  drawMatrix(rows);
+  drawBlend(rows);
+  drawStats(rows);
+  drawSplits(rows);
+  drawChipLive();
+  if(liveLoaded||liveErr) updateLiveBar();
+}
+
+document.getElementById('liveRefresh').onclick=loadLivePrices;
+
+drawChips();
+drawAlloc();
+render();
+loadLivePrices();
+</script>
+</body>
+</html>
