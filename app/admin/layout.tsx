@@ -15,6 +15,7 @@ const navItems = [
   { href:'/admin/locations/', label:'Locations' },
   { href:'/admin/users/',     label:'Users' },
   { href:'/admin/import/',    label:'↑ Import' },
+  { href:'/admin/prices/',    label:'Prices' },
   { href:'/admin/outreach/',  label:'Outreach' },
   { href:'/admin/analytics/', label:'📊 Analytics' },
   { href:'/admin/emails/',    label:'📧 Emails' },
