@@ -150,6 +150,29 @@ export default function MyQuotes() {
             } catch (e) { console.error('Cancelled-request email error:', e) }
           }
         }
+      }
+
+      // Confirm the cancellation to the customer. Sent on BOTH paths: when the
+      // request had no offers the row is deleted outright and no audit trail
+      // survives, so this email is the only record they ever get. `req` is the
+      // in-memory copy, still populated after the delete. Best-effort — a
+      // Mailgun failure must not surface as a cancellation failure.
+      if (req?.customer_id) {
+        try {
+          await callFunction('send-email', {
+            type: 'request_cancelled_customer',
+            customerId: req.customer_id,
+            data: {
+              pickup: req.pickup?.name,
+              dropoff: req.dropoff?.name,
+              date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }),
+              offerCount: req.quote_offers?.length ?? 0,
+            }
+          })
+        } catch (e) { console.error('Customer cancellation email error:', e) }
+      }
+
+      if (hasOffers) {
         setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'cancelled' } : r))
       } else {
         setRequests(prev => prev.filter(r => r.id !== requestId))
