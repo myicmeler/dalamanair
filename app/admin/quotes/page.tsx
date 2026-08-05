@@ -169,15 +169,85 @@ export default function AdminQuotes() {
     setReminding(null)
   }
 
+  // Cancelling is NOT a plain status write. admin_cancel_quote_request() closes
+  // the outstanding offers and writes the provider notifications in one
+  // transaction. Setting status='cancelled' directly leaves every offer at
+  // 'pending', and cron job 13 later stamps them "Expired - transfer date too
+  // close", which is untrue.
+  //
+  // No manual quote_status_history insert anywhere below: the
+  // quote_status_change_trigger already writes a row for any real status
+  // change, so writing one here produced duplicates. (saveEdit's insert is
+  // fine — the status is unchanged there, so the trigger short-circuits.)
   async function updateStatus(req: any, newStatus: string) {
+    if (newStatus === 'cancelled') {
+      const pending = (req.quote_offers ?? []).filter((o: any) => o.status === 'pending').length
+      if (!confirm(`Cancel this request?\n\n${req.pickup?.name} → ${req.dropoff?.name}\n\nThis closes ${pending} outstanding offer${pending === 1 ? '' : 's'} and notifies those providers. This cannot be undone.`)) return
+
+      const { error: rpcError } = await supabase.rpc('admin_cancel_quote_request', { p_request_id: req.id })
+      if (rpcError) {
+        console.error('admin_cancel_quote_request failed:', rpcError)
+        alert('Could not cancel this request. Please refresh and try again.')
+        return
+      }
+
+      // Emails are best-effort side effects outside the transaction — a Mailgun
+      // failure must never look like a failed cancellation.
+      const dateLabel = new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+      for (const offer of req.quote_offers ?? []) {
+        if (offer.provider?.user_id) {
+          try {
+            await callFunction('send-email', {
+              type: 'request_cancelled',
+              providerUserId: offer.provider.user_id,
+              data: {
+                pickup: req.pickup?.name,
+                dropoff: req.dropoff?.name,
+                date: dateLabel,
+                price: offer.price?.toFixed(2),
+                currency: req.currency ?? 'EUR',
+              }
+            })
+          } catch (e) { console.error('Cancelled-request provider email error:', e) }
+        }
+      }
+      if (req.customer_id) {
+        try {
+          await callFunction('send-email', {
+            type: 'request_cancelled_customer',
+            customerId: req.customer_id,
+            data: {
+              pickup: req.pickup?.name,
+              dropoff: req.dropoff?.name,
+              date: dateLabel,
+              offerCount: req.quote_offers?.length ?? 0,
+            }
+          })
+        } catch (e) { console.error('Cancelled-request customer email error:', e) }
+      }
+
+      await load()
+      return
+    }
+
     if (!confirm(`Change status to "${newStatus}"?`)) return
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('quote_requests').update({ status: newStatus }).eq('id', req.id)
-    await supabase.from('quote_status_history').insert({
-      quote_request_id: req.id, status: newStatus,
-      changed_by: user?.id, changed_by_role: 'admin',
-      note: `Status changed to ${newStatus} by admin`
-    })
+    // .select('id') so a write silently filtered out by RLS is visible: an
+    // unauthorised UPDATE returns no error, it just affects zero rows.
+    const { data: updated, error } = await supabase
+      .from('quote_requests')
+      .update({ status: newStatus })
+      .eq('id', req.id)
+      .select('id')
+    if (error) {
+      console.error('updateStatus failed:', error)
+      alert('Could not change the status. Please refresh and try again.')
+      return
+    }
+    if (!updated || updated.length === 0) {
+      console.error('updateStatus affected zero rows — likely blocked by RLS', req.id)
+      alert('The status was not changed. You may not have permission, or the request no longer exists.')
+      return
+    }
     setRequests(prev => prev.map(r => r.id === req.id ? {...r, status: newStatus} : r))
   }
 
