@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,8 +37,10 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 
 function emailHtml(request: any) {
   const dt = new Date(request.pickup_time)
-  const dateStr = dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
-  const timeStr = dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+  // Pickup times are stored exactly as the customer typed them and must never
+  // be converted. timeZone:'UTC' pins the render regardless of runtime locale.
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC' })
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone:'UTC' })
   const rows = [
     ['Route', `${request.pickup?.name} → ${request.dropoff?.name}`],
     ['Date', dateStr], ['Time', timeStr],
@@ -110,7 +112,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-    const dateStr = new Date(request.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    const dateStr = new Date(request.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC' })
     const subject = `New quote request: ${request.pickup?.name} → ${request.dropoff?.name} · ${dateStr}`
     const html = emailHtml(request)
 
