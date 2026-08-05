@@ -1,3 +1,7 @@
+// smooth-responder — sends the daily provider digest.
+// Triggered by pg_cron job 11 "provider-daily-digest" at 15:00 UTC daily,
+// via pg_net with the secret key on the `apikey` header (see vault: secret_key).
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
