@@ -43,8 +43,16 @@ function ResetContent() {
     if (type === 'recovery' || code || newUser) {
       setMode('set')
       if (code) {
-        supabase.auth.exchangeCodeForSession(code).then(({ error }: any) => {
-          if (error) setError('Reset link is invalid or has expired. Please request a new one.')
+        // The Supabase client auto-exchanges the ?code in the URL, so this manual
+        // exchange can lose the race and return an "invalid code" error even when
+        // the session is valid. Only treat it as a real failure when there is
+        // genuinely no session to set a password against.
+        supabase.auth.exchangeCodeForSession(code).then(async ({ error }: any) => {
+          if (error) {
+            const { data: { session }, error: sessErr } = await supabase.auth.getSession()
+            if (sessErr) console.error('getSession after code exchange failed:', sessErr)
+            if (!session) setError('Reset link is invalid or has expired. Please request a new one.')
+          }
         })
       }
     }
@@ -56,6 +64,9 @@ function ResetContent() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: any) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && newUser)) setMode('set')
+      // A valid recovery/sign-in session clears any spurious "invalid link" banner
+      // left by a lost code-exchange race above.
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN')) setError('')
     })
     return () => subscription.unsubscribe()
   }, [])
