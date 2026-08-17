@@ -230,6 +230,31 @@ export default function AdminQuotes() {
       return
     }
 
+    // Re-opening is NOT a plain status write either. Cancelling expired the
+    // outstanding offers; flipping the status back on its own left the customer
+    // with an open request and nothing to accept. admin_reopen_quote_request()
+    // restores the offers this cancellation expired (and only those) and
+    // notifies the providers, in one transaction.
+    if (newStatus === 'open') {
+      if (!confirm(`Re-open this request?\n\n${req.pickup?.name} → ${req.dropoff?.name}\n\nOffers closed by the cancellation will be restored and those providers notified.`)) return
+
+      const { data: result, error: rpcError } = await supabase.rpc('admin_reopen_quote_request', { p_request_id: req.id })
+      if (rpcError) {
+        console.error('admin_reopen_quote_request failed:', rpcError)
+        alert(rpcError.message?.includes('date has already passed')
+          ? 'This transfer date has already passed, so the request cannot be re-opened.'
+          : 'Could not re-open this request. Please refresh and try again.')
+        return
+      }
+      const restored = result?.offersRestored ?? 0
+      alert(restored > 0
+        ? `Request re-opened. ${restored} offer${restored === 1 ? '' : 's'} restored.`
+        : 'Request re-opened. No offers were restored — providers will need to bid again.')
+
+      await load()
+      return
+    }
+
     if (!confirm(`Change status to "${newStatus}"?`)) return
     // .select('id') so a write silently filtered out by RLS is visible: an
     // unauthorised UPDATE returns no error, it just affects zero rows.
