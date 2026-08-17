@@ -20,6 +20,29 @@ const LogoLink = () => (
   </Link>
 )
 
+// Mirrors public.normalise_phone_e164() in the database — keep the two in sync.
+// This form previously stored whatever was typed, which left 21 stored numbers
+// unreachable: WhatsApp links strip non-digits, so spaces, a 00 prefix or a
+// national trunk zero all produced a dead link. Providers were the worst hit,
+// and their numbers are shown to customers.
+function normalisePhone(raw: string): string {
+  if (!raw || !raw.trim()) return ''
+  const v = (raw.trim().startsWith('+') ? '+' : '') + raw.replace(/[^0-9]/g, '')
+  if (/^00/.test(v)) return '+' + v.slice(2)
+  const trunk = v.match(/^\+(44|90|353|47|49|31|33|46|45|32)0(.*)$/)
+  if (trunk) return `+${trunk[1]}${trunk[2]}`
+  if (v.startsWith('+')) return v
+  if (/^(353|90|47)[0-9]{7,}$/.test(v)) return '+' + v
+  if (/^07[0-9]{9}$/.test(v)) return '+44' + v.slice(1)
+  if (/^7[0-9]{9}$/.test(v)) return '+44' + v
+  // Anything else (e.g. a bare Spanish or German number) is left alone and
+  // fails validation, so the person is asked for the country code rather than
+  // having +44 silently assumed for them.
+  return v
+}
+
+const isValidE164 = (v: string) => /^\+[1-9][0-9]{6,14}$/.test(v)
+
 export default function SignUpPage() {
   const router = useRouter()
   const supabase = createClient() as any
@@ -30,9 +53,20 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // Phones are normalised to E.164 before saving. A number that cannot be
+  // normalised confidently blocks submission rather than being stored broken.
+  const phoneE164 = normalisePhone(form.phone)
+  const providerPhoneE164 = normalisePhone(providerForm.providerPhone)
+  const phoneBad = !!form.phone.trim() && !isValidE164(phoneE164)
+  const providerPhoneBad = isProvider && !!providerForm.providerPhone.trim() && !isValidE164(providerPhoneE164)
+
   async function handleSignUp() {
     if (!form.email || !form.password || !form.fullName || loading) return
     if (isProvider && (!providerForm.companyName || !providerForm.tursabNumber)) return
+    if (phoneBad || providerPhoneBad) {
+      setError('Please enter phone numbers with the country code, e.g. +44 7700 900123 or +90 532 000 0000.')
+      return
+    }
     setLoading(true); setError('')
 
     try {
@@ -40,7 +74,7 @@ export default function SignUpPage() {
       const { data, error: authErr } = await supabase.auth.signUp({
         email: form.email, password: form.password,
         options: {
-          data:{ full_name: form.fullName, phone: form.phone },
+          data:{ full_name: form.fullName, phone: phoneE164 || null },
           emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/welcome/' : '/'}`,
         }
       })
@@ -63,7 +97,7 @@ export default function SignUpPage() {
             fullName: form.fullName,
             companyName: providerForm.companyName,
             tursabNumber: providerForm.tursabNumber,
-            phone: providerForm.providerPhone || form.phone || null,
+            phone: providerPhoneE164 || phoneE164 || null,
           })
         })
 
@@ -105,7 +139,7 @@ export default function SignUpPage() {
 
   const baseValid = !!(form.email && form.password && form.fullName)
   const providerValid = !isProvider || !!(providerForm.companyName && providerForm.tursabNumber)
-  const on = baseValid && providerValid && !loading
+  const on = baseValid && providerValid && !phoneBad && !providerPhoneBad && !loading
 
   return (
     <div style={S.page}>
@@ -121,7 +155,7 @@ export default function SignUpPage() {
           {[
             {label:'Full name *', key:'fullName', type:'text', ph:'Tom Henriksen'},
             {label:'Email *', key:'email', type:'email', ph:'you@email.com'},
-            {label:'Phone', key:'phone', type:'tel', ph:'+44 7700 000000'},
+            {label:'Phone', key:'phone', type:'tel', ph:'+44 7700 900123'},
             {label:'Password *', key:'password', type:'password', ph:'Min. 8 characters'},
           ].map(f => (
             <div key={f.key}>
@@ -129,7 +163,14 @@ export default function SignUpPage() {
               <input type={f.type} value={(form as any)[f.key]} placeholder={f.ph}
                 onChange={e => setForm(p=>({...p,[f.key]:e.target.value}))}
                 onKeyDown={e => e.key==='Enter' && handleSignUp()}
-                style={S.input} />
+                style={{...S.input, borderColor: (f.key==='phone' && phoneBad) ? '#e53e3e' : 'rgba(255,255,255,0.15)'}} />
+              {f.key==='phone' && (
+                <p style={{fontSize:'11px', color: phoneBad ? '#e53e3e' : 'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:'6px 0 0'}}>
+                  {phoneBad
+                    ? 'Please include the country code, e.g. +44 7700 900123.'
+                    : 'Optional. Include the country code so your driver can reach you on WhatsApp.'}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -161,14 +202,21 @@ export default function SignUpPage() {
             {[
               {label:'Company name *', key:'companyName', type:'text', ph:'Marmaris Transfer Co.'},
               {label:'TURSAB number *', key:'tursabNumber', type:'text', ph:'e.g. 12345'},
-              {label:'Company phone', key:'providerPhone', type:'tel', ph:'+90 555 000 0000'},
+              {label:'Company phone', key:'providerPhone', type:'tel', ph:'+90 532 000 0000'},
             ].map(f => (
               <div key={f.key}>
                 <label style={S.label}>{f.label}</label>
                 <input type={f.type} value={(providerForm as any)[f.key]} placeholder={f.ph}
                   onChange={e => setProviderForm(p=>({...p,[f.key]:e.target.value}))}
                   onKeyDown={e => e.key==='Enter' && handleSignUp()}
-                  style={S.input} />
+                  style={{...S.input, borderColor: (f.key==='providerPhone' && providerPhoneBad) ? '#e53e3e' : 'rgba(255,255,255,0.15)'}} />
+                {f.key==='providerPhone' && (
+                  <p style={{fontSize:'11px', color: providerPhoneBad ? '#e53e3e' : 'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:'6px 0 0'}}>
+                    {providerPhoneBad
+                      ? 'Please include the country code, e.g. +90 532 000 0000.'
+                      : 'Shown to customers with a WhatsApp link — include the country code.'}
+                  </p>
+                )}
               </div>
             ))}
             <p style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:0}}>
