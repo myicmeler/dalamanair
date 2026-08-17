@@ -37,12 +37,17 @@ export default function ProviderBookings() {
     setLoading(false)
   }
 
+  // Provider confirmation now confirms the booking outright. The old
+  // 'pending_customer_acknowledgement' step was removed on 9 Aug 2026: it
+  // required the customer to click acknowledge, which they learned about only
+  // by email, and this platform's customers do not read email. Bookings simply
+  // sat unconfirmed while the provider was already holding the slot.
   async function confirmBooking(booking: any) {
     setProcessing(booking.id)
     try {
       // History row written automatically by trg_log_booking_status_change.
       const { error: confirmError } = await supabase.from('bookings')
-        .update({ status: 'pending_customer_acknowledgement' })
+        .update({ status: 'confirmed' })
         .eq('id', booking.id)
       if (confirmError) {
         console.error('CONFIRM BOOKING FAILED:', confirmError)
@@ -51,20 +56,23 @@ export default function ProviderBookings() {
       }
       const { error: notifyError } = await supabase.from('user_notifications').insert({
         user_id: booking.customer_id, type: 'booking_provider_confirmed',
-        title: 'Provider confirmed your booking',
-        body: `${provider.company_name} confirmed. Please acknowledge to fully confirm.`,
+        title: 'Your booking is confirmed',
+        body: `${provider.company_name} confirmed your transfer. Nothing further is needed from you.`,
         link: '/bookings/'
       })
       if (notifyError) console.error('CONFIRM NOTIFICATION FAILED:', notifyError)
       try {
         await callFunction('send-email', {
-          type: 'provider_confirmed_acknowledge', customerId: booking.customer_id,
+          type: 'booking_confirmed_customer', customerId: booking.customer_id,
           data: {
             pickup: booking.pickup?.name, dropoff: booking.dropoff?.name,
-            // timeZone:'UTC' added — send the time exactly as it was entered, no conversion
+            // timeZone:'UTC' — send the time exactly as it was entered, no conversion
             date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),
             time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
             providerName: provider.company_name, price: booking.final_price?.toFixed(2),
+            // currency was missing here, so GBP bookings rendered € in the email.
+            currency: booking.currency ?? 'EUR',
+            flightNumber: booking.flight_number,
           }
         })
       } catch (e) { console.error(e) }
@@ -72,14 +80,15 @@ export default function ProviderBookings() {
       if (process.env.NEXT_PUBLIC_SMS_ENABLED === 'true') {
         try {
           await callFunction('send-sms', {
-            type: 'provider_confirmed_acknowledge', bookingId: booking.id, customerId: booking.customer_id,
+            type: 'booking_confirmed_customer', bookingId: booking.id, customerId: booking.customer_id,
             data: {
               route: `${booking.pickup?.name} -> ${booking.dropoff?.name}`,
               date: new Date(booking.pickup_time).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}),
+              time: new Date(booking.pickup_time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'}),
               providerName: provider.company_name,
             }
           })
-        } catch (e) { console.error('provider-confirmed sms error:', e) }
+        } catch (e) { console.error('booking-confirmed sms error:', e) }
       }
       await load()
     } catch (err) {
@@ -177,6 +186,9 @@ export default function ProviderBookings() {
     }
   }
 
+  // 'pending_customer_acknowledgement' is retained here only so historical
+  // bookings created before 9 Aug 2026 still render a sensible label. Nothing
+  // puts a booking into that state any more.
   const statusMap: Record<string,{bg:string,color:string,label:string}> = {
     pending_provider_confirmation:    {bg:'rgba(244,185,66,0.12)', color:'#f4b942', label:'Action needed'},
     pending_customer_acknowledgement: {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:'Awaiting customer'},
@@ -204,6 +216,7 @@ export default function ProviderBookings() {
         const s = statusMap[b.status] ?? statusMap.pending_provider_confirmation
         const dt = new Date(b.pickup_time)
         const needsConfirm = b.status === 'pending_provider_confirmation'
+        // pending_customer_acknowledgement kept for pre-9-Aug bookings only.
         const canAssign = (b.status === 'confirmed' || b.status === 'pending_customer_acknowledgement') && !b.driver_id
         // Manually-logged transfers have no platform customer — customer_id points
         // at the provider — so the real customer lives in manual_customer_* fields.
@@ -223,7 +236,7 @@ export default function ProviderBookings() {
               </div>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px'}}>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
-                  {/* timeZone:'UTC' added on both — show the time exactly as entered, same on every device */}
+                  {/* timeZone:'UTC' on both — show the time exactly as entered, same on every device */}
                   {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {b.passengers} pax{b.flight_number&&` · ✈ ${b.flight_number}`}
                 </div>
                 <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>{sym(b.currency)} {b.final_price?.toFixed(2)}</span>
