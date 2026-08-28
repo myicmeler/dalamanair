@@ -2,9 +2,13 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
+// Numbers are stored E.164 (+447700900123). wa.me wants digits only, no plus.
+const waDigits = (p?: string) => (p ?? '').replace(/[^0-9]/g, '')
+
 export default function AdminUsers() {
   const supabase = createClient() as any
   const [users, setUsers] = useState<any[]>([])
+  const [reqPhones, setReqPhones] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(true)
   const [resetting, setResetting] = useState<string|null>(null)
   const [newPassword, setNewPassword] = useState<Record<string,string>>({})
@@ -23,9 +27,30 @@ export default function AdminUsers() {
     if (user) setCurrentUserId(user.id)
     const { data } = await supabase
       .from('users')
-      .select('id, email, full_name, role, is_active, created_at')
+      .select('id, email, full_name, role, is_active, created_at, phone')
       .order('created_at', { ascending: false })
     if (data) setUsers(data)
+
+    // Phone was optional at signup until 17 Aug 2026, so most customers have no
+    // account phone — but the quote form has always captured a normalised one.
+    // Fetched separately rather than as a nested select so a failure here can
+    // never stop the user list rendering.
+    const { data: reqs, error: reqErr } = await supabase
+      .from('quote_requests')
+      .select('customer_id, contact_phone, created_at')
+      .not('contact_phone', 'is', null)
+      .order('created_at', { ascending: false })
+    if (reqErr) {
+      console.error('Could not load quote-request phones:', reqErr)
+    } else if (reqs) {
+      // Newest first, so the first one seen per customer is the most recent.
+      const map: Record<string,string> = {}
+      for (const r of reqs) {
+        if (r.customer_id && !map[r.customer_id]) map[r.customer_id] = r.contact_phone
+      }
+      setReqPhones(map)
+    }
+
     setLoading(false)
   }
 
@@ -120,6 +145,10 @@ export default function AdminUsers() {
             const isResetting = showReset === u.id
             const msg = message[u.id]
             const isActive = u.is_active !== false
+            // Account phone first, then the most recent quote-request phone.
+            const phone = u.phone || reqPhones[u.id] || ''
+            const fromRequest = !u.phone && !!reqPhones[u.id]
+            const wa = waDigits(phone)
             return (
               <div key={u.id} style={{backgroundColor: isActive ? 'rgba(255,255,255,0.04)' : 'rgba(162,45,45,0.06)', border:`1px solid ${isActive ? 'rgba(255,255,255,0.08)' : 'rgba(162,45,45,0.2)'}`, borderRadius:'8px', padding:'14px 16px'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
@@ -129,6 +158,23 @@ export default function AdminUsers() {
                       {!isActive && <span style={{fontSize:'10px', padding:'2px 6px', borderRadius:'6px', backgroundColor:'rgba(162,45,45,0.2)', color:'#f09595'}}>Deactivated</span>}
                     </div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{u.email}</div>
+                    {phone ? (
+                      <div style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'4px', flexWrap:'wrap'}}>
+                        <a href={`tel:${phone}`} style={{fontSize:'13px', fontWeight:'600', color:'rgba(255,255,255,0.75)', textDecoration:'none'}}>
+                          📞 {phone}
+                        </a>
+                        <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer"
+                          style={{display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:'600', padding:'3px 9px', borderRadius:'10px', backgroundColor:'rgba(37,211,102,0.12)', border:'1px solid rgba(37,211,102,0.35)', color:'#25D366', textDecoration:'none'}}>
+                          WhatsApp →
+                        </a>
+                        {fromRequest && (
+                          <span title="Taken from their most recent quote request, not their account"
+                            style={{fontSize:'10px', color:'rgba(255,255,255,0.3)'}}>from quote</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{fontSize:'12px', color:'rgba(255,255,255,0.25)', marginTop:'4px'}}>📞 N/A</div>
+                    )}
                   </div>
                   <div style={{display:'flex', alignItems:'center', gap:'8px', flexShrink:0, flexWrap:'wrap'}}>
                     <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'8px', backgroundColor:rc.bg, color:rc.color, fontWeight:'500', textTransform:'capitalize'}}>{u.role}</span>
