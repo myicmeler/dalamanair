@@ -8,6 +8,7 @@ import { callFunction } from '@/lib/functions'
 
 // ---- Country dial codes for the Phone / WhatsApp field ----
 type DialCode = { iso: string; name: string; dial: string; flag: string }
+
 const COMMON_CODES: DialCode[] = [
   { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
   { iso: 'IE', name: 'Ireland', dial: '+353', flag: '🇮🇪' },
@@ -20,6 +21,7 @@ const COMMON_CODES: DialCode[] = [
   { iso: 'SE', name: 'Sweden', dial: '+46', flag: '🇸🇪' },
   { iso: 'DK', name: 'Denmark', dial: '+45', flag: '🇩🇰' },
 ]
+
 const ALL_CODES: DialCode[] = [
   { iso: 'AL', name: 'Albania', dial: '+355', flag: '🇦🇱' },
   { iso: 'AT', name: 'Austria', dial: '+43', flag: '🇦🇹' },
@@ -69,6 +71,7 @@ const ALL_CODES: DialCode[] = [
   { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
   { iso: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
 ]
+
 const findDial = (iso: string) =>
   [...COMMON_CODES, ...ALL_CODES].find(c => c.iso === iso)?.dial ?? '+44'
 
@@ -84,6 +87,7 @@ function QuoteContent() {
   const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
   const [phoneCountry, setPhoneCountry] = useState('GB')
   const [phoneNumber, setPhoneNumber] = useState('')
+
   const [form, setForm] = useState({
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
@@ -154,7 +158,6 @@ function QuoteContent() {
         return_notes: isReturn ? form.returnNotes || null : null,
       }).select().single()
       if (error || !request) throw error
-
       await callFunction('notify-providers', { requestId: request.id })
       setSubmitted(true)
     } catch (err) { console.error(err) }
@@ -198,7 +201,6 @@ function QuoteContent() {
         `}</style>
         <Nav lang={lang} onLangChange={setLang} />
         <div className="quote-wrap" style={{ maxWidth: '580px', margin: '0 auto', padding: '32px 16px 48px' }}>
-
           <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '8px' }}>Free · No obligation</p>
           <h1 style={{ fontSize: 'clamp(22px,5vw,28px)', fontWeight: '500', color: '#ffffff', marginBottom: '6px' }}>Request a quote</h1>
           <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: '1.6' }}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
@@ -222,10 +224,33 @@ function QuoteContent() {
             </div>
           </div>
 
+          {/* TRIP TYPE — was a checkbox below "Your details", which customers kept
+              missing: two of them submitted a second one-way request minutes
+              later instead of ticking it. Promoted to the same two-button
+              pattern as the currency selector, and moved to the top so it is a
+              decision made before describing the journey rather than an
+              afterthought next to the submit button. */}
+          <div style={{ marginBottom: '12px' }}>
+            <p style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>Trip type</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {([false, true] as const).map(ret => (
+                <button key={String(ret)} onClick={() => setIsReturn(ret)} style={{
+                  flex: 1, padding: '14px', borderRadius: '6px', border: `2px solid ${isReturn === ret ? '#f4b942' : 'rgba(255,255,255,0.1)'}`,
+                  backgroundColor: isReturn === ret ? 'rgba(244,185,66,0.1)' : 'rgba(255,255,255,0.03)',
+                  color: isReturn === ret ? '#f4b942' : 'rgba(255,255,255,0.5)',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px'
+                }}>
+                  <span style={{ fontSize: '20px', fontWeight: '700' }}>{ret ? '⇄' : '→'}</span>
+                  <span style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{ret ? 'Return' : 'One way'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* OUTBOUND */}
           <div style={card}>
             <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Outbound journey</p>
-
             <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div><label style={lbl}>Pick-up</label>
                 <select value={form.pickup} onChange={e => setForm(p => ({ ...p, pickup: e.target.value }))} style={inp}>
@@ -240,7 +265,6 @@ function QuoteContent() {
                 </select>
               </div>
             </div>
-
             <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div>
                 <label style={lbl}>Date</label>
@@ -249,7 +273,12 @@ function QuoteContent() {
               </div>
               <div><label style={lbl}>Time</label><input type="time" value={form.time} onChange={e => setForm(p => ({ ...p, time: e.target.value }))} style={inp} /></div>
             </div>
-
+            {/* Moved here from just above the submit button, where it was the
+                loudest thing on the page and drowned out the trip-type control.
+                It belongs beside the fields it is about. */}
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.6', margin: '0 0 12px' }}>
+              ⏱ <strong style={{ color: 'rgba(244,185,66,0.85)' }}>Double-check your dates and times.</strong> We use them exactly as entered and never convert them. If you spot a mistake after sending, contact us and we'll correct it.
+            </p>
             <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div><label style={lbl}>Passengers</label>
                 <select value={form.passengers} onChange={e => setForm(p => ({ ...p, passengers: e.target.value }))} style={inp}>
@@ -262,20 +291,61 @@ function QuoteContent() {
                 </select>
               </div>
             </div>
-
             <div style={{ marginBottom: '12px' }}><label style={lbl}>Flight number</label><input type="text" value={form.flightNumber} onChange={e => setForm(p => ({ ...p, flightNumber: e.target.value }))} placeholder="TK 1234" style={inp} /></div>
             <div><label style={lbl}>Special requirements (optional)</label><textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
           </div>
 
+          {/* RETURN FIELDS */}
+          {isReturn && (
+            <div style={card}>
+              <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Return journey</p>
+              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div><label style={lbl}>Return pick-up</label>
+                  <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
+                    <option value="">—</option>
+                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Return drop-off</label>
+                  <select value={form.returnDropoff} onChange={e => setForm(p => ({ ...p, returnDropoff: e.target.value }))} style={inp}>
+                    <option value="">—</option>
+                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: returnBeforeOutbound ? '6px' : '12px' }}>
+                <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={{ ...inp, borderColor: returnBeforeOutbound ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} /></div>
+                <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={{ ...inp, borderColor: returnBeforeOutbound ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} /></div>
+              </div>
+              {returnBeforeOutbound && (
+                <p style={{ fontSize: '11px', color: '#e53e3e', margin: '0 0 12px', lineHeight: '1.5' }}>
+                  ⚠️ Your return journey is before your outbound arrival. Check the return date — it should be the day you fly home, not the day you arrive.
+                </p>
+              )}
+              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div><label style={lbl}>Return passengers</label>
+                  <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
+                    {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Return suitcases</label>
+                  <select value={form.returnLuggage} onChange={e => setForm(p => ({ ...p, returnLuggage: e.target.value }))} style={inp}>
+                    {Array.from({ length: 15 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
+              <div><label style={lbl}>Return special requirements (optional)</label><textarea value={form.returnNotes} onChange={e => setForm(p => ({ ...p, returnNotes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
+            </div>
+          )}
+
           {/* CONTACT & HOTEL */}
           <div style={card}>
             <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Your details</p>
-
             <div style={{ marginBottom: '12px' }}>
               <label style={lbl}>Hotel name</label>
               <input type="text" value={form.hotelName} onChange={e => setForm(p => ({ ...p, hotelName: e.target.value }))} placeholder="e.g. Marti Resort, Içmeler" style={inp} />
             </div>
-
             <div>
               <label style={lbl}>Phone / WhatsApp</label>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -293,75 +363,6 @@ function QuoteContent() {
             </div>
           </div>
 
-          {/* RETURN CHECKBOX */}
-          <div
-            onClick={() => setIsReturn(p => !p)}
-            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '14px', marginBottom: '12px', backgroundColor: isReturn ? 'rgba(244,185,66,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isReturn ? 'rgba(244,185,66,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '6px', userSelect: 'none' }}
-          >
-            <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: `2px solid ${isReturn ? '#f4b942' : 'rgba(255,255,255,0.3)'}`, backgroundColor: isReturn ? '#f4b942' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
-              {isReturn && <span style={{ color: '#0f1419', fontSize: '13px', fontWeight: '700', lineHeight: 1 }}>✓</span>}
-            </div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>Add return journey</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>I need a transfer back on a different date</div>
-            </div>
-          </div>
-
-          {/* RETURN FIELDS */}
-          {isReturn && (
-            <div style={card}>
-              <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Return journey</p>
-
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                <div><label style={lbl}>Return pick-up</label>
-                  <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
-                    <option value="">—</option>
-                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-                <div><label style={lbl}>Return drop-off</label>
-                  <select value={form.returnDropoff} onChange={e => setForm(p => ({ ...p, returnDropoff: e.target.value }))} style={inp}>
-                    <option value="">—</option>
-                    {allSorted.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: returnBeforeOutbound ? '6px' : '12px' }}>
-                <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={{ ...inp, borderColor: returnBeforeOutbound ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} /></div>
-                <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={{ ...inp, borderColor: returnBeforeOutbound ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} /></div>
-              </div>
-              {returnBeforeOutbound && (
-                <p style={{ fontSize: '11px', color: '#e53e3e', margin: '0 0 12px', lineHeight: '1.5' }}>
-                  ⚠️ Your return journey is before your outbound arrival. Check the return date — it should be the day you fly home, not the day you arrive.
-                </p>
-              )}
-
-              <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                <div><label style={lbl}>Return passengers</label>
-                  <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
-                    {Array.from({ length: 14 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div><label style={lbl}>Return suitcases</label>
-                  <select value={form.returnLuggage} onChange={e => setForm(p => ({ ...p, returnLuggage: e.target.value }))} style={inp}>
-                    {Array.from({ length: 15 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
-              <div><label style={lbl}>Return special requirements (optional)</label><textarea value={form.returnNotes} onChange={e => setForm(p => ({ ...p, returnNotes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
-            </div>
-          )}
-
-          {/* ADDED: time-accuracy notice before submitting */}
-          <div style={{ backgroundColor: 'rgba(244,185,66,0.06)', border: '1px solid rgba(244,185,66,0.2)', borderRadius: '6px', padding: '12px 14px', marginBottom: '14px' }}>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: '1.6', margin: 0 }}>
-              ⏱ <strong style={{ color: '#f4b942' }}>Please double-check every date and time.</strong> We use them exactly as you enter them — they are never adjusted or converted. You are responsible for their accuracy; if you spot a mistake after sending, contact us and we'll correct it.
-            </p>
-          </div>
-
           <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{ width: '100%', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', padding: '16px', borderRadius: '6px', border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
             {submitting ? 'Sending...' : 'Request quotes →'}
           </button>
@@ -374,5 +375,9 @@ function QuoteContent() {
 }
 
 export default function QuotePage() {
-  return <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#0f1419' }} />}><QuoteContent /></Suspense>
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#0f1419' }} />}>
+      <QuoteContent />
+    </Suspense>
+  )
 }
