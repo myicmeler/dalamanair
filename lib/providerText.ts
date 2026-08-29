@@ -18,8 +18,9 @@ import { useState, useEffect } from 'react'
  *
  * TRANSLATIONS ARE PENDING PROOFREADING by a native speaker before release.
  *
- * Adding a string: add it to BOTH `en` and `tr`. TypeScript will flag a key
- * present in one and missing from the other, so they cannot drift apart.
+ * Adding a string: add it to BOTH `en` and `tr`. The object is `as const`, so a
+ * key present in one and missing from the other is a BUILD ERROR, not a silent
+ * English fallback. (That is exactly what caught the missing `selectVehicle`.)
  */
 
 export const providerText = {
