@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useProviderLang } from '@/lib/providerText'
 import { callFunction } from '@/lib/functions'
 
 // Currency symbol from the booking's own currency (backfilled from the linked quote).
@@ -11,6 +12,7 @@ const sym = (c?: string) => (c === 'GBP' ? '£' : '€')
 export default function ProviderBookings() {
   const router = useRouter()
   const supabase = createClient() as any
+  const { t } = useProviderLang()
   const [bookings, setBookings] = useState<any[]>([])
   const [drivers, setDrivers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +53,7 @@ export default function ProviderBookings() {
         .eq('id', booking.id)
       if (confirmError) {
         console.error('CONFIRM BOOKING FAILED:', confirmError)
-        alert('Could not confirm the booking. Please try again.')
+        alert(t.errConfirmBooking)
         return
       }
       const { error: notifyError } = await supabase.from('user_notifications').insert({
@@ -99,7 +101,7 @@ export default function ProviderBookings() {
   }
 
   async function rejectBooking(booking: any) {
-    if (!confirm('Reject this booking? The customer will be notified.')) return
+    if (!confirm(t.confirmRejectBooking)) return
     setProcessing(booking.id)
     try {
       // History row written automatically by trg_log_booking_status_change.
@@ -108,7 +110,7 @@ export default function ProviderBookings() {
         .eq('id', booking.id)
       if (rejectError) {
         console.error('REJECT BOOKING FAILED:', rejectError)
-        alert('Could not reject the booking. Please try again.')
+        alert(t.errRejectBooking)
         return
       }
       const { error: notifyError } = await supabase.from('user_notifications').insert({
@@ -137,7 +139,7 @@ export default function ProviderBookings() {
         .eq('id', booking.id)
       if (assignError) {
         console.error('ASSIGN DRIVER FAILED:', assignError)
-        alert('Could not assign the driver. Please try again.')
+        alert(t.errAssignDriver)
         return
       }
       const { error: notifyError } = await supabase.from('user_notifications').insert({
@@ -180,7 +182,7 @@ export default function ProviderBookings() {
       await load()
     } catch (err) {
       console.error('assignDriver error:', err)
-      alert('Something went wrong assigning the driver. Please try again.')
+      alert(t.errAssignDriverGeneric)
     } finally {
       setProcessing(null)
     }
@@ -190,27 +192,27 @@ export default function ProviderBookings() {
   // bookings created before 9 Aug 2026 still render a sensible label. Nothing
   // puts a booking into that state any more.
   const statusMap: Record<string,{bg:string,color:string,label:string}> = {
-    pending_provider_confirmation:    {bg:'rgba(244,185,66,0.12)', color:'#f4b942', label:'Action needed'},
-    pending_customer_acknowledgement: {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:'Awaiting customer'},
-    confirmed:                        {bg:'rgba(29,158,117,0.12)', color:'#1D9E75', label:'Confirmed'},
-    driver_assigned:                  {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:'Driver assigned'},
-    completed:                        {bg:'rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.4)', label:'Completed'},
-    cancelled:                        {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Cancelled'},
-    rejected_by_provider:             {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:'Rejected'},
+    pending_provider_confirmation:    {bg:'rgba(244,185,66,0.12)', color:'#f4b942', label:t.actionNeeded},
+    pending_customer_acknowledgement: {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:t.awaitingCustomer},
+    confirmed:                        {bg:'rgba(29,158,117,0.12)', color:'#1D9E75', label:t.confirmed},
+    driver_assigned:                  {bg:'rgba(55,138,221,0.12)', color:'#378ADD', label:t.driverAssigned},
+    completed:                        {bg:'rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.4)', label:t.completed},
+    cancelled:                        {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:t.cancelled},
+    rejected_by_provider:             {bg:'rgba(162,45,45,0.12)',   color:'#f09595', label:t.rejectedLabel},
   }
 
   return (
     <div style={{padding:'20px 16px 80px', maxWidth:'820px', margin:'0 auto'}}>
       <div style={{marginBottom:'20px'}}>
-        <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>Bookings</p>
-        <h1 style={{fontSize:'clamp(20px,5vw,24px)', fontWeight:'500', color:'#ffffff'}}>Booking management</h1>
+        <p style={{fontSize:'11px', letterSpacing:'0.2em', color:'#f4b942', textTransform:'uppercase', marginBottom:'6px'}}>{t.bookingsEyebrow}</p>
+        <h1 style={{fontSize:'clamp(20px,5vw,24px)', fontWeight:'500', color:'#ffffff'}}>{t.bookingManagement}</h1>
       </div>
 
       {loading ? (
-        <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>
+        <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>{t.loading}</div>
       ) : bookings.length === 0 ? (
         <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'10px', padding:'48px 24px', textAlign:'center'}}>
-          <p style={{fontSize:'15px', color:'rgba(255,255,255,0.4)'}}>No bookings yet</p>
+          <p style={{fontSize:'15px', color:'rgba(255,255,255,0.4)'}}>{t.noBookingsYet}</p>
         </div>
       ) : bookings.map((b:any) => {
         const s = statusMap[b.status] ?? statusMap.pending_provider_confirmation
@@ -237,36 +239,36 @@ export default function ProviderBookings() {
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px'}}>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>
                   {/* timeZone:'UTC' on both — show the time exactly as entered, same on every device */}
-                  {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {b.passengers} pax{b.flight_number&&` · ✈ ${b.flight_number}`}
+                  {dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})} · {b.passengers} {t.pax}{b.flight_number&&` · ✈ ${b.flight_number}`}
                 </div>
                 <span style={{fontSize:'16px', fontWeight:'500', color:'#f4b942'}}>{sym(b.currency)} {b.final_price?.toFixed(2)}</span>
               </div>
             </div>
             <div style={{padding:'12px 16px'}}>
-              <div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Customer{isManual?' · logged':''}</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{custName}</div>{custEmail&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{custEmail}</div>}{custPhone&&<div style={{marginTop:'6px'}}><a href={`tel:${custPhone}`} style={{fontSize:'15px', fontWeight:'700', color:'#ff4d4d', textDecoration:'none', letterSpacing:'0.02em'}}>📞 {custPhone}</a></div>}</div>
-              {b.vehicle&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Vehicle</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.vehicle.make} {b.vehicle.model} · {b.vehicle.seats} seats</div></div>}
-              {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>Driver</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.driver.full_name}</div></div>}
+              <div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>{t.customer}{isManual?` · ${t.logged}`:''}</div><div style={{fontSize:'13px', fontWeight:'500', color:'#ffffff'}}>{custName}</div>{custEmail&&<div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{custEmail}</div>}{custPhone&&<div style={{marginTop:'6px'}}><a href={`tel:${custPhone}`} style={{fontSize:'15px', fontWeight:'700', color:'#ff4d4d', textDecoration:'none', letterSpacing:'0.02em'}}>📞 {custPhone}</a></div>}</div>
+              {b.vehicle&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>{t.vehicle}</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.vehicle.make} {b.vehicle.model} · {b.vehicle.seats} {t.seats}</div></div>}
+              {b.driver&&<div style={{marginBottom:'8px'}}><div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', marginBottom:'2px'}}>{t.driver}</div><div style={{fontSize:'13px', color:'rgba(255,255,255,0.7)'}}>{b.driver.full_name}</div></div>}
               {b.customer_notes&&<div style={{marginBottom:'8px', padding:'8px 12px', backgroundColor:'rgba(255,255,255,0.04)', borderRadius:'6px', fontSize:'12px', color:'rgba(255,255,255,0.6)', fontStyle:'italic'}}>"{b.customer_notes}"</div>}
 
               {needsConfirm && (
                 <div style={{display:'flex', gap:'8px', marginTop:'12px'}}>
                   <button onClick={() => confirmBooking(b)} disabled={processing===b.id}
                     style={{flex:1, padding:'12px', backgroundColor:'#1D9E75', color:'#ffffff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer', letterSpacing:'0.05em', textTransform:'uppercase'}}>
-                    {processing===b.id ? 'Processing...' : '✓ Confirm booking'}
+                    {processing===b.id ? t.processing : t.confirmBooking}
                   </button>
                   <button onClick={() => rejectBooking(b)} disabled={processing===b.id}
                     style={{padding:'12px 18px', background:'none', border:'1px solid rgba(162,45,45,0.5)', borderRadius:'6px', color:'#f09595', fontSize:'13px', cursor:'pointer', fontFamily:'inherit'}}>
-                    Reject
+                    {t.reject}
                   </button>
                 </div>
               )}
 
               {canAssign && drivers.length > 0 && (
                 <div style={{marginTop:'12px'}}>
-                  <label style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px', letterSpacing:'0.05em', textTransform:'uppercase'}}>Assign driver</label>
+                  <label style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px', letterSpacing:'0.05em', textTransform:'uppercase'}}>{t.assignDriver}</label>
                   <select onChange={e => { if (e.target.value) assignDriver(b, e.target.value) }} disabled={processing===b.id}
                     style={{width:'100%', fontSize:'14px', padding:'10px', backgroundColor:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'#ffffff', fontFamily:'inherit'}}>
-                    <option value="">Select a driver...</option>
+                    <option value="">{t.selectDriver}</option>
                     {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
                   </select>
                 </div>
