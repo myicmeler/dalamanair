@@ -46,12 +46,23 @@ const isValidE164 = (v: string) => /^\+[1-9][0-9]{6,14}$/.test(v)
 export default function SignUpPage() {
   const router = useRouter()
   const supabase = createClient() as any
-  const [form, setForm] = useState({ fullName:'', email:'', phone:'', password:'' })
+  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', phone:'', password:'' })
   const [isProvider, setIsProvider] = useState(false)
   const [providerForm, setProviderForm] = useState({ companyName:'', tursabNumber:'', providerPhone:'' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+
+  // Title-case each word but keep letters after an apostrophe or hyphen capital
+  // (O'Reilly, Anne-Marie). A plain toUpperCase-first-letter would give O'reilly.
+  const titleCase = (s: string) =>
+    s.trim().replace(/\s+/g, ' ')
+      .toLowerCase()
+      .replace(/(^|[\s'’-])([a-zà-ÿ])/g, (_m, sep, ch) => sep + ch.toUpperCase())
+  const firstName = titleCase(form.firstName)
+  const lastName = titleCase(form.lastName)
+  const fullName = `${firstName} ${lastName}`.trim()
+  const nameValid = firstName.length > 0 && lastName.length > 0
 
   // Phones are normalised to E.164 before saving. A number that cannot be
   // normalised confidently blocks submission rather than being stored broken.
@@ -61,8 +72,9 @@ export default function SignUpPage() {
   const providerPhoneBad = isProvider && !!providerForm.providerPhone.trim() && !isValidE164(providerPhoneE164)
 
   async function handleSignUp() {
-    if (!form.email || !form.password || !form.fullName || loading) return
+    if (!form.email || !form.password || !nameValid || loading) return
     if (isProvider && (!providerForm.companyName || !providerForm.tursabNumber)) return
+    if (!nameValid) { setError('Please enter both your first and last name.'); return }
     if (phoneBad || providerPhoneBad) {
       setError('Please enter phone numbers with the country code, e.g. +44 7700 900123 or +90 532 000 0000.')
       return
@@ -74,7 +86,7 @@ export default function SignUpPage() {
       const { data, error: authErr } = await supabase.auth.signUp({
         email: form.email, password: form.password,
         options: {
-          data:{ full_name: form.fullName, phone: phoneE164 || null },
+          data:{ full_name: fullName, phone: phoneE164 || null },
           emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/welcome/' : '/'}`,
         }
       })
@@ -94,7 +106,7 @@ export default function SignUpPage() {
           body: JSON.stringify({
             userId,
             email: form.email,
-            fullName: form.fullName,
+            fullName: fullName,
             companyName: providerForm.companyName,
             tursabNumber: providerForm.tursabNumber,
             phone: providerPhoneE164 || phoneE164 || null,
@@ -137,7 +149,7 @@ export default function SignUpPage() {
     </div>
   )
 
-  const baseValid = !!(form.email && form.password && form.fullName)
+  const baseValid = !!(form.email && form.password && nameValid)
   const providerValid = !isProvider || !!(providerForm.companyName && providerForm.tursabNumber)
   const on = baseValid && providerValid && !phoneBad && !providerPhoneBad && !loading
 
@@ -152,8 +164,28 @@ export default function SignUpPage() {
         </p>
 
         <div style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+          {/* First and last name are separate and both required. A single
+              free-text "Full name" field left us with first-name-only records
+              (a driver with just "Michael" to go on) and casual capitalisation
+              ("paul hilton"). Both are title-cased on save. */}
+          <div style={{display:'flex', gap:'12px'}}>
+            <div style={{flex:1}}>
+              <label style={S.label}>First name *</label>
+              <input type="text" value={form.firstName} placeholder="Tom"
+                onChange={e => setForm(p=>({...p, firstName:e.target.value}))}
+                onKeyDown={e => e.key==='Enter' && handleSignUp()}
+                style={S.input} />
+            </div>
+            <div style={{flex:1}}>
+              <label style={S.label}>Last name *</label>
+              <input type="text" value={form.lastName} placeholder="Henriksen"
+                onChange={e => setForm(p=>({...p, lastName:e.target.value}))}
+                onKeyDown={e => e.key==='Enter' && handleSignUp()}
+                style={S.input} />
+            </div>
+          </div>
+
           {[
-            {label:'Full name *', key:'fullName', type:'text', ph:'Tom Henriksen'},
             {label:'Email *', key:'email', type:'email', ph:'you@email.com'},
             {label:'Phone', key:'phone', type:'tel', ph:'+44 7700 900123'},
             {label:'Password *', key:'password', type:'password', ph:'Min. 8 characters'},
