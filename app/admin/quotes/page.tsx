@@ -438,6 +438,13 @@ export default function AdminQuotes() {
                   </div>
                 )}
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'2px'}}>{req.customer?.full_name||'—'} · {req.customer?.email||'—'}</div>
+                {/* When the customer submitted the request — distinct from the
+                    pickup date above. Shown in local time (like the CSV export
+                    and status history) because it is a real moment in time,
+                    not a travel time the customer typed in. */}
+                <div style={{fontSize:'11px', color:'#f09595', marginTop:'3px'}}>
+                  Requested {new Date(req.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}).replace(/\//g,'.')} · {new Date(req.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+                </div>
               </div>
               <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'4px', flexShrink:0}}>
                 <span style={{fontSize:'12px', color:'rgba(255,255,255,0.4)'}}>{offers.length} offer{offers.length!==1?'s':''}</span>
