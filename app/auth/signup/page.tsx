@@ -21,10 +21,8 @@ const LogoLink = () => (
 )
 
 // Mirrors public.normalise_phone_e164() in the database — keep the two in sync.
-// This form previously stored whatever was typed, which left 21 stored numbers
-// unreachable: WhatsApp links strip non-digits, so spaces, a 00 prefix or a
-// national trunk zero all produced a dead link. Providers were the worst hit,
-// and their numbers are shown to customers.
+// Still used for the provider phone field (free text). The customer phone below
+// now uses a country dropdown, so it doesn't need this.
 function normalisePhone(raw: string): string {
   if (!raw || !raw.trim()) return ''
   const v = (raw.trim().startsWith('+') ? '+' : '') + raw.replace(/[^0-9]/g, '')
@@ -35,18 +33,84 @@ function normalisePhone(raw: string): string {
   if (/^(353|90|47)[0-9]{7,}$/.test(v)) return '+' + v
   if (/^07[0-9]{9}$/.test(v)) return '+44' + v.slice(1)
   if (/^7[0-9]{9}$/.test(v)) return '+44' + v
-  // Anything else (e.g. a bare Spanish or German number) is left alone and
-  // fails validation, so the person is asked for the country code rather than
-  // having +44 silently assumed for them.
   return v
 }
 
 const isValidE164 = (v: string) => /^\+[1-9][0-9]{6,14}$/.test(v)
 
+// Country dial codes for the phone field — same list and pattern as the quote
+// form, so the two phone inputs behave identically.
+type DialCode = { iso: string; name: string; dial: string; flag: string }
+const COMMON_CODES: DialCode[] = [
+  { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+  { iso: 'IE', name: 'Ireland', dial: '+353', flag: '🇮🇪' },
+  { iso: 'NO', name: 'Norway', dial: '+47', flag: '🇳🇴' },
+  { iso: 'TR', name: 'Turkey', dial: '+90', flag: '🇹🇷' },
+  { iso: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
+  { iso: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱' },
+  { iso: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
+  { iso: 'BE', name: 'Belgium', dial: '+32', flag: '🇧🇪' },
+  { iso: 'SE', name: 'Sweden', dial: '+46', flag: '🇸🇪' },
+  { iso: 'DK', name: 'Denmark', dial: '+45', flag: '🇩🇰' },
+]
+const ALL_CODES: DialCode[] = [
+  { iso: 'AL', name: 'Albania', dial: '+355', flag: '🇦🇱' },
+  { iso: 'AT', name: 'Austria', dial: '+43', flag: '🇦🇹' },
+  { iso: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺' },
+  { iso: 'BE', name: 'Belgium', dial: '+32', flag: '🇧🇪' },
+  { iso: 'BG', name: 'Bulgaria', dial: '+359', flag: '🇧🇬' },
+  { iso: 'BA', name: 'Bosnia & Herzegovina', dial: '+387', flag: '🇧🇦' },
+  { iso: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦' },
+  { iso: 'HR', name: 'Croatia', dial: '+385', flag: '🇭🇷' },
+  { iso: 'CY', name: 'Cyprus', dial: '+357', flag: '🇨🇾' },
+  { iso: 'CZ', name: 'Czechia', dial: '+420', flag: '🇨🇿' },
+  { iso: 'DK', name: 'Denmark', dial: '+45', flag: '🇩🇰' },
+  { iso: 'EE', name: 'Estonia', dial: '+372', flag: '🇪🇪' },
+  { iso: 'FI', name: 'Finland', dial: '+358', flag: '🇫🇮' },
+  { iso: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
+  { iso: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
+  { iso: 'GR', name: 'Greece', dial: '+30', flag: '🇬🇷' },
+  { iso: 'HU', name: 'Hungary', dial: '+36', flag: '🇭🇺' },
+  { iso: 'IS', name: 'Iceland', dial: '+354', flag: '🇮🇸' },
+  { iso: 'IN', name: 'India', dial: '+91', flag: '🇮🇳' },
+  { iso: 'IE', name: 'Ireland', dial: '+353', flag: '🇮🇪' },
+  { iso: 'IL', name: 'Israel', dial: '+972', flag: '🇮🇱' },
+  { iso: 'IT', name: 'Italy', dial: '+39', flag: '🇮🇹' },
+  { iso: 'LV', name: 'Latvia', dial: '+371', flag: '🇱🇻' },
+  { iso: 'LT', name: 'Lithuania', dial: '+370', flag: '🇱🇹' },
+  { iso: 'LU', name: 'Luxembourg', dial: '+352', flag: '🇱🇺' },
+  { iso: 'MT', name: 'Malta', dial: '+356', flag: '🇲🇹' },
+  { iso: 'MD', name: 'Moldova', dial: '+373', flag: '🇲🇩' },
+  { iso: 'ME', name: 'Montenegro', dial: '+382', flag: '🇲🇪' },
+  { iso: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱' },
+  { iso: 'NZ', name: 'New Zealand', dial: '+64', flag: '🇳🇿' },
+  { iso: 'MK', name: 'North Macedonia', dial: '+389', flag: '🇲🇰' },
+  { iso: 'NO', name: 'Norway', dial: '+47', flag: '🇳🇴' },
+  { iso: 'PL', name: 'Poland', dial: '+48', flag: '🇵🇱' },
+  { iso: 'PT', name: 'Portugal', dial: '+351', flag: '🇵🇹' },
+  { iso: 'RO', name: 'Romania', dial: '+40', flag: '🇷🇴' },
+  { iso: 'RS', name: 'Serbia', dial: '+381', flag: '🇷🇸' },
+  { iso: 'SK', name: 'Slovakia', dial: '+421', flag: '🇸🇰' },
+  { iso: 'SI', name: 'Slovenia', dial: '+386', flag: '🇸🇮' },
+  { iso: 'ZA', name: 'South Africa', dial: '+27', flag: '🇿🇦' },
+  { iso: 'ES', name: 'Spain', dial: '+34', flag: '🇪🇸' },
+  { iso: 'SE', name: 'Sweden', dial: '+46', flag: '🇸🇪' },
+  { iso: 'CH', name: 'Switzerland', dial: '+41', flag: '🇨🇭' },
+  { iso: 'TR', name: 'Turkey', dial: '+90', flag: '🇹🇷' },
+  { iso: 'UA', name: 'Ukraine', dial: '+380', flag: '🇺🇦' },
+  { iso: 'AE', name: 'United Arab Emirates', dial: '+971', flag: '🇦🇪' },
+  { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+  { iso: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
+]
+const findDial = (iso: string) =>
+  [...COMMON_CODES, ...ALL_CODES].find(c => c.iso === iso)?.dial ?? '+44'
+
 export default function SignUpPage() {
   const router = useRouter()
   const supabase = createClient() as any
-  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', phone:'', password:'' })
+  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', password:'' })
+  const [phoneCountry, setPhoneCountry] = useState('GB')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [isProvider, setIsProvider] = useState(false)
   const [providerForm, setProviderForm] = useState({ companyName:'', tursabNumber:'', providerPhone:'' })
   const [error, setError] = useState('')
@@ -64,19 +128,27 @@ export default function SignUpPage() {
   const fullName = `${firstName} ${lastName}`.trim()
   const nameValid = firstName.length > 0 && lastName.length > 0
 
-  // Phones are normalised to E.164 before saving. A number that cannot be
-  // normalised confidently blocks submission rather than being stored broken.
-  const phoneE164 = normalisePhone(form.phone)
+  // Customer phone: country dropdown + national number -> E.164, same as the
+  // quote form. Now REQUIRED — it is the only channel that reliably reaches a
+  // customer (WhatsApp), and 35 of the first 47 customers registered without
+  // one, so the field is no longer optional.
+  const phoneNational = phoneNumber.replace(/\D/g, '').replace(/^0+/, '')
+  const phoneE164 = phoneNational ? `${findDial(phoneCountry)}${phoneNational}` : ''
+  const phoneValid = phoneNational.length >= 6 && phoneNational.length <= 14
+  const phoneBad = !!phoneNumber.trim() && !phoneValid
+
+  // Provider phone stays free-text + normalise (it is inside the provider block,
+  // which was not part of this change) and remains optional.
   const providerPhoneE164 = normalisePhone(providerForm.providerPhone)
-  const phoneBad = !!form.phone.trim() && !isValidE164(phoneE164)
   const providerPhoneBad = isProvider && !!providerForm.providerPhone.trim() && !isValidE164(providerPhoneE164)
 
   async function handleSignUp() {
     if (!form.email || !form.password || !nameValid || loading) return
     if (isProvider && (!providerForm.companyName || !providerForm.tursabNumber)) return
     if (!nameValid) { setError('Please enter both your first and last name.'); return }
-    if (phoneBad || providerPhoneBad) {
-      setError('Please enter phone numbers with the country code, e.g. +44 7700 900123 or +90 532 000 0000.')
+    if (!phoneValid) { setError('Please enter your phone number so your driver can reach you.'); return }
+    if (providerPhoneBad) {
+      setError('Please enter the company phone with its country code, e.g. +90 532 000 0000.')
       return
     }
     setLoading(true); setError('')
@@ -149,7 +221,7 @@ export default function SignUpPage() {
     </div>
   )
 
-  const baseValid = !!(form.email && form.password && nameValid)
+  const baseValid = !!(form.email && form.password && nameValid && phoneValid)
   const providerValid = !isProvider || !!(providerForm.companyName && providerForm.tursabNumber)
   const on = baseValid && providerValid && !phoneBad && !providerPhoneBad && !loading
 
@@ -187,7 +259,44 @@ export default function SignUpPage() {
 
           {[
             {label:'Email *', key:'email', type:'email', ph:'you@email.com'},
-            {label:'Phone', key:'phone', type:'tel', ph:'+44 7700 900123'},
+          ].map(f => (
+            <div key={f.key}>
+              <label style={S.label}>{f.label}</label>
+              <input type={f.type} value={(form as any)[f.key]} placeholder={f.ph}
+                onChange={e => setForm(p=>({...p,[f.key]:e.target.value}))}
+                onKeyDown={e => e.key==='Enter' && handleSignUp()}
+                style={S.input} />
+            </div>
+          ))}
+
+          {/* Phone — REQUIRED, and the same country-dropdown + national-number
+              pattern as the quote form so the two behave identically. Producing
+              E.164 from a chosen dial code avoids the trunk-zero / spacing
+              breakage that made 21 stored numbers unreachable. */}
+          <div>
+            <label style={S.label}>Phone / WhatsApp *</label>
+            <div style={{display:'flex', gap:'8px'}}>
+              <select aria-label="Country code" value={phoneCountry} onChange={e => setPhoneCountry(e.target.value)} style={{...S.input, flex:'0 0 130px'}}>
+                <optgroup label="Common">
+                  {COMMON_CODES.map(c => <option key={'c-' + c.iso} value={c.iso}>{c.flag} {c.dial}</option>)}
+                </optgroup>
+                <optgroup label="All countries">
+                  {ALL_CODES.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.dial} {c.name}</option>)}
+                </optgroup>
+              </select>
+              <input type="tel" inputMode="numeric" autoComplete="tel-national" value={phoneNumber} placeholder="7700 900123"
+                onChange={e => setPhoneNumber(e.target.value)}
+                onKeyDown={e => e.key==='Enter' && handleSignUp()}
+                style={{...S.input, flex:1, borderColor: phoneBad ? '#e53e3e' : 'rgba(255,255,255,0.15)'}} />
+            </div>
+            <p style={{fontSize:'11px', color: phoneBad ? '#e53e3e' : 'rgba(255,255,255,0.35)', lineHeight:'1.5', margin:'6px 0 0'}}>
+              {phoneBad
+                ? 'Please enter a valid phone number.'
+                : '🔒 Only used so your transfer driver can reach you on the day. We never use it for marketing or share it with anyone else.'}
+            </p>
+          </div>
+
+          {[
             {label:'Password *', key:'password', type:'password', ph:'Min. 8 characters'},
           ].map(f => (
             <div key={f.key}>
@@ -195,14 +304,7 @@ export default function SignUpPage() {
               <input type={f.type} value={(form as any)[f.key]} placeholder={f.ph}
                 onChange={e => setForm(p=>({...p,[f.key]:e.target.value}))}
                 onKeyDown={e => e.key==='Enter' && handleSignUp()}
-                style={{...S.input, borderColor: (f.key==='phone' && phoneBad) ? '#e53e3e' : 'rgba(255,255,255,0.15)'}} />
-              {f.key==='phone' && (
-                <p style={{fontSize:'11px', color: phoneBad ? '#e53e3e' : 'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:'6px 0 0'}}>
-                  {phoneBad
-                    ? 'Please include the country code, e.g. +44 7700 900123.'
-                    : 'Optional. Include the country code so your driver can reach you on WhatsApp.'}
-                </p>
-              )}
+                style={S.input} />
             </div>
           ))}
         </div>
