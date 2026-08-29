@@ -20,23 +20,10 @@ const LogoLink = () => (
   </Link>
 )
 
-// Mirrors public.normalise_phone_e164() in the database — keep the two in sync.
-// Still used for the provider phone field (free text). The customer phone below
-// now uses a country dropdown, so it doesn't need this.
-function normalisePhone(raw: string): string {
-  if (!raw || !raw.trim()) return ''
-  const v = (raw.trim().startsWith('+') ? '+' : '') + raw.replace(/[^0-9]/g, '')
-  if (/^00/.test(v)) return '+' + v.slice(2)
-  const trunk = v.match(/^\+(44|90|353|47|49|31|33|46|45|32)0(.*)$/)
-  if (trunk) return `+${trunk[1]}${trunk[2]}`
-  if (v.startsWith('+')) return v
-  if (/^(353|90|47)[0-9]{7,}$/.test(v)) return '+' + v
-  if (/^07[0-9]{9}$/.test(v)) return '+44' + v.slice(1)
-  if (/^7[0-9]{9}$/.test(v)) return '+44' + v
-  return v
-}
-
-const isValidE164 = (v: string) => /^\+[1-9][0-9]{6,14}$/.test(v)
+// Both phone fields (customer and company) build E.164 from a chosen dial code
+// plus the national number — the old free-text normaliser and E.164 validator
+// are no longer needed here, since validity is a simple digit-count check on
+// the national part.
 
 // Country dial codes for the phone field — same list and pattern as the quote
 // form, so the two phone inputs behave identically.
@@ -112,7 +99,7 @@ export default function SignUpPage() {
   const [phoneCountry, setPhoneCountry] = useState('GB')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isProvider, setIsProvider] = useState(false)
-  const [providerForm, setProviderForm] = useState({ companyName:'', tursabNumber:'', providerPhone:'' })
+  const [providerForm, setProviderForm] = useState({ companyName:'', tursabNumber:'', providerPhone:'', providerPhoneCountry:'TR' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -132,25 +119,28 @@ export default function SignUpPage() {
   // quote form. Now REQUIRED — it is the only channel that reliably reaches a
   // customer (WhatsApp), and 35 of the first 47 customers registered without
   // one, so the field is no longer optional.
+  //
+  // Providers give a BUSINESS number instead, not a personal one — we reach the
+  // company on that, and the driver's own number is on the driver record. So the
+  // personal phone below is required for customers only, and the company phone
+  // (also a country-dropdown field, defaulting to +90) is required for providers.
   const phoneNational = phoneNumber.replace(/\D/g, '').replace(/^0+/, '')
   const phoneE164 = phoneNational ? `${findDial(phoneCountry)}${phoneNational}` : ''
   const phoneValid = phoneNational.length >= 6 && phoneNational.length <= 14
-  const phoneBad = !!phoneNumber.trim() && !phoneValid
+  const phoneBad = !isProvider && !!phoneNumber.trim() && !phoneValid
 
-  // Provider phone stays free-text + normalise (it is inside the provider block,
-  // which was not part of this change) and remains optional.
-  const providerPhoneE164 = normalisePhone(providerForm.providerPhone)
-  const providerPhoneBad = isProvider && !!providerForm.providerPhone.trim() && !isValidE164(providerPhoneE164)
+  const provPhoneNational = providerForm.providerPhone.replace(/\D/g, '').replace(/^0+/, '')
+  const providerPhoneE164 = provPhoneNational ? `${findDial(providerForm.providerPhoneCountry)}${provPhoneNational}` : ''
+  const providerPhoneValid = provPhoneNational.length >= 6 && provPhoneNational.length <= 14
+  const providerPhoneBad = isProvider && !!providerForm.providerPhone.trim() && !providerPhoneValid
 
   async function handleSignUp() {
     if (!form.email || !form.password || !nameValid || loading) return
     if (isProvider && (!providerForm.companyName || !providerForm.tursabNumber)) return
     if (!nameValid) { setError('Please enter both your first and last name.'); return }
-    if (!phoneValid) { setError('Please enter your phone number so your driver can reach you.'); return }
-    if (providerPhoneBad) {
-      setError('Please enter the company phone with its country code, e.g. +90 532 000 0000.')
-      return
-    }
+    // Customers need a personal number; providers need a company number instead.
+    if (!isProvider && !phoneValid) { setError('Please enter your phone number so your driver can reach you.'); return }
+    if (isProvider && !providerPhoneValid) { setError('Please enter your company phone number.'); return }
     setLoading(true); setError('')
 
     try {
@@ -181,7 +171,7 @@ export default function SignUpPage() {
             fullName: fullName,
             companyName: providerForm.companyName,
             tursabNumber: providerForm.tursabNumber,
-            phone: providerPhoneE164 || phoneE164 || null,
+            phone: providerPhoneE164 || null,
           })
         })
 
@@ -221,8 +211,8 @@ export default function SignUpPage() {
     </div>
   )
 
-  const baseValid = !!(form.email && form.password && nameValid && phoneValid)
-  const providerValid = !isProvider || !!(providerForm.companyName && providerForm.tursabNumber)
+  const baseValid = !!(form.email && form.password && nameValid && (isProvider || phoneValid))
+  const providerValid = !isProvider || !!(providerForm.companyName && providerForm.tursabNumber && providerPhoneValid)
   const on = baseValid && providerValid && !phoneBad && !providerPhoneBad && !loading
 
   return (
@@ -269,10 +259,13 @@ export default function SignUpPage() {
             </div>
           ))}
 
-          {/* Phone — REQUIRED, and the same country-dropdown + national-number
-              pattern as the quote form so the two behave identically. Producing
-              E.164 from a chosen dial code avoids the trunk-zero / spacing
-              breakage that made 21 stored numbers unreachable. */}
+          {/* Phone — REQUIRED for customers, and the same country-dropdown +
+              national-number pattern as the quote form. Hidden for providers,
+              who give a business number in the provider block instead (we reach
+              the company on that; the driver's own number is on the driver
+              record). Producing E.164 from a chosen dial code avoids the
+              trunk-zero / spacing breakage that made 21 stored numbers dead. */}
+          {!isProvider && (
           <div>
             <label style={S.label}>Phone / WhatsApp *</label>
             <div style={{display:'flex', gap:'8px'}}>
@@ -295,6 +288,7 @@ export default function SignUpPage() {
                 : '🔒 Only used so your transfer driver can reach you on the day. We never use it for marketing or share it with anyone else.'}
             </p>
           </div>
+          )}
 
           {[
             {label:'Password *', key:'password', type:'password', ph:'Min. 8 characters'},
@@ -336,23 +330,44 @@ export default function SignUpPage() {
             {[
               {label:'Company name *', key:'companyName', type:'text', ph:'Marmaris Transfer Co.'},
               {label:'TURSAB number *', key:'tursabNumber', type:'text', ph:'e.g. 12345'},
-              {label:'Company phone', key:'providerPhone', type:'tel', ph:'+90 532 000 0000'},
             ].map(f => (
               <div key={f.key}>
                 <label style={S.label}>{f.label}</label>
                 <input type={f.type} value={(providerForm as any)[f.key]} placeholder={f.ph}
                   onChange={e => setProviderForm(p=>({...p,[f.key]:e.target.value}))}
                   onKeyDown={e => e.key==='Enter' && handleSignUp()}
-                  style={{...S.input, borderColor: (f.key==='providerPhone' && providerPhoneBad) ? '#e53e3e' : 'rgba(255,255,255,0.15)'}} />
-                {f.key==='providerPhone' && (
-                  <p style={{fontSize:'11px', color: providerPhoneBad ? '#e53e3e' : 'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:'6px 0 0'}}>
-                    {providerPhoneBad
-                      ? 'Please include the country code, e.g. +90 532 000 0000.'
-                      : 'Shown to customers with a WhatsApp link — include the country code.'}
-                  </p>
-                )}
+                  style={S.input} />
               </div>
             ))}
+
+            {/* Company phone — REQUIRED for providers, and the number shown to
+                customers with a WhatsApp link. Same dropdown pattern as the
+                customer field, defaulting to +90 since providers are Turkish. */}
+            <div>
+              <label style={S.label}>Company phone *</label>
+              <div style={{display:'flex', gap:'8px'}}>
+                <select aria-label="Company country code" value={providerForm.providerPhoneCountry}
+                  onChange={e => setProviderForm(p=>({...p, providerPhoneCountry:e.target.value}))}
+                  style={{...S.input, flex:'0 0 130px'}}>
+                  <optgroup label="Common">
+                    {COMMON_CODES.map(c => <option key={'pc-' + c.iso} value={c.iso}>{c.flag} {c.dial}</option>)}
+                  </optgroup>
+                  <optgroup label="All countries">
+                    {ALL_CODES.map(c => <option key={'pa-' + c.iso} value={c.iso}>{c.flag} {c.dial} {c.name}</option>)}
+                  </optgroup>
+                </select>
+                <input type="tel" inputMode="numeric" autoComplete="tel-national" value={providerForm.providerPhone} placeholder="532 000 0000"
+                  onChange={e => setProviderForm(p=>({...p, providerPhone:e.target.value}))}
+                  onKeyDown={e => e.key==='Enter' && handleSignUp()}
+                  style={{...S.input, flex:1, borderColor: providerPhoneBad ? '#e53e3e' : 'rgba(255,255,255,0.15)'}} />
+              </div>
+              <p style={{fontSize:'11px', color: providerPhoneBad ? '#e53e3e' : 'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:'6px 0 0'}}>
+                {providerPhoneBad
+                  ? 'Please enter a valid company phone number.'
+                  : 'Shown to customers with a WhatsApp link so they can reach you about their transfer.'}
+              </p>
+            </div>
+
             <p style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', lineHeight:'1.5', margin:0}}>
               Your TURSAB number is required for verification. You will have immediate access to the provider dashboard after confirming your email.
             </p>
