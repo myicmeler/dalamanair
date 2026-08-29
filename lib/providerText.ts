@@ -129,6 +129,7 @@ export const providerText = {
     statusHistory: 'Status history',
     noHistory: 'No history yet',
     bags: 'bags',
+    selectVehicle: '— select vehicle —',
   },
 
   tr: {
@@ -237,6 +238,7 @@ export const providerText = {
     statusHistory: 'Durum geçmişi',
     noHistory: 'Henüz geçmiş yok',
     bags: 'bavul',
+    selectVehicle: '— araç seçin —',
   },
 } as const
 
