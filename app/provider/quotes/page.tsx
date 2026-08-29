@@ -1,9 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useProviderLang } from '@/lib/providerText'
 
 export default function ProviderQuotes() {
   const supabase = createClient() as any
+  const { t } = useProviderLang()
   const [requests, setRequests] = useState<any[]>([])
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -183,18 +185,18 @@ export default function ProviderQuotes() {
   return (
     <div style={{padding:'20px'}}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
-        <h1 style={{fontSize:'20px', fontWeight:'500'}}>Quote requests</h1>
+        <h1 style={{fontSize:'20px', fontWeight:'500'}}>{t.quoteRequests}</h1>
         <button onClick={() => load(providerId)} style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', fontFamily:'inherit'}}>
-          ↻ Refresh
+          {t.refresh}
         </button>
       </div>
-      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'4px'}}>Open requests from customers — submit your best price</p>
+      <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'4px'}}>{t.openRequestsSub}</p>
       <p style={{fontSize:'10px', color:'rgba(255,255,255,0.2)', marginBottom:'20px'}}>
         {/* NOT changed on purpose: this is the live "last refreshed" clock, not a customer-registered time */}
-        Last updated: {lastRefresh.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} · auto-refreshes every 30s
+        {t.lastUpdated}: {lastRefresh.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} · {t.autoRefresh}
       </p>
 
-      {loading && <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>Loading...</div>}
+      {loading && <div style={{textAlign:'center', padding:'60px', color:'rgba(255,255,255,0.3)'}}>{t.loading}</div>}
 
       {!loading && error && (
         <div style={{backgroundColor:'rgba(162,45,45,0.15)', border:'1px solid rgba(162,45,45,0.3)', borderRadius:'8px', padding:'20px', color:'#f09595', fontSize:'14px'}}>
@@ -205,8 +207,8 @@ export default function ProviderQuotes() {
       {!loading && !error && requests.length === 0 && (
         <div style={{...card, textAlign:'center', padding:'48px', color:'rgba(255,255,255,0.3)'}}>
           <div style={{fontSize:'32px', marginBottom:'12px'}}>📋</div>
-          <p style={{fontSize:'15px', marginBottom:'6px', color:'rgba(255,255,255,0.5)'}}>No open quote requests right now</p>
-          <p style={{fontSize:'13px'}}>When customers submit requests you will be notified by email and they will appear here.</p>
+          <p style={{fontSize:'15px', marginBottom:'6px', color:'rgba(255,255,255,0.5)'}}>{t.noOpenRequests}</p>
+          <p style={{fontSize:'13px'}}>{t.noOpenRequestsSub}</p>
         </div>
       )}
 
@@ -226,7 +228,7 @@ export default function ProviderQuotes() {
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px'}}>
               <div style={{flex:1, cursor:'pointer'}} onClick={() => handleExpand(req.id)}>
                 <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
-                  {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ Return</span>}
+                  {isReturn && <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(244,185,66,0.1)', color:'#f4b942', fontWeight:'500', flexShrink:0}}>↩ {t.returnTrip}</span>}
                   <span style={{fontSize:'10px', padding:'2px 7px', borderRadius:'8px', backgroundColor:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)', fontWeight:'600', flexShrink:0}}>
                     {sym} {req.currency ?? 'EUR'}
                   </span>
@@ -235,7 +237,7 @@ export default function ProviderQuotes() {
                 </div>
                 <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginBottom:'2px'}}>
                   {/* timeZone:'UTC' added — outbound time shown exactly as the customer entered it, no conversion */}
-                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})} · {req.passengers} pax · {req.luggage ?? 0} bags
+                  🛫 {dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})} · {req.passengers} {t.pax} · {req.luggage ?? 0} {t.bags}
                   {req.flight_number && ` · ✈ ${req.flight_number}`}
                 </div>
                 {req.notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.35)', fontStyle:'italic', marginBottom:'2px'}}>"{req.notes}"</div>}
@@ -247,7 +249,7 @@ export default function ProviderQuotes() {
                     </div>
                     <div style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'2px'}}>
                       {/* timeZone:'UTC' added — return time shown exactly as the customer entered it, no conversion */}
-                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})} · {req.return_passengers ?? req.passengers} pax · {req.return_luggage ?? req.luggage ?? 0} bags
+                      🛬 {new Date(req.return_time).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'})} · {new Date(req.return_time).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'})} · {req.return_passengers ?? req.passengers} {t.pax} · {req.return_luggage ?? req.luggage ?? 0} {t.bags}
                       {req.return_flight_number && ` · ✈ ${req.return_flight_number}`}
                     </div>
                     {req.return_notes && <div style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', fontStyle:'italic'}}>"{req.return_notes}"</div>}
@@ -260,7 +262,7 @@ export default function ProviderQuotes() {
                   <button
                     onClick={() => { setDeclineModal(req.id); setDeclineComment('') }}
                     style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', background:'none', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', padding:'4px 10px', cursor:'pointer', letterSpacing:'0.05em'}}>
-                    Decline
+                    {t.decline}
                   </button>
                 )}
               </div>
@@ -269,39 +271,39 @@ export default function ProviderQuotes() {
             {/* Offer section */}
             {offerExpired ? (
               <div style={{backgroundColor:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.4)'}}>
-                ⌛ {req.offer_expiry_reason ?? 'Offer expired'}
+                ⌛ {req.offer_expiry_reason ?? t.offerExpired}
               </div>
             ) : req.already_offered ? (
               <div style={{backgroundColor:'rgba(29,158,117,0.1)', border:'1px solid rgba(29,158,117,0.2)', borderRadius:'6px', padding:'12px', textAlign:'center', fontSize:'13px', color:'#1D9E75'}}>
-                ✓ Offer submitted · <strong>{sym} {req.offered_price != null ? req.offered_price.toFixed(2) : '—'}</strong> · waiting for customer response
+                {t.offerSubmitted} · <strong>{sym} {req.offered_price != null ? req.offered_price.toFixed(2) : '—'}</strong> · {t.waitingForCustomer}
               </div>
             ) : (
               <div style={{borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'12px', display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
                 <div style={{flex:'1', minWidth:'120px'}}>
-                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Your price ({sym}) *</label>
+                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>{t.yourPrice} ({sym}) *</label>
                   <input type="number" placeholder="0.00" value={offer.price}
                     onChange={e => updateOffer(req.id, 'price', e.target.value)}
                     style={{...inp, width:'100%', boxSizing:'border-box'}} />
                 </div>
                 {vehicles.length > 0 && (
                   <div style={{flex:'2', minWidth:'180px'}}>
-                    <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Vehicle</label>
+                    <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>{t.vehicle}</label>
                     <select value={offer.vehicleId} onChange={e => updateOffer(req.id, 'vehicleId', e.target.value)}
                       style={{...inp, width:'100%', boxSizing:'border-box'}}>
-                      <option value="">— select vehicle —</option>
-                      {vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.make} {v.model} ({v.seats} seats)</option>)}
+                      <option value="">{t.selectVehicle}</option>
+                      {vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.make} {v.model} ({v.seats} {t.seats})</option>)}
                     </select>
                   </div>
                 )}
                 <div style={{flex:'2', minWidth:'180px'}}>
-                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>Note to customer</label>
-                  <input type="text" placeholder="Optional message..." value={offer.notes}
+                  <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'5px'}}>{t.noteToCustomer}</label>
+                  <input type="text" placeholder={t.optionalMessage} value={offer.notes}
                     onChange={e => updateOffer(req.id, 'notes', e.target.value)}
                     style={{...inp, width:'100%', boxSizing:'border-box'}} />
                 </div>
                 <button onClick={() => submitOffer(req.id)} disabled={!canSubmit}
                   style={{padding:'10px 20px', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:'600', cursor: canSubmit ? 'pointer' : 'not-allowed', letterSpacing:'0.05em', textTransform:'uppercase', whiteSpace:'nowrap'}}>
-                  {submitting === req.id ? 'Submitting...' : 'Submit offer'}
+                  {submitting === req.id ? t.submitting : t.submitOffer}
                 </button>
               </div>
             )}
@@ -309,9 +311,9 @@ export default function ProviderQuotes() {
             {/* Status history — shown when expanded */}
             {isExpanded && (
               <div style={{marginTop:'12px', borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'12px'}}>
-                <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:'8px'}}>Status history</p>
+                <p style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:'8px'}}>{t.statusHistory}</p>
                 {history.length === 0 ? (
-                  <p style={{fontSize:'12px', color:'rgba(255,255,255,0.25)', fontStyle:'italic'}}>No history yet</p>
+                  <p style={{fontSize:'12px', color:'rgba(255,255,255,0.25)', fontStyle:'italic'}}>{t.noHistory}</p>
                 ) : history.map((h: any) => (
                   <div key={h.id} style={{display:'flex', alignItems:'flex-start', gap:'8px', fontSize:'12px', marginBottom:'6px', flexWrap:'wrap'}}>
                     <div style={{width:'6px', height:'6px', borderRadius:'50%', backgroundColor:'#f4b942', flexShrink:0, marginTop:'4px'}} />
@@ -335,24 +337,24 @@ export default function ProviderQuotes() {
       {declineModal && (
         <div style={{position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:'20px'}}>
           <div style={{backgroundColor:'#1a1f26', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'10px', padding:'24px', maxWidth:'420px', width:'100%'}}>
-            <h2 style={{fontSize:'16px', fontWeight:'500', marginBottom:'6px'}}>Decline this request?</h2>
-            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', marginBottom:'16px'}}>This request will be removed from your list. The customer will not be notified.</p>
-            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px'}}>Reason (optional — internal only)</label>
+            <h2 style={{fontSize:'16px', fontWeight:'500', marginBottom:'6px'}}>{t.declineTitle}</h2>
+            <p style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', marginBottom:'16px'}}>{t.declineBody}</p>
+            <label style={{fontSize:'10px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', display:'block', marginBottom:'6px'}}>{t.declineReason}</label>
             <textarea
               value={declineComment}
               onChange={e => setDeclineComment(e.target.value)}
-              placeholder="e.g. date not available, route too far..."
+              placeholder={t.declinePlaceholder}
               rows={3}
               style={{...inp, width:'100%', boxSizing:'border-box', resize:'none', marginBottom:'16px'}}
             />
             <div style={{display:'flex', gap:'10px'}}>
               <button onClick={() => { setDeclineModal(null); setDeclineComment('') }}
                 style={{flex:1, padding:'11px', background:'none', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'6px', color:'rgba(255,255,255,0.6)', fontSize:'13px', cursor:'pointer'}}>
-                Cancel
+                {t.cancel}
               </button>
               <button onClick={() => confirmDecline(declineModal)} disabled={declining === declineModal}
                 style={{flex:1, padding:'11px', backgroundColor:'rgba(162,45,45,0.8)', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
-                {declining === declineModal ? 'Declining...' : 'Yes, decline'}
+                {declining === declineModal ? t.declining : t.declineConfirm}
               </button>
             </div>
           </div>
