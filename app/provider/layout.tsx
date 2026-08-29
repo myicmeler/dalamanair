@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useProviderLang } from '@/lib/providerText'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -8,6 +9,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient() as any
+  const { lang, setLang, t } = useProviderLang()
   const [providerName, setProviderName] = useState('Provider')
   const [menuOpen, setMenuOpen] = useState(false)
   const [quoteBadge, setQuoteBadge] = useState(0)
@@ -108,19 +110,19 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
 
   // Bottom tab bar — most frequent actions (kept to 6)
   const navItems = [
-    { href:'/provider', label:'Dashboard' },
-    { href:'/provider/bookings', label:'Bookings' },
-    { href:'/provider/drivers', label:'Drivers' },
-    { href:'/provider/vehicles', label:'Fleet' },
-    { href:'/provider/reviews', label:'Reviews' },
-    { href:'/provider/quotes', label:'Quotes', badge: quoteBadge },
+    { href:'/provider', label:t.dashboard },
+    { href:'/provider/bookings', label:t.bookings },
+    { href:'/provider/drivers', label:t.drivers },
+    { href:'/provider/vehicles', label:t.fleet },
+    { href:'/provider/reviews', label:t.reviews },
+    { href:'/provider/quotes', label:t.quotes, badge: quoteBadge },
   ]
 
   // Full menu — everything, including occasional actions
   const menuItems = [
     ...navItems,
-    { href:'/provider/prices', label:'Default prices' },
-    { href:'/provider/log-transfers', label:'Log a transfer' },
+    { href:'/provider/prices', label:t.defaultPrices },
+    { href:'/provider/log-transfers', label:t.logTransfer },
   ]
 
   return (
@@ -133,11 +135,26 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
             <Link href="/provider/quotes" style={{textDecoration:'none'}}>
               <div style={{display:'flex', alignItems:'center', gap:'6px', backgroundColor:'rgba(244,185,66,0.15)', border:'1px solid rgba(244,185,66,0.3)', borderRadius:'20px', padding:'4px 10px'}}>
                 <span style={{fontSize:'11px', color:'#f4b942', fontWeight:'500'}}>
-                  {quoteBadge} new quote{quoteBadge > 1 ? 's' : ''}
+                  {quoteBadge} {quoteBadge > 1 ? t.newQuotes : t.newQuote}
                 </span>
               </div>
             </Link>
           )}
+          {/* Language toggle — providers are Turkish. The choice is stored in
+              localStorage by useProviderLang, so it persists across pages and
+              future visits rather than resetting on navigation. */}
+          <div style={{display:'flex', alignItems:'center', gap:'2px'}}>
+            {(['en','tr'] as const).map(l => (
+              <button key={l} onClick={() => setLang(l)}
+                aria-label={l === 'tr' ? 'Türkçe' : 'English'}
+                style={{background:'none', border:'none', cursor:'pointer', padding:'2px 4px',
+                  color: lang===l ? '#ffffff' : 'rgba(255,255,255,0.4)',
+                  fontWeight: lang===l ? 700 : 400, fontSize:'11px', fontFamily:'inherit'}}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
           {/* Notifications bell — mirrors the customer bell in components/ui/Nav */}
           <div ref={bellRef} style={{position:'relative'}}>
             <button onClick={() => setNotifOpen(!notifOpen)} aria-label="Notifications"
@@ -155,10 +172,10 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
             {notifOpen && (
               <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, width:'320px', maxWidth:'calc(100vw - 32px)', maxHeight:'400px', overflow:'auto', background:'#1a1f26', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', boxShadow:'0 8px 24px rgba(0,0,0,0.5)', zIndex:50}}>
                 <div style={{padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-                  <span style={{fontSize:'12px', fontWeight:600, color:'#ffffff', textTransform:'uppercase', letterSpacing:'0.05em'}}>Notifications</span>
+                  <span style={{fontSize:'12px', fontWeight:600, color:'#ffffff', textTransform:'uppercase', letterSpacing:'0.05em'}}>{t.notifications}</span>
                 </div>
                 {notifications.length === 0 ? (
-                  <div style={{padding:'24px 16px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.4)'}}>No notifications yet</div>
+                  <div style={{padding:'24px 16px', textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.4)'}}>{t.noNotifications}</div>
                 ) : notifications.map(n => (
                   <Link key={n.id} href={n.link || '#'} onClick={() => { markRead(n.id); setNotifOpen(false) }}
                     style={{display:'block', padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', textDecoration:'none', backgroundColor: n.read_at ? 'transparent' : 'rgba(244,185,66,0.05)'}}>
@@ -206,7 +223,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
             </Link>
           ))}
           <button onClick={handleSignOut} style={{display:'block', width:'100%', padding:'16px 20px', fontSize:'16px', color:'rgba(255,255,255,0.5)', background:'none', border:'none', cursor:'pointer', textAlign:'left', marginTop:'8px'}}>
-            Sign out
+            {t.signOut}
           </button>
         </div>
       )}
