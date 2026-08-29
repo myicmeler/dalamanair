@@ -20,6 +20,7 @@ const navItems = [
   { href:'/admin/analytics/', label:'📊 Analytics' },
   { href:'/admin/emails/',    label:'📧 Emails' },
   { href:'/admin/cleanup/',   label:'🗑 Cleanup' },
+  { href:'/admin/planner/',   label:'📅 Planner' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
