@@ -231,27 +231,32 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         </div>
       )}
 
-      {/* Bottom tab bar */}
-      <div style={{position:'fixed', bottom:0, left:0, right:0, backgroundColor:'#1a1f26', borderTop:'1px solid rgba(255,255,255,0.08)', display:'flex', zIndex:20, paddingBottom:'env(safe-area-inset-bottom)'}}>
-        {navItems.map(item => (
-          <Link key={item.href} href={item.href} style={{
-            flex:1, padding:'10px 0', textAlign:'center', textDecoration:'none',
-            fontSize:'10px', letterSpacing:'0.05em', position:'relative',
-            color:pathname===item.href?'#f4b942':'rgba(255,255,255,0.4)',
-            fontWeight:pathname===item.href?'500':'400',
-          }}>
-            {item.label}
-            {item.badge && item.badge > 0 ? (
-              <span style={{
-                position:'absolute', top:'4px', right:'calc(50% - 18px)',
-                backgroundColor:'#f4b942', color:'#0f1419',
-                borderRadius:'50%', width:'16px', height:'16px',
-                fontSize:'9px', fontWeight:'700',
-                display:'flex', alignItems:'center', justifyContent:'center',
-              }}>{item.badge > 9 ? '9+' : item.badge}</span>
-            ) : null}
-          </Link>
-        ))}
+      {/* Bottom tab bar. The bar itself spans the window so the background and
+          top border reach both edges, but the tabs inside are capped at the same
+          820px the pages use and centred. Without the cap, flex:1 stretches six
+          tabs across a desktop window and the labels drift far apart. */}
+      <div style={{position:'fixed', bottom:0, left:0, right:0, backgroundColor:'#1a1f26', borderTop:'1px solid rgba(255,255,255,0.08)', zIndex:20, paddingBottom:'env(safe-area-inset-bottom)'}}>
+        <div style={{display:'flex', maxWidth:'820px', margin:'0 auto', width:'100%'}}>
+          {navItems.map(item => (
+            <Link key={item.href} href={item.href} style={{
+              flex:1, padding:'10px 0', textAlign:'center', textDecoration:'none',
+              fontSize:'10px', letterSpacing:'0.05em', position:'relative',
+              color:pathname===item.href?'#f4b942':'rgba(244,185,66,0.6)',
+              fontWeight:pathname===item.href?'600':'400',
+            }}>
+              {item.label}
+              {item.badge && item.badge > 0 ? (
+                <span style={{
+                  position:'absolute', top:'4px', right:'calc(50% - 18px)',
+                  backgroundColor:'#f4b942', color:'#0f1419',
+                  borderRadius:'50%', width:'16px', height:'16px',
+                  fontSize:'9px', fontWeight:'700',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>{item.badge > 9 ? '9+' : item.badge}</span>
+              ) : null}
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div style={{paddingBottom:'60px'}}>{children}</div>
