@@ -20,7 +20,7 @@ import { useState, useEffect } from 'react'
  *
  * Adding a string: add it to BOTH `en` and `tr`. The object is `as const`, so a
  * key present in one and missing from the other is a BUILD ERROR, not a silent
- * English fallback. (That is exactly what caught the missing `selectVehicle`.)
+ * English fallback.
  */
 
 export const providerText = {
@@ -131,6 +131,27 @@ export const providerText = {
     noHistory: 'No history yet',
     bags: 'bags',
     selectVehicle: '— select vehicle —',
+
+    // --- planner page ---
+    planner: 'Planner',
+    plannerSub: 'Your confirmed transfers in pickup order. Return trips appear as two separate journeys.',
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    upcoming: 'Upcoming',
+    inThisRange: 'In this range',
+    from: 'From',
+    to: 'To',
+    next7: 'Next 7 days',
+    next30: 'Next 30 days',
+    allDates: 'All dates',
+    nothingScheduled: 'Nothing scheduled',
+    nothingScheduledSub: 'No confirmed transfers in this date range. Try widening it, or press "All dates".',
+    arrival: 'Arrival',
+    departure: 'Departure',
+    partOfReturn: 'part of a return',
+    noDriverAssigned: 'No driver assigned',
+    transfer: 'transfer',
+    transfers: 'transfers',
   },
 
   tr: {
@@ -240,6 +261,27 @@ export const providerText = {
     noHistory: 'Henüz geçmiş yok',
     bags: 'bavul',
     selectVehicle: '— araç seçin —',
+
+    // --- planner page ---
+    planner: 'Planlayıcı',
+    plannerSub: 'Onaylanmış transferleriniz, alış saatine göre sıralı. Gidiş-dönüş yolculuklar iki ayrı sefer olarak görünür.',
+    today: 'Bugün',
+    tomorrow: 'Yarın',
+    upcoming: 'Yaklaşan',
+    inThisRange: 'Bu aralıkta',
+    from: 'Başlangıç',
+    to: 'Bitiş',
+    next7: 'Önümüzdeki 7 gün',
+    next30: 'Önümüzdeki 30 gün',
+    allDates: 'Tüm tarihler',
+    nothingScheduled: 'Planlanmış transfer yok',
+    nothingScheduledSub: 'Bu tarih aralığında onaylanmış transfer yok. Aralığı genişletin veya "Tüm tarihler"e basın.',
+    arrival: 'Geliş',
+    departure: 'Gidiş',
+    partOfReturn: 'gidiş-dönüşün parçası',
+    noDriverAssigned: 'Sürücü atanmadı',
+    transfer: 'transfer',
+    transfers: 'transfer',
   },
 } as const
 
