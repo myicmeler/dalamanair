@@ -111,21 +111,28 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   // Bottom tab bar is capped at 6 — it has to stay thumb-sized on a phone.
   // Planner takes the slot Reviews had: providers check their schedule daily,
   // reviews rarely. Reviews stays one tap away in the full menu below.
+  //
+  // Trailing slashes are REQUIRED here. usePathname() reports the path with a
+  // trailing slash, so hrefs written without one never satisfy
+  // `pathname === item.href` and no tab is ever marked active — every label
+  // stayed at the inactive colour, including the page being viewed. The admin
+  // layout has always used trailing slashes, which is why its highlighting
+  // worked and this one did not.
   const navItems = [
-    { href:'/provider', label:t.dashboard },
-    { href:'/provider/planner', label:t.planner },
-    { href:'/provider/bookings', label:t.bookings },
-    { href:'/provider/drivers', label:t.drivers },
-    { href:'/provider/vehicles', label:t.fleet },
-    { href:'/provider/quotes', label:t.quotes, badge: quoteBadge },
+    { href:'/provider/', label:t.dashboard },
+    { href:'/provider/planner/', label:t.planner },
+    { href:'/provider/bookings/', label:t.bookings },
+    { href:'/provider/drivers/', label:t.drivers },
+    { href:'/provider/vehicles/', label:t.fleet },
+    { href:'/provider/quotes/', label:t.quotes, badge: quoteBadge },
   ]
 
   // Full menu — everything, including occasional actions
   const menuItems = [
     ...navItems,
-    { href:'/provider/reviews', label:t.reviews },
-    { href:'/provider/prices', label:t.defaultPrices },
-    { href:'/provider/log-transfers', label:t.logTransfer },
+    { href:'/provider/reviews/', label:t.reviews },
+    { href:'/provider/prices/', label:t.defaultPrices },
+    { href:'/provider/log-transfers/', label:t.logTransfer },
   ]
 
   return (
@@ -135,7 +142,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         <div style={{fontSize:'13px', fontWeight:'500'}}>{providerName}</div>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
           {quoteBadge > 0 && (
-            <Link href="/provider/quotes" style={{textDecoration:'none'}}>
+            <Link href="/provider/quotes/" style={{textDecoration:'none'}}>
               <div style={{display:'flex', alignItems:'center', gap:'6px', backgroundColor:'rgba(244,185,66,0.15)', border:'1px solid rgba(244,185,66,0.3)', borderRadius:'20px', padding:'4px 10px'}}>
                 <span style={{fontSize:'11px', color:'#f4b942', fontWeight:'500'}}>
                   {quoteBadge} {quoteBadge > 1 ? t.newQuotes : t.newQuote}
