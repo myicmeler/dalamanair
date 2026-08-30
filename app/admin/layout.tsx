@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 
 const navItems = [
   { href:'/admin/',           label:'Overview' },
+  { href:'/admin/planner/',   label:'📅 Planner' },
   { href:'/admin/bookings/',  label:'Bookings' },
   { href:'/admin/quotes/',    label:'Quotes' },
   { href:'/admin/providers/', label:'Providers' },
@@ -20,23 +21,22 @@ const navItems = [
   { href:'/admin/analytics/', label:'📊 Analytics' },
   { href:'/admin/emails/',    label:'📧 Emails' },
   { href:'/admin/cleanup/',   label:'🗑 Cleanup' },
-  { href:'/admin/planner/',   label:'📅 Planner' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient() as any
-  const [loading, setLoading] = useState(true)
+  const [checking, setChecking] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     async function check() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/signin/?redirect=/admin/'); return }
+      if (!user) { router.push('/auth/signin?redirect=/admin'); return }
       const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-      if (!profile || profile.role !== 'admin') { router.push('/'); return }
-      setLoading(false)
+      if (profile?.role !== 'admin') { router.push('/'); return }
+      setChecking(false)
     }
     check()
   }, [])
@@ -46,9 +46,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/')
   }
 
-  if (loading) return (
+  if (checking) return (
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.4)', fontSize:'14px'}}>
-      Loading...
+      Checking access...
     </div>
   )
 
@@ -56,10 +56,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div style={{minHeight:'100vh', backgroundColor:'#0f1419', color:'#f0ede6'}}>
       <div style={{backgroundColor:'#1a1f26', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'52px', position:'sticky', top:0, zIndex:40}}>
         <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-          <span style={{fontSize:'12px', fontWeight:'500', letterSpacing:'0.1em'}}>ADMIN</span>
+          <span style={{fontSize:'13px', fontWeight:'600', letterSpacing:'0.1em'}}>ADMIN</span>
           <span style={{fontSize:'10px', backgroundColor:'rgba(162,45,45,0.3)', color:'#f09595', padding:'2px 8px', borderRadius:'10px'}}>Platform</span>
         </div>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'14px'}}>
           <Link href="/" style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', textDecoration:'none'}}>← Site</Link>
           <button onClick={handleSignOut} style={{fontSize:'11px', color:'rgba(255,255,255,0.4)', background:'none', border:'none', cursor:'pointer'}}>Sign out</button>
           <button onClick={() => setMenuOpen(!menuOpen)} style={{background:'none', border:'none', cursor:'pointer', padding:'8px', display:'flex', flexDirection:'column', gap:'5px'}}>
@@ -76,9 +76,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navItems.map(item => (
             <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
               display:'block', padding:'16px 20px', fontSize:'16px',
-              color:pathname===item.href?'#f4b942':'rgba(255,255,255,0.8)',
+              color:pathname===item.href?'#f4b942':'rgba(244,185,66,0.6)',
               borderBottom:'1px solid rgba(255,255,255,0.06)', textDecoration:'none',
-              fontWeight:pathname===item.href?'500':'400',
+              fontWeight:pathname===item.href?'600':'400',
             }}>{item.label}</Link>
           ))}
         </div>
@@ -89,8 +89,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link key={item.href} href={item.href} style={{
             padding:'12px 14px', fontSize:'12px', whiteSpace:'nowrap', textDecoration:'none',
             borderBottom:`2px solid ${pathname===item.href?'#f4b942':'transparent'}`,
-            color:pathname===item.href?'#f4b942':'rgba(255,255,255,0.5)',
-            fontWeight:pathname===item.href?'500':'400',
+            color:pathname===item.href?'#f4b942':'rgba(244,185,66,0.6)',
+            fontWeight:pathname===item.href?'600':'400',
           }}>{item.label}</Link>
         ))}
       </div>
