@@ -8,7 +8,6 @@ import { callFunction } from '@/lib/functions'
 
 // ---- Country dial codes for the Phone / WhatsApp field ----
 type DialCode = { iso: string; name: string; dial: string; flag: string }
-
 const COMMON_CODES: DialCode[] = [
   { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
   { iso: 'IE', name: 'Ireland', dial: '+353', flag: '🇮🇪' },
@@ -21,7 +20,6 @@ const COMMON_CODES: DialCode[] = [
   { iso: 'SE', name: 'Sweden', dial: '+46', flag: '🇸🇪' },
   { iso: 'DK', name: 'Denmark', dial: '+45', flag: '🇩🇰' },
 ]
-
 const ALL_CODES: DialCode[] = [
   { iso: 'AL', name: 'Albania', dial: '+355', flag: '🇦🇱' },
   { iso: 'AT', name: 'Austria', dial: '+43', flag: '🇦🇹' },
@@ -71,7 +69,6 @@ const ALL_CODES: DialCode[] = [
   { iso: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
   { iso: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
 ]
-
 const findDial = (iso: string) =>
   [...COMMON_CODES, ...ALL_CODES].find(c => c.iso === iso)?.dial ?? '+44'
 
@@ -87,7 +84,6 @@ function QuoteContent() {
   const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
   const [phoneCountry, setPhoneCountry] = useState('GB')
   const [phoneNumber, setPhoneNumber] = useState('')
-
   const [form, setForm] = useState({
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
@@ -158,6 +154,7 @@ function QuoteContent() {
         return_notes: isReturn ? form.returnNotes || null : null,
       }).select().single()
       if (error || !request) throw error
+
       await callFunction('notify-providers', { requestId: request.id })
       setSubmitted(true)
     } catch (err) { console.error(err) }
@@ -179,7 +176,23 @@ function QuoteContent() {
           <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>All approved providers have been notified. You will receive an email each time a provider submits an offer.</p>
           {/* ADDED: time-accuracy confirmation line */}
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>The dates and times you entered are used <strong style={{ color: 'rgba(255,255,255,0.7)' }}>exactly as submitted</strong>. Please review them in your quotes — if anything needs changing, contact us to correct it.</p>
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '32px' }}>Prices are hidden until a provider responds.</p>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '20px' }}>Prices are hidden until a provider responds.</p>
+
+          {/* Customers who arrange their own transfer rarely come back to cancel,
+              which leaves providers holding a slot and the request sitting open
+              until cron 13 expires it. Email does not reach these customers —
+              that is why the acknowledge step was removed in August — so the ask
+              is made here, at the moment they are actually looking at the screen.
+              Deliberately prominent, and framed as a courtesy to the drivers
+              rather than an invitation to book elsewhere. */}
+          <div style={{ backgroundColor: 'rgba(244,185,66,0.1)', border: '1px solid rgba(244,185,66,0.35)', borderRadius: '8px', padding: '18px 20px', marginBottom: '28px', textAlign: 'left' }}>
+            <p style={{ fontSize: '15px', fontWeight: '600', color: '#f4b942', margin: '0 0 8px' }}>
+              Plans sometimes change, and that's absolutely fine
+            </p>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', lineHeight: '1.7', margin: 0 }}>
+              Should you end up making other arrangements, we'd really appreciate a quick note to cancel your request — it lets the local drivers know they're free, and saves them holding time for you. Thank you.
+            </p>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
             <a href="/quotes/" style={{ width: '100%', maxWidth: '300px', padding: '14px 24px', backgroundColor: '#f4b942', color: '#0f1419', borderRadius: '6px', fontSize: '13px', fontWeight: '500', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'center', display: 'block' }}>View my quotes →</a>
             <a href="/" style={{ padding: '12px 24px', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', borderRadius: '6px', fontSize: '13px', textDecoration: 'none' }}>Back to home</a>
@@ -201,6 +214,7 @@ function QuoteContent() {
         `}</style>
         <Nav lang={lang} onLangChange={setLang} />
         <div className="quote-wrap" style={{ maxWidth: '580px', margin: '0 auto', padding: '32px 16px 48px' }}>
+
           <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '8px' }}>Free · No obligation</p>
           <h1 style={{ fontSize: 'clamp(22px,5vw,28px)', fontWeight: '500', color: '#ffffff', marginBottom: '6px' }}>Request a quote</h1>
           <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: '1.6' }}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
@@ -251,6 +265,7 @@ function QuoteContent() {
           {/* OUTBOUND */}
           <div style={card}>
             <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Outbound journey</p>
+
             <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div><label style={lbl}>Pick-up</label>
                 <select value={form.pickup} onChange={e => setForm(p => ({ ...p, pickup: e.target.value }))} style={inp}>
@@ -265,6 +280,7 @@ function QuoteContent() {
                 </select>
               </div>
             </div>
+
             <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div>
                 <label style={lbl}>Date</label>
@@ -273,12 +289,14 @@ function QuoteContent() {
               </div>
               <div><label style={lbl}>Time</label><input type="time" value={form.time} onChange={e => setForm(p => ({ ...p, time: e.target.value }))} style={inp} /></div>
             </div>
+
             {/* Moved here from just above the submit button, where it was the
                 loudest thing on the page and drowned out the trip-type control.
                 It belongs beside the fields it is about. */}
             <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.6', margin: '0 0 12px' }}>
               ⏱ <strong style={{ color: 'rgba(244,185,66,0.85)' }}>Double-check your dates and times.</strong> We use them exactly as entered and never convert them. If you spot a mistake after sending, contact us and we'll correct it.
             </p>
+
             <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div><label style={lbl}>Passengers</label>
                 <select value={form.passengers} onChange={e => setForm(p => ({ ...p, passengers: e.target.value }))} style={inp}>
@@ -291,6 +309,7 @@ function QuoteContent() {
                 </select>
               </div>
             </div>
+
             <div style={{ marginBottom: '12px' }}><label style={lbl}>Flight number</label><input type="text" value={form.flightNumber} onChange={e => setForm(p => ({ ...p, flightNumber: e.target.value }))} placeholder="TK 1234" style={inp} /></div>
             <div><label style={lbl}>Special requirements (optional)</label><textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
           </div>
@@ -299,6 +318,7 @@ function QuoteContent() {
           {isReturn && (
             <div style={card}>
               <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Return journey</p>
+
               <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                 <div><label style={lbl}>Return pick-up</label>
                   <select value={form.returnPickup} onChange={e => setForm(p => ({ ...p, returnPickup: e.target.value }))} style={inp}>
@@ -313,6 +333,7 @@ function QuoteContent() {
                   </select>
                 </div>
               </div>
+
               <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: returnBeforeOutbound ? '6px' : '12px' }}>
                 <div><label style={lbl}>Return date</label><input type="date" value={form.returnDate} onChange={e => setForm(p => ({ ...p, returnDate: e.target.value }))} style={{ ...inp, borderColor: returnBeforeOutbound ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} /></div>
                 <div><label style={lbl}>Return time</label><input type="time" value={form.returnTime} onChange={e => setForm(p => ({ ...p, returnTime: e.target.value }))} style={{ ...inp, borderColor: returnBeforeOutbound ? '#e53e3e' : 'rgba(255,255,255,0.12)' }} /></div>
@@ -322,6 +343,7 @@ function QuoteContent() {
                   ⚠️ Your return journey is before your outbound arrival. Check the return date — it should be the day you fly home, not the day you arrive.
                 </p>
               )}
+
               <div className="quote-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                 <div><label style={lbl}>Return passengers</label>
                   <select value={form.returnPassengers} onChange={e => setForm(p => ({ ...p, returnPassengers: e.target.value }))} style={inp}>
@@ -334,6 +356,7 @@ function QuoteContent() {
                   </select>
                 </div>
               </div>
+
               <div style={{ marginBottom: '12px' }}><label style={lbl}>Return flight number</label><input type="text" value={form.returnFlightNumber} onChange={e => setForm(p => ({ ...p, returnFlightNumber: e.target.value }))} placeholder="TK 5678" style={inp} /></div>
               <div><label style={lbl}>Return special requirements (optional)</label><textarea value={form.returnNotes} onChange={e => setForm(p => ({ ...p, returnNotes: e.target.value }))} placeholder="Child seat, wheelchair access..." rows={2} style={{ ...inp, resize: 'none' }} /></div>
             </div>
@@ -342,10 +365,12 @@ function QuoteContent() {
           {/* CONTACT & HOTEL */}
           <div style={card}>
             <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '14px' }}>Your details</p>
+
             <div style={{ marginBottom: '12px' }}>
               <label style={lbl}>Hotel name</label>
               <input type="text" value={form.hotelName} onChange={e => setForm(p => ({ ...p, hotelName: e.target.value }))} placeholder="e.g. Marti Resort, Içmeler" style={inp} />
             </div>
+
             <div>
               <label style={lbl}>Phone / WhatsApp</label>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -375,9 +400,5 @@ function QuoteContent() {
 }
 
 export default function QuotePage() {
-  return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#0f1419' }} />}>
-      <QuoteContent />
-    </Suspense>
-  )
+  return <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#0f1419' }} />}><QuoteContent /></Suspense>
 }
