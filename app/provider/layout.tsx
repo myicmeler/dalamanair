@@ -108,19 +108,22 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     router.push('/')
   }
 
-  // Bottom tab bar — most frequent actions (kept to 6)
+  // Bottom tab bar is capped at 6 — it has to stay thumb-sized on a phone.
+  // Planner takes the slot Reviews had: providers check their schedule daily,
+  // reviews rarely. Reviews stays one tap away in the full menu below.
   const navItems = [
     { href:'/provider', label:t.dashboard },
+    { href:'/provider/planner', label:t.planner },
     { href:'/provider/bookings', label:t.bookings },
     { href:'/provider/drivers', label:t.drivers },
     { href:'/provider/vehicles', label:t.fleet },
-    { href:'/provider/reviews', label:t.reviews },
     { href:'/provider/quotes', label:t.quotes, badge: quoteBadge },
   ]
 
   // Full menu — everything, including occasional actions
   const menuItems = [
     ...navItems,
+    { href:'/provider/reviews', label:t.reviews },
     { href:'/provider/prices', label:t.defaultPrices },
     { href:'/provider/log-transfers', label:t.logTransfer },
   ]
