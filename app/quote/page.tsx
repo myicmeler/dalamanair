@@ -208,6 +208,23 @@ function QuoteContent() {
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>The dates and times you entered are used <strong style={{ color: 'rgba(255,255,255,0.7)' }}>exactly as submitted</strong>. Please review them in your quotes — if anything needs changing, contact us to correct it.</p>
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '20px' }}>Prices are hidden until a provider responds.</p>
 
+          {/* How long the request stays open. Cron job 13 expires any open
+              request 3 days before the outbound pickup, offers or not. Showing
+              the actual date saves the customer working it out, and this screen
+              is the one place they are certain to read — the same reasoning as
+              the cancellation note below. */}
+          {form.date && (
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '14px 18px', marginBottom: '16px', textAlign: 'left' }}>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.7', margin: 0 }}>
+                Your request stays open until <strong style={{ color: '#ffffff' }}>3 days before your travel date</strong>. If you haven't accepted an offer by{' '}
+                <strong style={{ color: '#f4b942' }}>
+                  {new Date(new Date(`${form.date}T00:00:00Z`).getTime() - 3 * 864e5)
+                    .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
+                </strong>, it closes automatically.
+              </p>
+            </div>
+          )}
+
           {/* Customers who arrange their own transfer rarely come back to cancel,
               which leaves providers holding a slot and the request sitting open
               until cron 13 expires it. Email does not reach these customers —
