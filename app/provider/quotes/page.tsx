@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useProviderLang } from '@/lib/providerText'
+import { callFunction } from '@/lib/functions'
 
 export default function ProviderQuotes() {
   const supabase = createClient() as any
@@ -11,6 +12,7 @@ export default function ProviderQuotes() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [providerId, setProviderId] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [submitting, setSubmitting] = useState<string|null>(null)
   const [declining, setDeclining] = useState<string|null>(null)
   const [declineModal, setDeclineModal] = useState<string|null>(null)
@@ -36,6 +38,7 @@ export default function ProviderQuotes() {
         }
         pid = provider.id
         setProviderId(pid)
+        setCompanyName(provider.company_name ?? '')
       }
 
       const { data: declined } = await supabase
@@ -149,6 +152,51 @@ export default function ProviderQuotes() {
           offer_status: 'pending',
           offered_price: parseFloat(offer.price),
         } : r))
+
+        // Tell the customer an offer has arrived.
+        //
+        // This was missing entirely until 31 Aug 2026: 70 offers were submitted
+        // and not one produced an email or an in-app notification, so customers
+        // only discovered offers by happening to reopen the site. Requests sat
+        // open for weeks with live offers on them because nobody knew. This is
+        // the core loop of the platform and it was silent.
+        //
+        // Both sends are best-effort and deliberately AFTER the insert: the
+        // offer is already saved, so a Mailgun or notification failure must
+        // never make a successful bid look like it failed.
+        const req = requests.find(r => r.id === reqId)
+        if (req) {
+          const priceStr = parseFloat(offer.price).toFixed(2)
+          const sym = (req.currency ?? 'EUR') === 'GBP' ? '£' : '€'
+
+          try {
+            await supabase.from('user_notifications').insert({
+              user_id: req.customer_id,
+              type: 'new_offer',
+              title: 'New offer on your transfer request',
+              body: `${companyName || 'A provider'} offered ${sym}${priceStr} for ${req.pickup?.name} → ${req.dropoff?.name}.`,
+              link: '/quotes/',
+            })
+          } catch (e) { console.error('new-offer notification error:', e) }
+
+          try {
+            await callFunction('send-email', {
+              type: 'new_offer',
+              customerId: req.customer_id,
+              data: {
+                providerName: companyName,
+                price: priceStr,
+                currency: req.currency ?? 'EUR',
+                pickup: req.pickup?.name,
+                dropoff: req.dropoff?.name,
+                // timeZone:'UTC' — show the time exactly as the customer entered it
+                date: new Date(req.pickup_time).toLocaleDateString('en-GB', {
+                  weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC',
+                }),
+              },
+            })
+          } catch (e) { console.error('new-offer email error:', e) }
+        }
       }
     } catch (err) {
       console.error(err)
