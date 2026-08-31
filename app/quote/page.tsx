@@ -156,6 +156,36 @@ function QuoteContent() {
       if (error || !request) throw error
 
       await callFunction('notify-providers', { requestId: request.id })
+
+      // Confirm to the customer that the request was received.
+      //
+      // The quote_submitted template has existed since the start but nothing
+      // ever called it — this page only notified providers, and no trigger sent
+      // it either, so customers received NOTHING after submitting. Added
+      // 31 Aug 2026.
+      //
+      // Best-effort and after the insert: the request is already saved, so a
+      // Mailgun failure must never make a successful submission look failed.
+      try {
+        const closesOn = new Date(new Date(`${form.date}T00:00:00Z`).getTime() - 3 * 864e5)
+        await callFunction('send-email', {
+          type: 'quote_submitted',
+          customerId: user.id,
+          data: {
+            pickup: locations.find(l => l.id === form.pickup)?.name,
+            dropoff: locations.find(l => l.id === form.dropoff)?.name,
+            // timeZone:'UTC' — show the date and time exactly as entered
+            date: new Date(pickupDateTime).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' }),
+            time: form.time,
+            passengers: form.passengers,
+            tripType: isReturn ? 'return' : 'oneway',
+            // The request closes 3 days before travel (cron job 13). Sending the
+            // actual date saves the customer doing the arithmetic.
+            closesOn: closesOn.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' }),
+          },
+        })
+      } catch (e) { console.error('quote-submitted email error:', e) }
+
       setSubmitted(true)
     } catch (err) { console.error(err) }
     setSubmitting(false)
