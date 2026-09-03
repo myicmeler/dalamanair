@@ -108,7 +108,9 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     router.push('/')
   }
 
-  // Bottom tab bar is capped at 6 — it has to stay thumb-sized on a phone.
+  // Bottom tab bar. Originally capped at 6 to stay thumb-sized on a phone;
+  // "Log a transfer" was promoted here as the 7th tab because it is now a
+  // primary provider action (bulk booking entry), not an occasional one.
   // Planner takes the slot Reviews had: providers check their schedule daily,
   // reviews rarely. Reviews stays one tap away in the full menu below.
   //
@@ -125,6 +127,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     { href:'/provider/drivers/', label:t.drivers },
     { href:'/provider/vehicles/', label:t.fleet },
     { href:'/provider/quotes/', label:t.quotes, badge: quoteBadge },
+    { href:'/provider/log-transfers/', label:t.logTransfer },
   ]
 
   // Full menu — everything, including occasional actions
@@ -132,7 +135,6 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     ...navItems,
     { href:'/provider/reviews/', label:t.reviews },
     { href:'/provider/prices/', label:t.defaultPrices },
-    { href:'/provider/log-transfers/', label:t.logTransfer },
   ]
 
   return (
