@@ -11,14 +11,14 @@ const navItems = [
   { href:'/admin/quotes/',    label:'Quotes' },
   { href:'/admin/providers/', label:'Providers' },
   { href:'/admin/drivers/',   label:'Drivers' },
-  { href:'/admin/vehicles/',  label:'Vehicles' },
-  { href:'/admin/reviews/',   label:'Reviews' },
+  // { href:'/admin/vehicles/',  label:'Vehicles' },   // hidden — not in use, restore when needed
+  // { href:'/admin/reviews/',   label:'Reviews' },    // hidden — not in use, restore when needed
   { href:'/admin/locations/', label:'Locations' },
   { href:'/admin/users/',     label:'Users' },
   { href:'/admin/import/',    label:'↑ Import' },
   { href:'/admin/prices/',    label:'Prices' },
-  { href:'/admin/outreach/',  label:'Outreach' },
-  { href:'/admin/analytics/', label:'📊 Analytics' },
+  // { href:'/admin/outreach/',  label:'Outreach' },   // hidden — not in use, restore when needed
+  // { href:'/admin/analytics/', label:'📊 Analytics' }, // hidden — not in use, restore when needed
   { href:'/admin/emails/',    label:'📧 Emails' },
   { href:'/admin/cleanup/',   label:'🗑 Cleanup' },
 ]
