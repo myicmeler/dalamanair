@@ -38,7 +38,7 @@ export default function ProviderPrices() {
         .eq('provider_id', provider.id)
         .order('created_at', { ascending: true })
       if (priceErr) { setError(`Could not load prices: ${priceErr.message}`); setLoading(false); return }
-      setRows(prices ?? [])
+      setRows(sortRows(prices ?? []))
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -47,6 +47,13 @@ export default function ProviderPrices() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  function sortRows(list: any[]) {
+    return [...list].sort((a, b) =>
+      (a.pickup?.name ?? '').localeCompare(b.pickup?.name ?? '') ||
+      (a.dropoff?.name ?? '').localeCompare(b.dropoff?.name ?? '') ||
+      (a.max_passengers ?? 0) - (b.max_passengers ?? 0))
+  }
 
   const locName = (id: string) => locations.find(l => l.id === id)?.name ?? '—'
 
@@ -71,7 +78,10 @@ export default function ProviderPrices() {
         is_active: !!r.is_active,
         updated_at: new Date().toISOString(),
       }).eq('id', id)
-      if (error) throw error
+      if (error) {
+        if (error.code === '23505') throw new Error('You already have a price for this route with that max pax.')
+        throw error
+      }
       setDirty(prev => { const n = new Set(prev); n.delete(id); return n })
     } catch (err: any) {
       setError(err.message)
@@ -81,7 +91,7 @@ export default function ProviderPrices() {
 
   async function deleteRow(id: string) {
     const r = rows.find(x => x.id === id)
-    const label = r ? `${r.pickup?.name ?? locName(r.pickup_location_id)} → ${r.dropoff?.name ?? locName(r.dropoff_location_id)}` : 'this route'
+    const label = r ? `${r.pickup?.name ?? locName(r.pickup_location_id)} → ${r.dropoff?.name ?? locName(r.dropoff_location_id)} (up to ${r.max_passengers} pax)` : 'this route'
     if (!confirm(`Delete the price for ${label}?`)) return
     try {
       const { error } = await supabase.from('provider_route_prices').delete().eq('id', id)
@@ -112,11 +122,11 @@ export default function ProviderPrices() {
         is_active: true,
       }).select('*, pickup:locations!pickup_location_id(name), dropoff:locations!dropoff_location_id(name)').single()
       if (error) {
-        if (error.code === '23505') setAddError('You already have a price for this route — edit it below.')
+        if (error.code === '23505') setAddError('You already have a price for this route and max pax — edit it below, or use a different max pax to add another tier.')
         else setAddError(error.message)
         setAdding(false); return
       }
-      setRows(prev => [...prev, data])
+      setRows(prev => sortRows([...prev, data]))
       setDraft({ pickup: '', dropoff: '', priceEur: '', priceGbp: '', maxPax: '4' })
     } catch (err: any) {
       setAddError(err.message)
@@ -132,7 +142,7 @@ export default function ProviderPrices() {
     <div style={{ padding: '20px' }}>
       <h1 style={{ fontSize: '20px', fontWeight: 500, marginBottom: '4px' }}>Default prices</h1>
       <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>
-        Set your standard price for a route and we'll submit it automatically the instant a matching request comes in — even while you sleep. Leave a currency blank to skip it.
+        Set your standard price for a route and we'll submit it automatically the instant a matching request comes in — even while you sleep. Leave a currency blank to skip it. You can add the same route more than once with different max pax — e.g. one price for up to 2 people and another for up to 4 — and we'll quote the cheapest one that fits.
       </p>
 
       {loading && <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,0.3)' }}>Loading...</div>}
@@ -200,6 +210,7 @@ export default function ProviderPrices() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ fontSize: '15px', fontWeight: 500 }}>
                     {(r.pickup?.name ?? locName(r.pickup_location_id))} → {(r.dropoff?.name ?? locName(r.dropoff_location_id))}
+                    <span style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.4)', marginLeft: '8px' }}>up to {r.max_passengers ?? 4} pax</span>
                   </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.55)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={!!r.is_active} onChange={e => editRow(r.id, 'is_active', e.target.checked)} style={{ accentColor: '#f4b942' }} />
