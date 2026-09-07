@@ -61,7 +61,10 @@ export default function AdminPrices() {
       .eq('provider_id', pid)
       .order('created_at', { ascending: true })
     if (err) { setError(`Could not load prices: ${err.message}`); return }
-    setRows(data ?? [])
+    setRows([...(data ?? [])].sort((a: any, b: any) =>
+      (a.pickup?.name ?? '').localeCompare(b.pickup?.name ?? '') ||
+      (a.dropoff?.name ?? '').localeCompare(b.dropoff?.name ?? '') ||
+      (a.max_passengers ?? 0) - (b.max_passengers ?? 0)))
     setDirty(new Set())
   }, [])
 
@@ -91,7 +94,7 @@ export default function AdminPrices() {
       max_passengers: parseInt(draft.maxPax) || 4,
       is_active: true,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'provider_id,pickup_location_id,dropoff_location_id' })
+    }, { onConflict: 'provider_id,pickup_location_id,dropoff_location_id,max_passengers' })
     setBusy(false)
     if (err) { setAddError(err.message); return }
     setDraft({ pickup: '', dropoff: '', priceEur: '', priceGbp: '', maxPax: '4' })
@@ -121,13 +124,13 @@ export default function AdminPrices() {
       updated_at: new Date().toISOString(),
     }).eq('id', id)
     setSavingId(null)
-    if (err) { setError(err.message); return }
+    if (err) { setError(err.code === '23505' ? 'This provider already has a price for that route with the same max pax.' : err.message); return }
     setDirty(prev => { const n = new Set(prev); n.delete(id); return n })
   }
 
   async function deleteRow(id: string) {
     const r = rows.find(x => x.id === id)
-    const label = r ? `${r.pickup?.name} → ${r.dropoff?.name}` : 'this route'
+    const label = r ? `${r.pickup?.name} → ${r.dropoff?.name} (up to ${r.max_passengers} pax)` : 'this route'
     if (!confirm(`Delete the price for ${label}?`)) return
     const { error: err } = await supabase.from('provider_route_prices').delete().eq('id', id)
     if (err) { setError(err.message); return }
@@ -217,7 +220,7 @@ export default function AdminPrices() {
       updated_at: new Date().toISOString(),
     }))
     const { error: err } = await supabase.from('provider_route_prices')
-      .upsert(payload, { onConflict: 'provider_id,pickup_location_id,dropoff_location_id' })
+      .upsert(payload, { onConflict: 'provider_id,pickup_location_id,dropoff_location_id,max_passengers' })
     setBusy(false)
     if (err) { setError(`Import failed: ${err.message}`); return }
     const skipped = preview.length - good.length
@@ -275,7 +278,7 @@ export default function AdminPrices() {
           <div style={card}>
             <p style={{fontSize:'10px', letterSpacing:'0.15em', color:'#f4b942', textTransform:'uppercase', marginBottom:'10px'}}>Import from Excel</p>
             <p style={{fontSize:'12px', color:'rgba(255,255,255,0.4)', marginBottom:'12px', lineHeight:1.6}}>
-              Use the dalaman-prices-import-template.xlsx file. Rows are matched on route, so importing a route that already exists updates it rather than creating a duplicate.
+              Use the dalaman-prices-import-template.xlsx file. Rows are matched on route + max passengers, so importing a route that already exists with the same max passengers updates it; a different max passengers adds another price tier.
             </p>
             <input type="file" accept=".xlsx,.xls" onChange={handleFile} disabled={!xlsxReady}
               style={{fontSize:'13px', color:'rgba(255,255,255,0.6)'}} />
@@ -350,7 +353,7 @@ export default function AdminPrices() {
             </div>
             {addError && <p style={{fontSize:'12px', color:'#f09595', marginTop:'10px'}}>{addError}</p>}
             <p style={{fontSize:'11px', color:'rgba(255,255,255,0.3)', marginTop:'10px'}}>
-              Prices are per directional trip. For instant return quotes, add the reverse route too.
+              Prices are per directional trip. For instant return quotes, add the reverse route too. The same route can have several prices with different max pax — we quote the cheapest that fits.
             </p>
           </div>
 
@@ -363,14 +366,14 @@ export default function AdminPrices() {
           ) : (
             <>
               <p style={{fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', margin:'18px 0 10px'}}>
-                {rows.length} route{rows.length === 1 ? '' : 's'} for {providerName}
+                {rows.length} price{rows.length === 1 ? '' : 's'} for {providerName}
               </p>
               {rows.map(r => {
                 const isDirty = dirty.has(r.id)
                 return (
                   <div key={r.id} style={card}>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px', flexWrap:'wrap', gap:'8px'}}>
-                      <div style={{fontSize:'15px', fontWeight:500}}>{r.pickup?.name} &rarr; {r.dropoff?.name}</div>
+                      <div style={{fontSize:'15px', fontWeight:500}}>{r.pickup?.name} &rarr; {r.dropoff?.name}<span style={{fontSize:'11px', fontWeight:400, color:'rgba(255,255,255,0.4)', marginLeft:'8px'}}>up to {r.max_passengers ?? 4} pax</span></div>
                       <label style={{display:'flex', alignItems:'center', gap:'6px', fontSize:'12px', color:'rgba(255,255,255,0.55)', cursor:'pointer'}}>
                         <input type="checkbox" checked={!!r.is_active} onChange={e => editRow(r.id, 'is_active', e.target.checked)} style={{accentColor:'#f4b942'}} />
                         {r.is_active ? 'Active' : 'Paused'}
