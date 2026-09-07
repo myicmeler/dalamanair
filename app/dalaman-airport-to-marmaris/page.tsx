@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/dalaman-airport-to-marmaris/' },
   openGraph: {
     type: 'website',
-    url: \`\${SITE_URL}/dalaman-airport-to-marmaris/\`,
+    url: SITE_URL + '/dalaman-airport-to-marmaris/',
     title: 'Dalaman Airport to Marmaris Transfer',
     description: 'Compare trusted local providers for your private Dalaman Airport to Marmaris transfer.',
     images: [{ url: '/logo.jpg', width: 512, height: 512, alt: 'dalaman.me private airport transfers' }],
