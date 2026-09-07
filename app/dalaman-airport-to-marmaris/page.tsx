@@ -4,21 +4,22 @@ import Link from 'next/link'
 const SITE_URL = 'https://dalaman.me'
 
 export const metadata: Metadata = {
-  title: 'Dalaman Airport to Marmaris Transfer',
+  title: 'Dalaman Airport to Marmaris Transfer & Return',
   description:
-    'Compare trusted private transfers from Dalaman Airport to Marmaris. Get quotes for Marmaris, Içmeler, Turunç, Datça, Fethiye, Ölüdeniz and more.',
+    'Compare trusted private transfers from Dalaman Airport to Marmaris, including return transfers from Marmaris to Dalaman Airport. Request quotes before you travel.',
   keywords: [
     'Dalaman Airport to Marmaris transfer',
     'Dalaman to Marmaris private transfer',
     'Marmaris airport transfer',
     'Dalaman Airport taxi Marmaris',
+    'Marmaris to Dalaman Airport return transfer',
     'Dalaman Airport transfers',
   ],
   alternates: { canonical: '/dalaman-airport-to-marmaris/' },
   openGraph: {
     type: 'website',
     url: SITE_URL + '/dalaman-airport-to-marmaris/',
-    title: 'Dalaman Airport to Marmaris Transfer',
+    title: 'Dalaman Airport to Marmaris Transfer & Return',
     description: 'Compare trusted local providers for your private Dalaman Airport to Marmaris transfer.',
     images: [{ url: '/logo.jpg', width: 512, height: 512, alt: 'dalaman.me private airport transfers' }],
   },
@@ -42,6 +43,10 @@ const airports = [
 ]
 
 const faq = [
+  {
+    question: 'Can I book a return transfer from Marmaris to Dalaman Airport?',
+    answer: 'Yes. Add a return journey when you request quotes so providers can price your arrival transfer and your Marmaris to Dalaman Airport journey together.',
+  },
   {
     question: 'How do I arrange a Dalaman Airport to Marmaris transfer?',
     answer: 'Tell us your journey details, compare offers from local transfer companies and choose the option that works for you before you travel.',
@@ -83,7 +88,7 @@ export default function DalamanToMarmarisPage() {
           Dalaman Airport to <span style={{ color: '#f4b942' }}>Marmaris transfers</span>
         </h1>
         <p style={{ maxWidth: 660, color: 'rgba(255,255,255,0.68)', fontSize: 17, lineHeight: 1.7, margin: '22px 0 30px' }}>
-          Compare trusted local providers for a private transfer from Dalaman Airport to Marmaris. Arrange your ride before you fly, then travel directly to your hotel without airport queues or on-the-day negotiation.
+          Compare trusted local providers for a private transfer from Dalaman Airport to Marmaris. Add your return from Marmaris to Dalaman Airport in the same quote request, then arrange both journeys before you fly.
         </p>
         <Link href="/quote/" style={{ display: 'inline-block', borderRadius: 6, padding: '14px 22px', background: '#f4b942', color: '#0f1419', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none' }}>
           Get transfer quotes
