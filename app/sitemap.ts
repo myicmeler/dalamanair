@@ -12,5 +12,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/help/`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_URL}/quote/`, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${SITE_URL}/search/`, changeFrequency: 'weekly', priority: 0.5 },
+    { url: `${SITE_URL}/dalaman-airport-to-marmaris/`, changeFrequency: 'weekly', priority: 0.9 },
   ]
 }
