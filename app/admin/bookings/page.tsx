@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { callFunction } from '@/lib/functions'
 
 // Currency symbol from the booking's own currency (backfilled from the linked quote).
 // Falls back to € for anything that isn't GBP.
@@ -22,6 +23,8 @@ export default function AdminBookings() {
   const [draft, setDraft] = useState({ flightNumber: '', hotelName: '', internalNotes: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{kind:'ok'|'err', text:string}|null>(null)
+  const [smsSending, setSmsSending] = useState<string|null>(null)
+  const [smsLog, setSmsLog] = useState<Record<string,{time:string, ok:boolean, error?:string}>>({})
 
   useEffect(() => {
     async function load() {
@@ -73,6 +76,31 @@ export default function AdminBookings() {
     setEditingId(null)
     setReq(null)
     setMsg(null)
+  }
+
+  async function sendReminderSms(b: any) {
+    const phone = b.source === 'manual' ? b.manual_customer_phone : b.customer_phone
+    if (!phone) return
+    setSmsSending(b.id)
+    try {
+      const customerName = b.source === 'manual' ? b.manual_customer_name : b.customer?.full_name
+      const res = await callFunction('send-sms', {
+        type: 'booking_reminder',
+        to: phone,
+        data: {
+          customerName: customerName || 'there',
+          providerName: b.provider?.company_name,
+          pickup: b.pickup?.name,
+          dropoff: b.dropoff?.name,
+          date: new Date(b.pickup_time).toLocaleDateString('en-GB', { day:'numeric', month:'short', timeZone:'UTC' }),
+          time: new Date(b.pickup_time).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone:'UTC' }),
+        }
+      })
+      const result = await res.json()
+      setSmsLog(prev => ({ ...prev, [b.id]: { time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}), ok: !!result.sent, error: result.error } }))
+      if (!result.sent) console.error('Booking SMS reminder failed:', result.error)
+    } catch (err) { console.error(err) }
+    setSmsSending(null)
   }
 
   async function save(b: any) {
@@ -205,12 +233,24 @@ export default function AdminBookings() {
                     {b.flight_number || 'not set'}
                   </span>
                 </div>
-                {editingId === b.id ? (
-                  <button onClick={closeEditor} style={{background:'none', border:'1px solid rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.5)', borderRadius:'5px', fontSize:'11px', padding:'5px 12px', cursor:'pointer'}}>Close</button>
-                ) : (
-                  <button onClick={() => openEditor(b)} style={{background:'none', border:'1px solid rgba(244,185,66,0.4)', color:'#f4b942', borderRadius:'5px', fontSize:'11px', padding:'5px 12px', cursor:'pointer'}}>Edit</button>
-                )}
+                <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                  {(b.status === 'confirmed' || b.status === 'driver_assigned') && (b.source === 'manual' ? b.manual_customer_phone : b.customer_phone) && (
+                    <button onClick={() => { if (confirm(`Send SMS reminder to ${b.source === 'manual' ? b.manual_customer_phone : b.customer_phone}?`)) sendReminderSms(b) }} disabled={smsSending===b.id} style={{background:'none', border:'1px solid rgba(29,158,117,0.4)', color:'#1D9E75', borderRadius:'5px', fontSize:'11px', padding:'5px 12px', cursor:smsSending===b.id?'not-allowed':'pointer'}}>
+                      {smsSending===b.id ? 'Sending...' : '📱 SMS reminder'}
+                    </button>
+                  )}
+                  {editingId === b.id ? (
+                    <button onClick={closeEditor} style={{background:'none', border:'1px solid rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.5)', borderRadius:'5px', fontSize:'11px', padding:'5px 12px', cursor:'pointer'}}>Close</button>
+                  ) : (
+                    <button onClick={() => openEditor(b)} style={{background:'none', border:'1px solid rgba(244,185,66,0.4)', color:'#f4b942', borderRadius:'5px', fontSize:'11px', padding:'5px 12px', cursor:'pointer'}}>Edit</button>
+                  )}
+                </div>
               </div>
+              {smsLog[b.id] && (
+                <p style={{fontSize:'11px', margin:'6px 0 0', color: smsLog[b.id].ok ? '#1D9E75' : '#f09595'}}>
+                  {smsLog[b.id].ok ? `✓ SMS sent at ${smsLog[b.id].time}` : `✕ SMS failed: ${smsLog[b.id].error || 'unknown error'}`}
+                </p>
+              )}
 
               {/* Editor */}
               {editingId === b.id && (
