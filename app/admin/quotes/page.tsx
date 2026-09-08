@@ -13,6 +13,8 @@ export default function AdminQuotes() {
   const [pushLog, setPushLog] = useState<Record<string,{sent:number,time:string}>>({})
   const [reminding, setReminding] = useState<string|null>(null)
   const [reminderLog, setReminderLog] = useState<Record<string,string>>({})
+  const [smsReminding, setSmsReminding] = useState<string|null>(null)
+  const [smsReminderLog, setSmsReminderLog] = useState<Record<string,{time:string, ok:boolean, error?:string}>>({})
   const [expanded, setExpanded] = useState<string|null>(null)
   const [editing, setEditing] = useState<string|null>(null)
   const [editForm, setEditForm] = useState<any>({})
@@ -167,6 +169,38 @@ export default function AdminQuotes() {
       }
     } catch (err) { console.error(err) }
     setReminding(null)
+  }
+
+  async function smsRemindCustomer(req: any) {
+    if (!req.contact_phone) return
+    setSmsReminding(req.id)
+    try {
+      const pendingCount = (req.quote_offers ?? []).filter((o:any) => o.status === 'pending').length
+      const res = await callFunction('send-sms', {
+        type: 'quote_reminder',
+        to: req.contact_phone,
+        data: {
+          customerName: req.customer?.full_name || 'there',
+          pickup: req.pickup?.name,
+          dropoff: req.dropoff?.name,
+          date: new Date(req.pickup_time).toLocaleDateString('en-GB', { day:'numeric', month:'short', timeZone:'UTC' }),
+          offerCount: pendingCount,
+        }
+      })
+      const result = await res.json()
+      setSmsReminderLog(prev => ({ ...prev, [req.id]: { time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}), ok: !!result.sent, error: result.error } }))
+      if (result.sent) {
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from('quote_status_history').insert({
+          quote_request_id: req.id, status: req.status,
+          changed_by: user?.id, changed_by_role: 'admin',
+          note: 'SMS reminder sent to customer — offers waiting'
+        })
+      } else {
+        console.error('SMS reminder failed:', result.error)
+      }
+    } catch (err) { console.error(err) }
+    setSmsReminding(null)
   }
 
   // Cancelling is NOT a plain status write. admin_cancel_quote_request() closes
@@ -410,6 +444,7 @@ export default function AdminQuotes() {
         const isEditing = editing === req.id
         const log = pushLog[req.id]
         const reminderTime = reminderLog[req.id]
+        const smsLog = smsReminderLog[req.id]
         const history = historyMap[req.id] ?? []
         const canEdit = req.status === 'open'
         const canRemind = req.status === 'open' && pendingCount > 0
@@ -613,6 +648,11 @@ export default function AdminQuotes() {
                       {reminding===req.id ? 'Sending...' : '📧 Remind customer'}
                     </button>
                   )}
+                  {canRemind && req.contact_phone && (
+                    <button onClick={() => { if (confirm(`Send SMS reminder to ${req.contact_phone}?`)) smsRemindCustomer(req) }} disabled={smsReminding===req.id} style={{padding:'7px 14px', background:'none', border:'1px solid rgba(29,158,117,0.4)', borderRadius:'5px', color:'#1D9E75', fontSize:'12px', cursor:smsReminding===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
+                      {smsReminding===req.id ? 'Sending...' : '📱 SMS reminder'}
+                    </button>
+                  )}
                   {req.status === 'open' && (
                     <button onClick={() => pushToProviders(req.id)} disabled={pushing===req.id} style={{padding:'7px 14px', backgroundColor:pushing===req.id?'rgba(244,185,66,0.3)':'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:pushing===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
                       {pushing===req.id?'Sending...':'📨 Push to providers'}
@@ -625,6 +665,9 @@ export default function AdminQuotes() {
                   )}
                   {log&&<span style={{fontSize:'12px', color:'#1D9E75'}}>✓ Sent to {log.sent} at {log.time}</span>}
                   {reminderTime&&<span style={{fontSize:'12px', color:'#6495ED'}}>✓ Reminder sent at {reminderTime}</span>}
+                  {smsLog&&(smsLog.ok
+                    ? <span style={{fontSize:'12px', color:'#1D9E75'}}>✓ SMS sent at {smsLog.time}</span>
+                    : <span style={{fontSize:'12px', color:'#f09595'}}>✕ SMS failed: {smsLog.error || 'unknown error'}</span>)}
                 </div>
               </div>
             )}
