@@ -6,6 +6,8 @@ import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 
 
+<script src="https://analytics.ahrefs.com/analytics.js" data-key="z2NyvChq+ptYV2uhN3XSkg" async></script>
+
 const labels = {
   en: {
     tag: 'Içmeler · Marmaris · Fethiye · Dalaman',
