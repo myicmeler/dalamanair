@@ -84,6 +84,9 @@ function QuoteContent() {
   const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
   const [phoneCountry, setPhoneCountry] = useState('GB')
   const [phoneNumber, setPhoneNumber] = useState('')
+  // Shared-transfer demand test (Sept 2026). Opt-in only; stored as
+  // quote_requests.willing_to_share and surfaced to admin for manual matching.
+  const [willingToShare, setWillingToShare] = useState(false)
   const [form, setForm] = useState({
     pickup: urlParams.get('pickup') ?? '', dropoff: urlParams.get('dropoff') ?? '',
     date: urlParams.get('date') ?? '', time: urlParams.get('time') ?? '14:00',
@@ -145,6 +148,7 @@ function QuoteContent() {
         flight_number: form.flightNumber.trim() || null, notes: form.notes || null, status: 'open',
         hotel_name: form.hotelName.trim() || null, contact_phone: phoneE164 || null,
         expires_at: pickupDateTime, currency,
+        willing_to_share: willingToShare,
         return_time: isReturn ? `${form.returnDate}T${form.returnTime}:00` : null,
         return_pickup_location_id: isReturn ? form.returnPickup || null : null,
         return_dropoff_location_id: isReturn ? form.returnDropoff || null : null,
@@ -418,7 +422,7 @@ function QuoteContent() {
               <input type="text" value={form.hotelName} onChange={e => setForm(p => ({ ...p, hotelName: e.target.value }))} placeholder="e.g. Marti Resort, Içmeler" style={inp} />
             </div>
 
-            <div>
+            <div style={{ marginBottom: '12px' }}>
               <label style={lbl}>Phone / WhatsApp</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <select aria-label="Country code" value={phoneCountry} onChange={e => setPhoneCountry(e.target.value)} style={{ ...inp, flex: '0 0 150px' }}>
@@ -432,6 +436,41 @@ function QuoteContent() {
                 <input type="tel" inputMode="numeric" autoComplete="tel-national" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="7700 900123" style={{ ...inp, flex: 1 }} />
               </div>
               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>Used by your driver on the day — WhatsApp ideal.</p>
+            </div>
+
+            {/* SHARED TRANSFER OPT-IN — demand test, Sept 2026. Whole box is
+                tappable (a bare checkbox was missed before). Nothing changes for
+                the customer at submit time; admin matches by hand and contacts
+                both parties over WhatsApp before anything is agreed. */}
+            <div
+              role="checkbox"
+              aria-checked={willingToShare}
+              tabIndex={0}
+              onClick={() => setWillingToShare(v => !v)}
+              onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setWillingToShare(v => !v) } }}
+              style={{
+                display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none',
+                padding: '14px', borderRadius: '6px',
+                border: `2px solid ${willingToShare ? '#f4b942' : 'rgba(255,255,255,0.1)'}`,
+                backgroundColor: willingToShare ? 'rgba(244,185,66,0.1)' : 'rgba(255,255,255,0.03)',
+                transition: 'all 0.15s',
+              }}
+            >
+              <div style={{
+                flex: '0 0 22px', width: '22px', height: '22px', borderRadius: '4px', marginTop: '1px',
+                border: `2px solid ${willingToShare ? '#f4b942' : 'rgba(255,255,255,0.3)'}`,
+                backgroundColor: willingToShare ? '#f4b942' : 'transparent',
+                color: '#0f1419', fontSize: '14px', fontWeight: '700',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{willingToShare ? '✓' : ''}</div>
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: '500', color: willingToShare ? '#f4b942' : '#ffffff', margin: '0 0 4px' }}>
+                  Happy to share my transfer with other travellers
+                </p>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6', margin: 0 }}>
+                  Optional. If another group is heading the same way at a similar time, we may suggest a shared vehicle at a lower price. We'll always ask you first — you can say no.
+                </p>
+              </div>
             </div>
           </div>
 
