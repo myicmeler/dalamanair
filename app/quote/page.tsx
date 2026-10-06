@@ -1,10 +1,11 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Nav from '@/components/ui/Nav'
 import { createClient } from '@/lib/supabase'
 import { callFunction } from '@/lib/functions'
+import { readQuoteDraft, saveQuoteDraft, clearQuoteDraft } from '@/lib/quote-draft'
 
 // ---- Country dial codes for the Phone / WhatsApp field ----
 type DialCode = { iso: string; name: string; dial: string; flag: string }
@@ -80,6 +81,10 @@ function QuoteContent() {
   const [locations, setLocations] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [restoredDraft, setRestoredDraft] = useState(false)
+  const requestId = useRef<string | null>(null)
+  const submittingRef = useRef(false)
   const [isReturn, setIsReturn] = useState((urlParams.get('tripType') ?? 'oneway') === 'return')
   const [currency, setCurrency] = useState<'EUR'|'GBP'>('EUR')
   const [phoneCountry, setPhoneCountry] = useState('GB')
@@ -99,6 +104,21 @@ function QuoteContent() {
   })
 
   useEffect(() => {
+    if (urlParams.get('resume') === '1') {
+      try {
+        const draft = readQuoteDraft(window.sessionStorage)
+        if (draft) {
+          setForm(current => Object.fromEntries(Object.entries(current).map(([key, value]) => [key, draft.form[key] ?? value])) as typeof current)
+          setIsReturn(draft.isReturn)
+          setCurrency(draft.currency)
+          setPhoneCountry(draft.phoneCountry)
+          setPhoneNumber(draft.phoneNumber)
+          setWillingToShare(draft.willingToShare)
+          requestId.current = draft.requestId
+          setRestoredDraft(true)
+        }
+      } catch { /* A browser may block session storage entirely. */ }
+    }
     supabase.from('locations').select('*').eq('is_active', true).order('name')
       .then(({ data }: any) => { if (data) setLocations(data) })
   }, [])
@@ -136,12 +156,32 @@ function QuoteContent() {
     && !returnBeforeOutbound
 
   async function handleSubmit() {
+    if (submittingRef.current || !canSubmit) return
+    submittingRef.current = true
     setSubmitting(true)
+    setSubmitError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/signin/?redirect=/quote/'); return }
+      requestId.current ??= crypto.randomUUID()
+      let draftSaved = false
+      try {
+        draftSaved = saveQuoteDraft(window.sessionStorage, {
+          form, isReturn, currency, phoneCountry, phoneNumber, willingToShare,
+          requestId: requestId.current,
+        })
+      } catch { /* Accessing sessionStorage itself may throw. */ }
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError && authError.name !== 'AuthSessionMissingError') throw authError
+      if (!user) {
+        if (!draftSaved) {
+          setSubmitError('Your browser could not save your trip details. Please sign in in another tab, then return here and try again.')
+          return
+        }
+        router.push(`/auth/signin/?redirect=${encodeURIComponent('/quote/?resume=1')}`)
+        return
+      }
       const pickupDateTime = `${form.date}T${form.time}:00`
-      const { data: request, error } = await supabase.from('quote_requests').insert({
+      const { data: insertedRequest, error } = await supabase.from('quote_requests').insert({
+        id: requestId.current,
         customer_id: user.id, pickup_location_id: form.pickup, dropoff_location_id: form.dropoff,
         pickup_time: pickupDateTime, passengers: parseInt(form.passengers),
         luggage: parseInt(form.luggage), trip_type: isReturn ? 'return' : 'oneway',
@@ -157,9 +197,16 @@ function QuoteContent() {
         return_flight_number: isReturn ? form.returnFlightNumber.trim() || null : null,
         return_notes: isReturn ? form.returnNotes || null : null,
       }).select().single()
-      if (error || !request) throw error
-
-      await callFunction('notify-providers', { requestId: request.id })
+      if (error || !insertedRequest) {
+        // Recover an insert whose response was lost without creating a duplicate.
+        const { data: existing } = await supabase.from('quote_requests').select('id')
+          .eq('id', requestId.current).eq('customer_id', user.id).maybeSingle()
+        if (!existing) throw error ?? new Error('Could not confirm the saved request')
+      }
+      // Provider jobs are queued by the database in the same transaction.
+      // Delivery and retries do not depend on this browser tab.
+      setSubmitted(true)
+      try { clearQuoteDraft(window.sessionStorage) } catch { /* Storage blocked. */ }
 
       // Confirm to the customer that the request was received.
       //
@@ -190,9 +237,13 @@ function QuoteContent() {
         })
       } catch (e) { console.error('quote-submitted email error:', e) }
 
-      setSubmitted(true)
-    } catch (err) { console.error(err) }
-    setSubmitting(false)
+    } catch (err) {
+      console.error('Quote submission failed:', err)
+      setSubmitError('We could not confirm that your quote request was saved. Your details are still here. Please try again; retrying will not create a duplicate request. If this continues, contact post@dalaman.me.')
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
   }
 
   const inp = { width: '100%', fontSize: '16px', padding: '13px 12px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', color: '#ffffff', outline: 'none', boxSizing: 'border-box' as const, colorScheme: 'dark' as any }
@@ -207,7 +258,7 @@ function QuoteContent() {
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(244,185,66,0.15)', border: '1px solid rgba(244,185,66,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: '28px' }}>✓</div>
           <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '10px' }}>Request sent</p>
           <h1 style={{ fontSize: '26px', fontWeight: '500', color: '#ffffff', marginBottom: '10px' }}>Quote request submitted</h1>
-          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>All approved providers have been notified. You will receive an email each time a provider submits an offer.</p>
+          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>Your request is saved. Provider notifications are queued for delivery, and failed deliveries will be retried automatically. You will receive an email each time a provider submits an offer.</p>
           {/* ADDED: time-accuracy confirmation line */}
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', lineHeight: '1.6' }}>The dates and times you entered are used <strong style={{ color: 'rgba(255,255,255,0.7)' }}>exactly as submitted</strong>. Please review them in your quotes — if anything needs changing, contact us to correct it.</p>
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '20px' }}>Prices are hidden until a provider responds.</p>
@@ -269,6 +320,7 @@ function QuoteContent() {
           <p style={{ fontSize: '11px', letterSpacing: '0.2em', color: '#f4b942', textTransform: 'uppercase', marginBottom: '8px' }}>Free · No obligation</p>
           <h1 style={{ fontSize: 'clamp(22px,5vw,28px)', fontWeight: '500', color: '#ffffff', marginBottom: '6px' }}>Request a quote</h1>
           <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: '1.6' }}>Providers respond with their best price. Pay your driver directly on transfer day.</p>
+          {restoredDraft && <p role="status" style={{ color: '#f4b942', fontSize: '14px', marginBottom: '16px' }}>Your trip details have been restored. Review them and submit when ready.</p>}
 
           {/* CURRENCY SELECTOR */}
           <div style={{ marginBottom: '12px' }}>
@@ -474,6 +526,7 @@ function QuoteContent() {
             </div>
           </div>
 
+          {submitError && <div role="alert" style={{ background: 'rgba(162,45,45,0.2)', border: '1px solid #e53e3e', borderRadius: '6px', padding: '14px', color: '#f09595', fontSize: '14px', lineHeight: '1.6', marginBottom: '14px' }}>{submitError}</div>}
           <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{ width: '100%', backgroundColor: canSubmit ? '#f4b942' : 'rgba(244,185,66,0.3)', color: canSubmit ? '#0f1419' : 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', padding: '16px', borderRadius: '6px', border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
             {submitting ? 'Sending...' : 'Request quotes →'}
           </button>

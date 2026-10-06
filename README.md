@@ -86,3 +86,20 @@ lib/
 types/
   database.ts       ← TypeScript types
 ```
+
+## Quote submission and provider notifications
+
+Quote details are saved temporarily in the original browser tab during sign-in
+and signup, then restored for review. Submission errors keep the form intact;
+retries use the same request ID to avoid creating a duplicate quote.
+
+Provider email jobs are queued by a database trigger when a quote is inserted.
+A scheduled Edge Function delivers them and retries failures independently of
+the customer's browser. **Apply the queue migration and configure its worker
+before deploying the updated frontend.** Follow the deployment order and
+verification steps in
+[the worker README](supabase/functions/provider-notification-worker/README.md).
+
+Run regression tests with `npm test` on Node.js 22.18 or later. They use an
+isolated PostgreSQL engine and mocked email delivery. The worker README also
+describes the browser regression command, `npm run test:browser`.

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase'
+import { safeRedirect } from '@/lib/auth-redirect'
 
 const S = {
   page: { minHeight:'100vh', background:'#0f1419', display:'flex' as const, flexDirection:'column' as const, alignItems:'center' as const, justifyContent:'center' as const, padding:'24px 16px', boxSizing:'border-box' as const },
@@ -22,12 +23,7 @@ function SignInContent() {
   // Only honour same-origin relative paths. An absolute URL (https://evil.com)
   // or a protocol-relative one (//evil.com) would turn ?redirect= into an open
   // redirect, so anything that isn't a plain "/path" falls back to the home page.
-  const redirect = (() => {
-    try {
-      const d = decodeURIComponent(params.get('redirect') ?? '/')
-      return d.startsWith('/') && !d.startsWith('//') && !d.startsWith('/\\') ? d : '/'
-    } catch { return '/' }
-  })()
+  const redirect = safeRedirect(params.get('redirect'))
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }: any) => {
@@ -72,7 +68,7 @@ function SignInContent() {
         <h1 style={{fontSize:'22px', fontWeight:500, color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>Sign in</h1>
         <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 24px'}}>
           New here?{' '}
-          <Link href="/auth/signup/" style={{color:'#f4b942', textDecoration:'none', fontWeight:500}}>Create an account</Link>
+          <Link href={`/auth/signup/?redirect=${encodeURIComponent(redirect)}`} style={{color:'#f4b942', textDecoration:'none', fontWeight:500}}>Create an account</Link>
         </p>
 
         <div style={{marginBottom:'16px'}}>

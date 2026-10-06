@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase'
+import { safeRedirect } from '@/lib/auth-redirect'
 
 const S = {
   page: { minHeight:'100vh', background:'#0f1419', display:'flex' as const, flexDirection:'column' as const, alignItems:'center' as const, justifyContent:'center' as const, padding:'24px 16px', boxSizing:'border-box' as const },
@@ -103,6 +104,12 @@ export default function SignUpPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [redirect, setRedirect] = useState('/')
+  // Keep the quote destination when customers create an account from sign-in.
+  // Read browser search params after mounting so this page remains prerenderable.
+  useEffect(() => {
+    setRedirect(safeRedirect(new URLSearchParams(window.location.search).get('redirect')))
+  }, [])
 
   // Title-case each word but keep letters after an apostrophe or hyphen capital
   // (O'Reilly, Anne-Marie). A plain toUpperCase-first-letter would give O'reilly.
@@ -149,7 +156,7 @@ export default function SignUpPage() {
         email: form.email, password: form.password,
         options: {
           data:{ full_name: fullName, phone: phoneE164 || null },
-          emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/welcome/' : '/'}`,
+          emailRedirectTo: `${window.location.origin}${isProvider ? '/provider/welcome/' : redirect}`,
         }
       })
       if (authErr) { setError(authErr.message); setLoading(false); return }
@@ -184,7 +191,7 @@ export default function SignUpPage() {
       }
 
       if (data.session) {
-        router.replace(isProvider ? '/provider/welcome/' : '/')
+        router.replace(isProvider ? '/provider/welcome/' : redirect)
       } else {
         setSuccess(true)
       }
@@ -207,7 +214,7 @@ export default function SignUpPage() {
           Once you're logged in, you can start receiving quote requests from customers.
         </p>
       )}
-      <Link href="/auth/signin/" style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>← Back to sign in</Link>
+      <Link href={`/auth/signin/?redirect=${encodeURIComponent(redirect)}`} style={{fontSize:'13px', color:'rgba(255,255,255,0.4)', textDecoration:'underline'}}>← Back to sign in</Link>
     </div>
   )
 
@@ -222,7 +229,7 @@ export default function SignUpPage() {
         <h1 style={{fontSize:'22px', fontWeight:500, color:'#ffffff', textAlign:'center', margin:'0 0 6px'}}>Create account</h1>
         <p style={{fontSize:'14px', color:'rgba(255,255,255,0.4)', textAlign:'center', margin:'0 0 24px'}}>
           Already have one?{' '}
-          <Link href="/auth/signin/" style={{color:'#f4b942', textDecoration:'none', fontWeight:500}}>Sign in</Link>
+          <Link href={`/auth/signin/?redirect=${encodeURIComponent(redirect)}`} style={{color:'#f4b942', textDecoration:'none', fontWeight:500}}>Sign in</Link>
         </p>
 
         <div style={{display:'flex', flexDirection:'column', gap:'16px'}}>

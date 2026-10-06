@@ -10,7 +10,7 @@ export default function AdminQuotes() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all'|'open'|'accepted'|'expired'|'cancelled'>('all')
   const [pushing, setPushing] = useState<string|null>(null)
-  const [pushLog, setPushLog] = useState<Record<string,{sent:number,time:string}>>({})
+  const [pushLog, setPushLog] = useState<Record<string,{queued:number,time:string,error?:string}>>({})
   const [reminding, setReminding] = useState<string|null>(null)
   const [reminderLog, setReminderLog] = useState<Record<string,string>>({})
   const [smsReminding, setSmsReminding] = useState<string|null>(null)
@@ -353,8 +353,11 @@ export default function AdminQuotes() {
     try {
       const res = await callFunction('notify-providers', { requestId })
       const result = await res.json()
-      setPushLog(prev => ({ ...prev, [requestId]: { sent: result.sent ?? 0, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) } }))
-    } catch (err) { console.error(err) }
+      setPushLog(prev => ({ ...prev, [requestId]: { queued: result.queued ?? 0, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) } }))
+    } catch (err) {
+      console.error(err)
+      setPushLog(prev => ({ ...prev, [requestId]: { queued: 0, time: '', error: 'Could not queue notifications. Please try again.' } }))
+    }
     setPushing(null)
   }
 
@@ -655,7 +658,7 @@ export default function AdminQuotes() {
                   )}
                   {req.status === 'open' && (
                     <button onClick={() => pushToProviders(req.id)} disabled={pushing===req.id} style={{padding:'7px 14px', backgroundColor:pushing===req.id?'rgba(244,185,66,0.3)':'#f4b942', color:'#0f1419', border:'none', borderRadius:'5px', fontSize:'12px', fontWeight:'600', cursor:pushing===req.id?'not-allowed':'pointer', fontFamily:'inherit'}}>
-                      {pushing===req.id?'Sending...':'📨 Push to providers'}
+                      {pushing===req.id?'Queuing...':'📨 Push to providers'}
                     </button>
                   )}
                   {canDelete && (
@@ -663,7 +666,7 @@ export default function AdminQuotes() {
                       {deleting===req.id ? 'Deleting...' : '🗑 Delete permanently'}
                     </button>
                   )}
-                  {log&&<span style={{fontSize:'12px', color:'#1D9E75'}}>✓ Sent to {log.sent} at {log.time}</span>}
+                  {log&&<span role={log.error ? 'alert' : 'status'} style={{fontSize:'12px', color:log.error ? '#f09595' : '#1D9E75'}}>{log.error || `✓ Queued for ${log.queued} providers at ${log.time}`}</span>}
                   {reminderTime&&<span style={{fontSize:'12px', color:'#6495ED'}}>✓ Reminder sent at {reminderTime}</span>}
                   {smsLog&&(smsLog.ok
                     ? <span style={{fontSize:'12px', color:'#1D9E75'}}>✓ SMS sent at {smsLog.time}</span>

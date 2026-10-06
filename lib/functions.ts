@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase'
+import { requireFunctionSuccess } from '@/lib/function-response'
 
 /**
  * Invoke a Supabase Edge Function authenticated as the *signed-in user*.
@@ -14,7 +15,7 @@ export async function callFunction(
   init?: { method?: string },
 ): Promise<Response> {
   const { data: { session } } = await createClient().auth.getSession()
-  return fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${path}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${path}`, {
     method: init?.method ?? 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -23,4 +24,5 @@ export async function callFunction(
     },
     body: JSON.stringify(body),
   })
+  return requireFunctionSuccess(response)
 }

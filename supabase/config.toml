@@ -1,0 +1,6 @@
+project_id = "dalamanair"
+
+# The worker accepts only a server secret and performs its own authentication.
+# This supports Supabase's current non-JWT secret keys used by pg_cron.
+[functions.provider-notification-worker]
+verify_jwt = false
