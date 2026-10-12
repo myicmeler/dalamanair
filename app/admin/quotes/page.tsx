@@ -145,15 +145,31 @@ export default function AdminQuotes() {
     setReminding(req.id)
     try {
       const pendingCount = (req.quote_offers ?? []).filter((o:any) => o.status === 'pending').length
+      // pickup_time / return_time are Turkish local time stored with a UTC
+      // label, so timeZone:'UTC' echoes them back exactly as entered.
+      const fmtDate = (t: string) => new Date(t).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'UTC' }).replace(',', '')
+      const fmtTime = (t: string) => new Date(t).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone:'UTC' })
+      const isReturn = req.trip_type === 'return' && !!req.return_time
       const res = await callFunction('send-email', {
         type: 'offers_waiting_reminder',
         to: req.customer?.email,
         data: {
-          customerName: req.customer?.full_name || 'Customer',
+          customerName: req.customer?.full_name || '',
           pickup: req.pickup?.name,
           dropoff: req.dropoff?.name,
-          date: new Date(req.pickup_time).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'UTC' }),
+          date: fmtDate(req.pickup_time),
+          time: fmtTime(req.pickup_time),
+          flightNumber: req.flight_number || undefined,
+          passengers: req.passengers,
           offerCount: pendingCount,
+          ...(isReturn ? {
+            tripType: 'return',
+            returnPickup: req.return_pickup?.name,
+            returnDropoff: req.return_dropoff?.name,
+            returnDate: fmtDate(req.return_time),
+            returnTime: fmtTime(req.return_time),
+            returnFlightNumber: req.return_flight_number || undefined,
+          } : {}),
           quotesUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://dalaman.me'}/quotes/`,
         }
       })
